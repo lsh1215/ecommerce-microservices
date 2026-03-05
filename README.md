@@ -1,5 +1,7 @@
 # E-Commerce Order Platform
 
+[English](README.md) | [한국어](README-ko.md) | [中文](README-zh.md)
+
 A backend-focused e-commerce platform designed to experience the journey from **monolith to microservices**. Starting as a single Spring Boot application, this project will evolve through load testing, async messaging, service decomposition, and full observability — with measurable data at every step.
 
 ![Java](https://img.shields.io/badge/Java_21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
@@ -207,4 +209,4 @@ ecommerce-microservices/
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](LICENSE).
