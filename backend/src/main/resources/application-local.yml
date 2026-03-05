@@ -1,8 +1,8 @@
 spring:
   datasource:
     url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:ecommerce}
-    username: ${DB_USERNAME:ecommerce}
-    password: ${DB_PASSWORD:ecommerce}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
