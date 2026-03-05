@@ -1,0 +1,111 @@
+# === Java / Spring Boot ===
+*.class
+*.jar
+*.war
+*.ear
+*.logs
+*.log
+hs_err_pid*
+replay_pid*
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Maven (if used)
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# === IDE ===
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.factorypath
+bin/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === Environment ===
+.env
+.env.*
+!.env.example
+!.env.sample
+*.env
+!*.env.example
+!*.env.sample
+
+# === Node / Frontend ===
+node_modules/
+dist/
+.next/
+.nuxt/
+.output/
+.cache/
+*.tsbuildinfo
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Monitoring / Data ===
+grafana-data/
+prometheus-data/
+es-data/
+kafka-data/
+postgres-data/
+
+# === Test / Coverage ===
+coverage/
+*.lcov
+test-results/
+k6-results/
+
+# === AI Artifacts (AI 티 배제) ===
+.claude/
+.omc/
+.cursor/
+.copilot/
+.aider*
+.codeium/
+.continue/
+.tabby/
+.supermaven/
+AGENTS.md
+msa-kafka-es-project-guide.md
+
+# Prompt / AI conversation logs
+*.prompt
+*.conversation
+.prompts/
+.ai/
+
+# === Project Internal Docs ===
+docs/PRD.md
+docs/README-msa.md
+docs/subagent-candidates.md
+
+# === Misc ===
+*.bak
+*.tmp
+*.temp
+*.orig
+logs/
+tmp/
