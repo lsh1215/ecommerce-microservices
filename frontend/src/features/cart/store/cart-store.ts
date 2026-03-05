@@ -38,7 +38,7 @@ export const useCartStore = create<CartStore>()(
           const existing = state.items.find((i) => i.productId === product.productId);
           const items = existing
             ? state.items.map((i) =>
-                i.productId === product.productId ? { ...i, quantity: i.quantity + quantity } : i
+                i.productId === product.productId ? { ...i, quantity: i.quantity + quantity } : i,
               )
             : [...state.items, { ...product, quantity }];
           return { items, ...recalculate(items) };
@@ -64,6 +64,6 @@ export const useCartStore = create<CartStore>()(
     {
       name: 'cart-storage',
       storage: createJSONStorage(() => localStorage),
-    }
-  )
+    },
+  ),
 );

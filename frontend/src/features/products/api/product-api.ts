@@ -11,5 +11,7 @@ export const ProductAPI = {
   detail: (id: string) => apiClient.get<Product>(`/api/v1/products/${id}`),
 
   search: (keyword: string) =>
-    apiClient.get<PageResponse<Product>>(`/api/v1/products/search?keyword=${encodeURIComponent(keyword)}`),
+    apiClient.get<PageResponse<Product>>(
+      `/api/v1/products/search?keyword=${encodeURIComponent(keyword)}`,
+    ),
 };
