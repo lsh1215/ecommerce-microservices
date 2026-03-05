@@ -1,56 +1,47 @@
 package com.ecommerce.common.exception;
 
 import com.ecommerce.common.dto.ApiResponse;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
-/**
- * Global exception handler for all REST controllers.
- * Maps exceptions to standardized ApiResponse error responses.
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /**
-     * Handles EntityNotFoundException -> HTTP 404.
-     */
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleEntityNotFoundException(EntityNotFoundException ex) {
         log.warn("Entity not found: {}", ex.getMessage());
-        ApiResponse<Void> response = ApiResponse.error(ex.getErrorCode().getCode(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        return buildErrorResponse(ErrorCode.ENTITY_NOT_FOUND, ex.getMessage());
     }
 
-    /**
-     * Handles BusinessException -> HTTP status derived from ErrorCode.
-     */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException ex) {
         ErrorCode errorCode = ex.getErrorCode();
-        int status = errorCode.getHttpStatus();
-        if (status >= 500) {
+        if (errorCode.getHttpStatus().is5xxServerError()) {
             log.error("Business exception: {}", ex.getMessage(), ex);
         } else {
             log.warn("Business exception: {}", ex.getMessage());
         }
-        ApiResponse<Void> response = ApiResponse.error(errorCode.getCode(), ex.getMessage());
-        return ResponseEntity.status(status).body(response);
+        return buildErrorResponse(errorCode, ex.getMessage());
     }
 
-    /**
-     * Handles validation errors from @Valid annotations -> HTTP 400.
-     * Aggregates all field errors into a single message.
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValidException(
             MethodArgumentNotValidException ex) {
@@ -60,20 +51,73 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
         log.warn("Validation failed: {}", fieldErrors);
-        ApiResponse<Void> response = ApiResponse.error(
-                ErrorCode.INVALID_INPUT.getCode(),
-                fieldErrors.isBlank() ? ErrorCode.INVALID_INPUT.getMessage() : fieldErrors
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        return buildErrorResponse(ErrorCode.INVALID_INPUT,
+                fieldErrors.isBlank() ? ErrorCode.INVALID_INPUT.getMessage() : fieldErrors);
     }
 
-    /**
-     * Fallback handler for all unhandled exceptions -> HTTP 500.
-     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolation(ConstraintViolationException ex) {
+        String violations = ex.getConstraintViolations().stream()
+                .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                .collect(Collectors.joining(", "));
+        log.warn("Constraint violation: {}", violations);
+        return buildErrorResponse(ErrorCode.INVALID_INPUT, violations);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Malformed request body: {}", ex.getMostSpecificCause().getMessage());
+        return buildErrorResponse(ErrorCode.INVALID_INPUT, "Malformed request body");
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParameter(MissingServletRequestParameterException ex) {
+        log.warn("Missing parameter: {}", ex.getParameterName());
+        return buildErrorResponse(ErrorCode.INVALID_INPUT,
+                "Required parameter '" + ex.getParameterName() + "' is missing");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        log.warn("Type mismatch for parameter '{}': {}", ex.getName(), ex.getValue());
+        String requiredType = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
+        return buildErrorResponse(ErrorCode.INVALID_INPUT,
+                "Parameter '" + ex.getName() + "' must be of type " + requiredType);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        log.warn("Method not supported: {}", ex.getMethod());
+        HttpHeaders headers = new HttpHeaders();
+        if (ex.getSupportedHttpMethods() != null) {
+            headers.setAllow(ex.getSupportedHttpMethods());
+        }
+        ApiResponse<Void> response = ApiResponse.error(ErrorCode.METHOD_NOT_ALLOWED.getCode(),
+                "Method '" + ex.getMethod() + "' not supported");
+        return new ResponseEntity<>(response, headers, HttpStatus.METHOD_NOT_ALLOWED);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        log.warn("Media type not supported: {}", ex.getContentType());
+        return buildErrorResponse(ErrorCode.UNSUPPORTED_MEDIA_TYPE, ex.getMessage());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFound(NoResourceFoundException ex) {
+        log.warn("No resource found: {}", ex.getResourcePath());
+        return buildErrorResponse(ErrorCode.ENTITY_NOT_FOUND,
+                "No endpoint found for " + ex.getResourcePath());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception ex) {
         log.error("Unhandled exception: {}", ex.getMessage(), ex);
-        ApiResponse<Void> response = ApiResponse.error(ErrorCode.INTERNAL_ERROR);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        return buildErrorResponse(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.getMessage());
+    }
+
+    private ResponseEntity<ApiResponse<Void>> buildErrorResponse(ErrorCode errorCode, String message) {
+        ApiResponse<Void> response = ApiResponse.error(errorCode.getCode(), message);
+        return ResponseEntity.status(errorCode.getHttpStatus()).body(response);
     }
 }

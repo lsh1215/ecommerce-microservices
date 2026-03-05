@@ -72,6 +72,24 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error.code").value("C003"));
     }
 
+    @Test
+    void malformedJson_shouldReturn400() throws Exception {
+        mockMvc.perform(post("/test/validation")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{invalid json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("C001"));
+    }
+
+    @Test
+    void methodNotAllowed_shouldReturn405() throws Exception {
+        mockMvc.perform(post("/test/business-exception"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("C007"));
+    }
+
     // Inner test controller that triggers each exception type
     @RestController
     static class TestController {

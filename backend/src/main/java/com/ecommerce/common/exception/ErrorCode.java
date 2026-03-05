@@ -1,23 +1,41 @@
 package com.ecommerce.common.exception;
 
-/**
- * Enum of application-level error codes.
- * Each entry maps to a unique code string, human-readable message, and HTTP status.
- */
+import org.springframework.http.HttpStatus;
+
 public enum ErrorCode {
 
-    INVALID_INPUT("C001", "Invalid input", 400),
-    ENTITY_NOT_FOUND("C002", "Entity not found", 404),
-    INTERNAL_ERROR("C003", "Internal server error", 500),
-    UNAUTHORIZED("C004", "Unauthorized", 401),
-    FORBIDDEN("C005", "Forbidden", 403),
-    DUPLICATE_ENTITY("C006", "Duplicate entity", 409);
+    // 400 Bad Request
+    INVALID_INPUT("C001", "Invalid input", HttpStatus.BAD_REQUEST),
+
+    // 401 Unauthorized
+    UNAUTHORIZED("C004", "Unauthorized", HttpStatus.UNAUTHORIZED),
+
+    // 403 Forbidden
+    FORBIDDEN("C005", "Forbidden", HttpStatus.FORBIDDEN),
+
+    // 404 Not Found
+    ENTITY_NOT_FOUND("C002", "Entity not found", HttpStatus.NOT_FOUND),
+
+    // 405 Method Not Allowed
+    METHOD_NOT_ALLOWED("C007", "Method not allowed", HttpStatus.METHOD_NOT_ALLOWED),
+
+    // 409 Conflict
+    DUPLICATE_ENTITY("C006", "Duplicate entity", HttpStatus.CONFLICT),
+
+    // 413 Payload Too Large
+    PAYLOAD_TOO_LARGE("C008", "Payload too large", HttpStatus.PAYLOAD_TOO_LARGE),
+
+    // 415 Unsupported Media Type
+    UNSUPPORTED_MEDIA_TYPE("C009", "Unsupported media type", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
+
+    // 500 Internal Server Error
+    INTERNAL_ERROR("C003", "Internal server error", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final String code;
     private final String message;
-    private final int httpStatus;
+    private final HttpStatus httpStatus;
 
-    ErrorCode(String code, String message, int httpStatus) {
+    ErrorCode(String code, String message, HttpStatus httpStatus) {
         this.code = code;
         this.message = message;
         this.httpStatus = httpStatus;
@@ -31,7 +49,7 @@ public enum ErrorCode {
         return message;
     }
 
-    public int getHttpStatus() {
+    public HttpStatus getHttpStatus() {
         return httpStatus;
     }
 }
