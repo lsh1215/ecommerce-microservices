@@ -1,0 +1,38 @@
+name: Infra CI
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - 'monitoring/**'
+      - '.github/workflows/ci-infra.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate infra/docker-compose.yml
+        run: docker compose -f infra/docker-compose.yml config --quiet
+
+      - name: Validate infra/docker-compose.prod.yml
+        run: docker compose -f infra/docker-compose.prod.yml config --quiet
+        env:
+          DOMAIN: ci.example.com
+          ACME_EMAIL: ci@example.com
+          TRAEFIK_DASHBOARD_AUTH: dummy
+          DB_ROOT_PASSWORD: dummy
+          DB_USERNAME: dummy
+          DB_PASSWORD: dummy
+
+      - name: Validate monitoring/docker-compose.observability.yml
+        run: docker compose -f monitoring/docker-compose.observability.yml config --quiet

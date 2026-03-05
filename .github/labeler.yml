@@ -1,0 +1,38 @@
+area/backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - backend/**
+
+area/frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - frontend/**
+
+area/infra:
+  - changed-files:
+      - any-glob-to-any-file:
+          - infra/**
+
+area/monitoring:
+  - changed-files:
+      - any-glob-to-any-file:
+          - monitoring/**
+
+area/docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**
+
+area/ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - backend/build.gradle
+          - backend/settings.gradle
+          - backend/gradle/**
+          - frontend/package.json
+          - frontend/package-lock.json
