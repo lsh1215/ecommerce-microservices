@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { ShoppingBag, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import type { Product } from '@/types';
 import { DropStatusBadge } from './DropStatusBadge';
 import { CurrencyPrice } from './CurrencyPrice';
@@ -24,8 +24,6 @@ export function DropProductCard({ product, dropStatus }: DropProductCardProps) {
   const totalStock = product.sizes.reduce((sum, s) => sum + s.stock, 0);
   const isSoldOut = totalStock === 0;
   const isLowStock = !isSoldOut && totalStock <= 3;
-  const availableSizes = product.sizes.filter((s) => s.stock > 0);
-
   const handleQuickAdd = (sizeLabel: string) => {
     const size = product.sizes.find((s) => s.label === sizeLabel);
     if (!size || size.stock === 0) {

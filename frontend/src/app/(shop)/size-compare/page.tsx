@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { mockProducts, mockBrands } from '@/mocks';
-import type { Product, Measurements } from '@/types';
+import type { Measurements } from '@/types';
 
 const MEASUREMENT_KEYS: (keyof Measurements)[] = [
   'chest',

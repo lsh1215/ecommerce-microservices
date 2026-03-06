@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 interface CountdownTimerProps {
   targetDate: string;
@@ -34,23 +34,50 @@ function pad(n: number) {
   return String(n).padStart(2, '0');
 }
 
+const emptySubscribe = () => () => {};
+
 export function CountdownTimer({ targetDate, onExpire, className = '' }: CountdownTimerProps) {
-  const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
+  const onExpireRef = useRef(onExpire);
+  const timeLeftRef = useRef<TimeLeft>(computeTimeLeft(targetDate));
 
   useEffect(() => {
-    setTimeLeft(computeTimeLeft(targetDate));
-    const interval = setInterval(() => {
-      const next = computeTimeLeft(targetDate);
-      setTimeLeft(next);
-      if (next.expired) {
-        clearInterval(interval);
-        onExpire?.();
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [targetDate, onExpire]);
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
-  if (!timeLeft) return null;
+  const getSnapshot = useCallback(() => {
+    const next = computeTimeLeft(targetDate);
+    const prev = timeLeftRef.current;
+    if (
+      next.days !== prev.days ||
+      next.hours !== prev.hours ||
+      next.minutes !== prev.minutes ||
+      next.seconds !== prev.seconds
+    ) {
+      timeLeftRef.current = next;
+    }
+    return timeLeftRef.current;
+  }, [targetDate]);
+
+  const timeLeft = useSyncExternalStore(
+    useCallback((notify: () => void) => {
+      const id = setInterval(() => {
+        const next = computeTimeLeft(targetDate);
+        timeLeftRef.current = next;
+        notify();
+        if (next.expired) {
+          clearInterval(id);
+          onExpireRef.current?.();
+        }
+      }, 1000);
+      return () => clearInterval(id);
+    }, [targetDate]),
+    getSnapshot,
+    () => computeTimeLeft(targetDate),
+  );
+
+  if (!mounted) return null;
 
   if (timeLeft.expired) {
     return <span className={`font-medium ${className}`}>ENDED</span>;

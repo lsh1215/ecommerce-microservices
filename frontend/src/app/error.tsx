@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 interface ErrorPageProps {
   error: Error & { digest?: string };
   reset: () => void;
@@ -26,12 +28,12 @@ export default function ErrorPage({ reset }: ErrorPageProps) {
           >
             Try Again
           </button>
-          <a
+          <Link
             href="/"
             className="inline-block border border-[#1a1a1a] px-8 py-3 text-sm font-semibold uppercase tracking-widest text-[#1a1a1a] transition-colors hover:bg-[#1a1a1a] hover:text-white"
           >
             Back to Home
-          </a>
+          </Link>
         </div>
       </div>
     </main>

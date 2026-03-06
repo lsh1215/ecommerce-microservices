@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { ProductCard } from '@/components/shared/ProductCard';
 import { ProductGridSkeleton } from '@/components/shared/Skeleton';
 import { MobileFilterDrawer } from '@/components/shared/MobileFilterDrawer';
@@ -193,12 +194,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       </div>
 
       {activeFiltersCount > 0 && (
-        <a
+        <Link
           href="/products"
           className="text-xs font-medium text-[#c4633e] underline underline-offset-4"
         >
           Clear all filters
-        </a>
+        </Link>
       )}
     </>
   );
@@ -283,9 +284,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 <p className="font-heading text-2xl font-bold text-[#1a1a1a]">No products found</p>
                 <p className="mt-3 text-sm text-[#6b6560]">
                   Try adjusting your filters or{' '}
-                  <a href="/products" className="text-[#c4633e] underline">
+                  <Link href="/products" className="text-[#c4633e] underline">
                     browse all products
-                  </a>
+                  </Link>
                 </p>
               </div>
             )}

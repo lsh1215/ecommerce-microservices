@@ -92,7 +92,7 @@ export default function CheckoutPage() {
     priceJpy: subtotal.priceJpy + duty.priceJpy,
   };
 
-  const onSubmit = async (_data: ShippingFormData) => {
+  const onSubmit = async () => {
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1500));
     clearCart();

@@ -108,9 +108,9 @@ export default async function BrandsPage({ searchParams }: BrandsPageProps) {
         <div className="py-20 text-center">
           <p className="font-heading text-2xl font-bold text-[#1a1a1a]">No brands found</p>
           <p className="mt-3 text-sm text-[#6b6560]">
-            <a href="/brands" className="text-[#c4633e] underline">
+            <Link href="/brands" className="text-[#c4633e] underline">
               View all brands
-            </a>
+            </Link>
           </p>
         </div>
       )}
