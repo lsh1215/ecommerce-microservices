@@ -175,9 +175,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             Shipping Address
           </h2>
           <div className="border border-[#e8e4df] p-5">
-            <p className="text-sm font-medium text-[#1a1a1a]">
-              {order.shippingAddress.name}
-            </p>
+            <p className="text-sm font-medium text-[#1a1a1a]">{order.shippingAddress.name}</p>
             <p className="mt-1 text-sm text-[#6b6560]">{order.shippingAddress.phone}</p>
             <p className="mt-2 text-sm text-[#6b6560]">{order.shippingAddress.address}</p>
             <p className="text-sm text-[#6b6560]">

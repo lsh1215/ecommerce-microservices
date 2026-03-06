@@ -52,7 +52,7 @@ export const mockDrops: Drop[] = [
     slug: 'rrl-indigo-limited',
     name: 'RRL — Indigo Archive Limited',
     description:
-      'A tight edit of hand-dyed archival pieces from RRL\'s design archive. 150 units worldwide. No restock.',
+      "A tight edit of hand-dyed archival pieces from RRL's design archive. 150 units worldwide. No restock.",
     brand: rrl,
     status: 'SELLING',
     heroImageUrl: 'https://images.unsplash.com/photo-1604644401890-0bd678c83788?w=1600&q=80',
@@ -81,8 +81,7 @@ export const mockDrops: Drop[] = [
     slug: 'warehouse-aw2023',
     name: 'Warehouse AW2023 — Indigo Deep',
     nameJa: 'ウエアハウス 23AW — インディゴディープ',
-    description:
-      'Autumn/Winter 2023 annual denim drop. Sold out in 12 minutes.',
+    description: 'Autumn/Winter 2023 annual denim drop. Sold out in 12 minutes.',
     brand: warehouse,
     status: 'SOLD_OUT',
     heroImageUrl: 'https://images.unsplash.com/photo-1555689502-c4b22d76c56f?w=1600&q=80',

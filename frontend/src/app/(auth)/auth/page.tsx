@@ -65,10 +65,7 @@ function AuthForm() {
     setError(null);
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    setAuth(
-      { id: 'user-001', email: data.email, name: data.name },
-      'mock-jwt-token',
-    );
+    setAuth({ id: 'user-001', email: data.email, name: data.name }, 'mock-jwt-token');
     router.push(redirect);
   };
 
@@ -121,7 +118,10 @@ function AuthForm() {
       {tab === 'login' && (
         <form onSubmit={loginForm.handleSubmit(handleLogin)} className="mt-6 space-y-4">
           <div>
-            <label htmlFor="login-email" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+            <label
+              htmlFor="login-email"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+            >
               Email
             </label>
             <input
@@ -132,12 +132,17 @@ function AuthForm() {
               placeholder="you@example.com"
             />
             {loginForm.formState.errors.email && (
-              <p className="mt-1 text-xs text-red-500">{loginForm.formState.errors.email.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {loginForm.formState.errors.email.message}
+              </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="login-password" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+            <label
+              htmlFor="login-password"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+            >
               Password
             </label>
             <input
@@ -148,7 +153,9 @@ function AuthForm() {
               placeholder="Min. 6 characters"
             />
             {loginForm.formState.errors.password && (
-              <p className="mt-1 text-xs text-red-500">{loginForm.formState.errors.password.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {loginForm.formState.errors.password.message}
+              </p>
             )}
           </div>
 
@@ -173,7 +180,10 @@ function AuthForm() {
       {tab === 'register' && (
         <form onSubmit={registerForm.handleSubmit(handleRegister)} className="mt-6 space-y-4">
           <div>
-            <label htmlFor="register-name" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+            <label
+              htmlFor="register-name"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+            >
               Name
             </label>
             <input
@@ -184,12 +194,17 @@ function AuthForm() {
               placeholder="Your name"
             />
             {registerForm.formState.errors.name && (
-              <p className="mt-1 text-xs text-red-500">{registerForm.formState.errors.name.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {registerForm.formState.errors.name.message}
+              </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="register-email" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+            <label
+              htmlFor="register-email"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+            >
               Email
             </label>
             <input
@@ -200,12 +215,17 @@ function AuthForm() {
               placeholder="you@example.com"
             />
             {registerForm.formState.errors.email && (
-              <p className="mt-1 text-xs text-red-500">{registerForm.formState.errors.email.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {registerForm.formState.errors.email.message}
+              </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="register-password" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+            <label
+              htmlFor="register-password"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+            >
               Password
             </label>
             <input
@@ -216,12 +236,17 @@ function AuthForm() {
               placeholder="Min. 6 characters"
             />
             {registerForm.formState.errors.password && (
-              <p className="mt-1 text-xs text-red-500">{registerForm.formState.errors.password.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {registerForm.formState.errors.password.message}
+              </p>
             )}
           </div>
 
           <div>
-            <label htmlFor="register-confirm" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+            <label
+              htmlFor="register-confirm"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+            >
               Confirm Password
             </label>
             <input
@@ -232,7 +257,9 @@ function AuthForm() {
               placeholder="Re-enter password"
             />
             {registerForm.formState.errors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">{registerForm.formState.errors.confirmPassword.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {registerForm.formState.errors.confirmPassword.message}
+              </p>
             )}
           </div>
 

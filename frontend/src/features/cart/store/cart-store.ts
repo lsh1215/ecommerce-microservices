@@ -46,9 +46,7 @@ export const useCartStore = create<CartStore>()(
 
       removeItem: (productId, size) =>
         set((state) => {
-          const items = state.items.filter(
-            (i) => !(i.productId === productId && i.size === size),
-          );
+          const items = state.items.filter((i) => !(i.productId === productId && i.size === size));
           return { items, ...recalculate(items) };
         }),
 
@@ -56,9 +54,7 @@ export const useCartStore = create<CartStore>()(
         set((state) => {
           const items =
             quantity <= 0
-              ? state.items.filter(
-                  (i) => !(i.productId === productId && i.size === size),
-                )
+              ? state.items.filter((i) => !(i.productId === productId && i.size === size))
               : state.items.map((i) =>
                   i.productId === productId && i.size === size ? { ...i, quantity } : i,
                 );

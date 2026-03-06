@@ -11,12 +11,8 @@ export default function ErrorPage({ reset }: ErrorPageProps) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4">
       <div className="text-center">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
-          Error
-        </p>
-        <h1 className="font-heading text-5xl font-bold text-[#1a1a1a]">
-          Something went wrong
-        </h1>
+        <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">Error</p>
+        <h1 className="font-heading text-5xl font-bold text-[#1a1a1a]">Something went wrong</h1>
         <p className="mt-6 max-w-md text-base leading-relaxed text-[#6b6560]">
           We encountered an unexpected error. Please try again or return to the home page.
         </p>

@@ -96,9 +96,7 @@ export function DropProductCard({ product, dropStatus }: DropProductCardProps) {
           <p className="text-xs font-medium uppercase tracking-wider text-[#6b6560]">
             {product.brand.name} · {product.origin}
           </p>
-          <h3 className="text-sm font-medium leading-snug text-[#1a1a1a]">
-            {product.name}
-          </h3>
+          <h3 className="text-sm font-medium leading-snug text-[#1a1a1a]">{product.name}</h3>
           <p className="mt-0.5 text-sm font-semibold text-[#1a1a1a]">
             <CurrencyPrice
               priceKrw={product.priceKrw}
@@ -133,10 +131,7 @@ export function DropProductCard({ product, dropStatus }: DropProductCardProps) {
       {/* Mobile bottom sheet */}
       {mobileSheetOpen && !isSoldOut && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMobileSheetOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileSheetOpen(false)} />
           <div className="absolute inset-x-0 bottom-0 bg-[#faf9f6] px-4 pb-8 pt-4 animate-in">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-[#1a1a1a]">Select Size</h3>

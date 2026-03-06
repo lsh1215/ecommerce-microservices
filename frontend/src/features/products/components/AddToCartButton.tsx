@@ -23,9 +23,7 @@ export function AddToCartButton({
   const addItem = useCartStore((s) => s.addItem);
   const addToast = useToastStore((s) => s.addToast);
 
-  const sizeData = selectedSize
-    ? product.sizes.find((s) => s.label === selectedSize)
-    : null;
+  const sizeData = selectedSize ? product.sizes.find((s) => s.label === selectedSize) : null;
 
   const isSoldOut = sizeData ? sizeData.stock === 0 : false;
 
@@ -91,9 +89,7 @@ export function AddToCartButton({
       type="button"
       onClick={handleAdd}
       className={`flex w-full items-center justify-center gap-2 px-6 py-4 text-sm font-semibold uppercase tracking-widest transition-colors ${
-        added
-          ? 'bg-[#1a1a1a] text-white'
-          : 'bg-[#c4633e] text-white hover:bg-[#a84f2e]'
+        added ? 'bg-[#1a1a1a] text-white' : 'bg-[#c4633e] text-white hover:bg-[#a84f2e]'
       }`}
     >
       {added ? (

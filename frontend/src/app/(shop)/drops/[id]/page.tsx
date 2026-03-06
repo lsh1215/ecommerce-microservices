@@ -24,12 +24,8 @@ export default async function DropDetailPage({ params }: DropDetailPageProps) {
   if (!drop) notFound();
 
   const products = getProductsByDrop(drop.id);
-  const inStockProducts = products.filter((p) =>
-    p.sizes.some((s) => s.stock > 0),
-  );
-  const soldOutProducts = products.filter((p) =>
-    p.sizes.every((s) => s.stock === 0),
-  );
+  const inStockProducts = products.filter((p) => p.sizes.some((s) => s.stock > 0));
+  const soldOutProducts = products.filter((p) => p.sizes.every((s) => s.stock === 0));
 
   const isLive = drop.status === 'SELLING' || drop.status === 'OPEN';
   const isAnnounced = drop.status === 'ANNOUNCED';
@@ -71,9 +67,7 @@ export default async function DropDetailPage({ params }: DropDetailPageProps) {
             <h1 className="font-heading mt-2 text-3xl font-bold text-white md:text-5xl">
               {drop.name}
             </h1>
-            {drop.nameKo && (
-              <p className="mt-1 text-sm text-[#a39e93]">{drop.nameKo}</p>
-            )}
+            {drop.nameKo && <p className="mt-1 text-sm text-[#a39e93]">{drop.nameKo}</p>}
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-[#e8e4df]">
               {drop.description}
             </p>
@@ -85,16 +79,10 @@ export default async function DropDetailPage({ params }: DropDetailPageProps) {
         {/* Products */}
         {inStockProducts.length > 0 && (
           <section className="mb-12">
-            <h2 className="font-heading mb-6 text-xl font-bold text-[#1a1a1a]">
-              Drop Products
-            </h2>
+            <h2 className="font-heading mb-6 text-xl font-bold text-[#1a1a1a]">Drop Products</h2>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
               {inStockProducts.map((product) => (
-                <DropProductCard
-                  key={product.id}
-                  product={product}
-                  dropStatus={drop.status}
-                />
+                <DropProductCard key={product.id} product={product} dropStatus={drop.status} />
               ))}
             </div>
           </section>
@@ -105,11 +93,7 @@ export default async function DropDetailPage({ params }: DropDetailPageProps) {
             <h2 className="font-heading mb-6 text-lg font-bold text-[#6b6560]">Sold Out</h2>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 opacity-50">
               {soldOutProducts.map((product) => (
-                <DropProductCard
-                  key={product.id}
-                  product={product}
-                  dropStatus={drop.status}
-                />
+                <DropProductCard key={product.id} product={product} dropStatus={drop.status} />
               ))}
             </div>
           </section>

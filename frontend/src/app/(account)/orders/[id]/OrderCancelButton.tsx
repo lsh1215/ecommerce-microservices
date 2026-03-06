@@ -22,8 +22,8 @@ export function OrderCancelButton({ orderId }: OrderCancelButtonProps) {
       ) : (
         <div className="border border-red-200 bg-red-50 p-5">
           <p className="mb-4 text-sm text-red-700">
-            Are you sure you want to cancel order <strong>{orderId}</strong>? This action
-            cannot be undone.
+            Are you sure you want to cancel order <strong>{orderId}</strong>? This action cannot be
+            undone.
           </p>
           <div className="flex gap-3">
             <button

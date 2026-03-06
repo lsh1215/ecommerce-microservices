@@ -43,9 +43,7 @@ function SelectorColumn({
 }) {
   const brandProducts = useMemo(
     () =>
-      selection.brandSlug
-        ? mockProducts.filter((p) => p.brand.slug === selection.brandSlug)
-        : [],
+      selection.brandSlug ? mockProducts.filter((p) => p.brand.slug === selection.brandSlug) : [],
     [selection.brandSlug],
   );
 
@@ -56,15 +54,11 @@ function SelectorColumn({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
-        {label}
-      </p>
+      <p className="text-xs font-semibold uppercase tracking-widest text-[#6b6560]">{label}</p>
 
       <select
         value={selection.brandSlug}
-        onChange={(e) =>
-          onChange({ brandSlug: e.target.value, productId: '', sizeLabel: '' })
-        }
+        onChange={(e) => onChange({ brandSlug: e.target.value, productId: '', sizeLabel: '' })}
         className="w-full border border-[#e8e4df] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#1a1a1a] focus:outline-none"
       >
         <option value="">Select Brand</option>
@@ -77,9 +71,7 @@ function SelectorColumn({
 
       <select
         value={selection.productId}
-        onChange={(e) =>
-          onChange({ ...selection, productId: e.target.value, sizeLabel: '' })
-        }
+        onChange={(e) => onChange({ ...selection, productId: e.target.value, sizeLabel: '' })}
         disabled={!selection.brandSlug}
         className="w-full border border-[#e8e4df] bg-white px-3 py-2 text-sm text-[#1a1a1a] focus:border-[#1a1a1a] focus:outline-none disabled:bg-[#f3f0eb] disabled:text-[#a39e93]"
       >
@@ -178,8 +170,7 @@ export default function SizeComparePage() {
 
                 if (valA === undefined && valB === undefined) return null;
 
-                const diff =
-                  valA !== undefined && valB !== undefined ? valB - valA : null;
+                const diff = valA !== undefined && valB !== undefined ? valB - valA : null;
                 const hasDiff = diff !== null && diff !== 0;
 
                 return (

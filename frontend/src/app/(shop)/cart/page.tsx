@@ -94,9 +94,7 @@ export default function CartPage() {
     return (
       <div className="mx-auto max-w-7xl px-4 py-24 text-center md:px-6">
         <ShoppingBag size={48} strokeWidth={1} className="mx-auto text-[#a39e93]" />
-        <h1 className="font-heading mt-6 text-2xl font-bold text-[#1a1a1a]">
-          Your cart is empty
-        </h1>
+        <h1 className="font-heading mt-6 text-2xl font-bold text-[#1a1a1a]">Your cart is empty</h1>
         <p className="mt-2 text-sm text-[#6b6560]">
           Browse our collection and add some heritage pieces.
         </p>
@@ -127,9 +125,7 @@ export default function CartPage() {
             >
               <div className="flex items-center gap-2">
                 <AlertTriangle size={14} className="text-[#c4633e]" />
-                <span className="text-xs font-medium text-[#1a1a1a]">
-                  {drop!.name} closes in
-                </span>
+                <span className="text-xs font-medium text-[#1a1a1a]">{drop!.name} closes in</span>
               </div>
               <CountdownTimer
                 targetDate={drop!.closesAt}

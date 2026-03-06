@@ -16,15 +16,7 @@ const bgMap: Record<ToastType, string> = {
   info: 'border-blue-200 bg-blue-50',
 };
 
-function ToastItem({
-  id,
-  type,
-  message,
-}: {
-  id: string;
-  type: ToastType;
-  message: string;
-}) {
+function ToastItem({ id, type, message }: { id: string; type: ToastType; message: string }) {
   const removeToast = useToastStore((s) => s.removeToast);
   const [visible, setVisible] = useState(false);
 

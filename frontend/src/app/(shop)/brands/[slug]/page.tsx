@@ -65,9 +65,7 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
               {brand.styleCategory && (
                 <>
                   <span className="text-[#6b6560]">·</span>
-                  <span className="text-xs font-medium text-[#a39e93]">
-                    {brand.styleCategory}
-                  </span>
+                  <span className="text-xs font-medium text-[#a39e93]">{brand.styleCategory}</span>
                 </>
               )}
               {brand.foundedYear && (
@@ -79,9 +77,7 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
                 </>
               )}
             </div>
-            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">
-              {brand.name}
-            </h1>
+            <h1 className="font-heading text-4xl font-bold text-white md:text-5xl">{brand.name}</h1>
             {brand.fullDescription ? (
               <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[#e8e4df]">
                 {brand.fullDescription}
@@ -99,9 +95,7 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
         {/* Active Drops */}
         {activeDrops.length > 0 && (
           <section className="mb-16">
-            <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">
-              Active Drops
-            </h2>
+            <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">Active Drops</h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {activeDrops.map((drop) => (
                 <Link
@@ -119,15 +113,11 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a]/80 via-transparent" />
                   <div className="absolute inset-0 flex flex-col justify-end p-5">
                     <DropStatusBadge status={drop.status} className="mb-2" />
-                    <h3 className="font-heading text-lg font-bold text-white">
-                      {drop.name}
-                    </h3>
+                    <h3 className="font-heading text-lg font-bold text-white">{drop.name}</h3>
                     <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[#e8e4df]">
                       {drop.status === 'ANNOUNCED' ? 'Opens in ' : 'Closes in '}
                       <CountdownTimer
-                        targetDate={
-                          drop.status === 'ANNOUNCED' ? drop.opensAt : drop.closesAt
-                        }
+                        targetDate={drop.status === 'ANNOUNCED' ? drop.opensAt : drop.closesAt}
                         className="font-semibold text-white"
                       />
                     </p>
@@ -141,9 +131,7 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
         {/* Products */}
         <section>
           <div className="mb-6 flex items-end justify-between">
-            <h2 className="font-heading text-2xl font-bold text-[#1a1a1a]">
-              Products
-            </h2>
+            <h2 className="font-heading text-2xl font-bold text-[#1a1a1a]">Products</h2>
             <Link
               href={`/products?brand=${slug}`}
               className="text-sm font-medium text-[#c4633e] underline underline-offset-4"

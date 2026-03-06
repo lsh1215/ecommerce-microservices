@@ -2,22 +2,11 @@ export type Currency = 'KRW' | 'USD' | 'JPY';
 
 export type Origin = 'Korea' | 'Japan' | 'USA';
 
-export type Category =
-  | 'denim'
-  | 'outerwear'
-  | 'shirts'
-  | 'knitwear'
-  | 'pants'
-  | 'accessories';
+export type Category = 'denim' | 'outerwear' | 'shirts' | 'knitwear' | 'pants' | 'accessories';
 
 export type DropStatus = 'ANNOUNCED' | 'OPEN' | 'SELLING' | 'SOLD_OUT' | 'CLOSED';
 
-export type OrderStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'SHIPPED'
-  | 'DELIVERED'
-  | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 
 export interface Brand {
   id: string;

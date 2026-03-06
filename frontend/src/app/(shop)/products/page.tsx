@@ -113,9 +113,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     <>
       {/* Search */}
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
-          Search
-        </p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#6b6560]">Search</p>
         <form action="/products" method="get">
           <input
             name="q"
@@ -129,9 +127,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
       {/* Brand */}
       <div>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
-          Brand
-        </p>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6b6560]">Brand</p>
         <div className="flex flex-col gap-2">
           {mockBrands.map((b) => (
             <a
@@ -151,9 +147,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
 
       {/* Origin */}
       <div>
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
-          Origin
-        </p>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6b6560]">Origin</p>
         <div className="flex flex-col gap-2">
           {ORIGINS.map((o) => (
             <a
@@ -219,9 +213,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <div className="flex gap-8">
         {/* Desktop filter sidebar */}
         <aside className="hidden w-52 shrink-0 md:block">
-          <div className="flex flex-col gap-8">
-            {filterContent}
-          </div>
+          <div className="flex flex-col gap-8">{filterContent}</div>
         </aside>
 
         {/* Main content */}
@@ -229,9 +221,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           {/* Sort + active filters bar */}
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <MobileFilterDrawer resultCount={totalProducts}>
-                {filterContent}
-              </MobileFilterDrawer>
+              <MobileFilterDrawer resultCount={totalProducts}>{filterContent}</MobileFilterDrawer>
               {q && (
                 <a
                   href={buildFilterUrl({ q: undefined })}
@@ -266,10 +256,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               )}
             </div>
 
-            <SortSelect
-              currentSort={sort}
-              options={SORT_OPTIONS}
-            />
+            <SortSelect currentSort={sort} options={SORT_OPTIONS} />
           </div>
 
           <Suspense fallback={<ProductGridSkeleton />}>

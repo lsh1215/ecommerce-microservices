@@ -67,9 +67,7 @@ export function ProductCard({ product, dropStatus }: ProductCardProps) {
         <h3 className="text-sm font-medium leading-snug text-[#1a1a1a] group-hover:underline">
           {product.name}
         </h3>
-        {product.nameKo && (
-          <p className="text-xs text-[#6b6560]">{product.nameKo}</p>
-        )}
+        {product.nameKo && <p className="text-xs text-[#6b6560]">{product.nameKo}</p>}
         <p className="mt-0.5 text-sm font-semibold text-[#1a1a1a]">
           <CurrencyPrice
             priceKrw={product.priceKrw}

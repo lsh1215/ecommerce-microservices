@@ -32,15 +32,9 @@ export function MobileImageCarousel({ images, alt }: MobileImageCarouselProps) {
 
   return (
     <div className="relative">
-      <div
-        ref={containerRef}
-        className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto"
-      >
+      <div ref={containerRef} className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto">
         {images.map((url, i) => (
-          <div
-            key={i}
-            className="relative aspect-[3/4] w-full shrink-0 snap-center bg-[#e8e4df]"
-          >
+          <div key={i} className="relative aspect-[3/4] w-full shrink-0 snap-center bg-[#e8e4df]">
             <Image
               src={url}
               alt={`${alt} ${i + 1}`}

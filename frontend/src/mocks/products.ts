@@ -70,7 +70,7 @@ export const mockProducts: Product[] = [
     name: 'Lot 1000XX Selvedge Jeans',
     nameJa: 'ロット1000XXセルヴィッジジーンズ',
     description:
-      'Warehouse\'s flagship denim. 13.5oz Banner Denim selvedge, irregular slub texture reminiscent of vintage shuttle looms.',
+      "Warehouse's flagship denim. 13.5oz Banner Denim selvedge, irregular slub texture reminiscent of vintage shuttle looms.",
     brand: warehouse,
     category: 'denim',
     origin: 'Japan',
@@ -103,9 +103,7 @@ export const mockProducts: Product[] = [
     brand: warehouse,
     category: 'shirts',
     origin: 'Japan',
-    imageUrls: [
-      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80',
-    ],
+    imageUrls: ['https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80'],
     priceKrw: 195000,
     priceUsd: 149,
     priceJpy: 22300,
@@ -158,9 +156,7 @@ export const mockProducts: Product[] = [
     brand: rrl,
     category: 'pants',
     origin: 'USA',
-    imageUrls: [
-      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80',
-    ],
+    imageUrls: ['https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80'],
     priceKrw: 345000,
     priceUsd: 264,
     priceJpy: 39600,
@@ -185,9 +181,7 @@ export const mockProducts: Product[] = [
     brand: outstanding,
     category: 'outerwear',
     origin: 'Korea',
-    imageUrls: [
-      'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80',
-    ],
+    imageUrls: ['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80'],
     priceKrw: 165000,
     priceUsd: 126,
     priceJpy: 18900,
@@ -212,9 +206,7 @@ export const mockProducts: Product[] = [
     brand: warehouse,
     category: 'denim',
     origin: 'Japan',
-    imageUrls: [
-      'https://images.unsplash.com/photo-1555689502-c4b22d76c56f?w=800&q=80',
-    ],
+    imageUrls: ['https://images.unsplash.com/photo-1555689502-c4b22d76c56f?w=800&q=80'],
     priceKrw: 298000,
     priceUsd: 228,
     priceJpy: 34100,
@@ -248,8 +240,7 @@ export function getRelatedProducts(product: Product, limit = 4): Product[] {
   return mockProducts
     .filter(
       (p) =>
-        p.id !== product.id &&
-        (p.brand.id === product.brand.id || p.category === product.category),
+        p.id !== product.id && (p.brand.id === product.brand.id || p.category === product.category),
     )
     .slice(0, limit);
 }

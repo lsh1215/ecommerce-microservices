@@ -78,9 +78,7 @@ export default function OrdersPage() {
                         day: 'numeric',
                       })}
                     </p>
-                    <p className="mt-0.5 text-sm font-medium text-[#1a1a1a]">
-                      Order {order.id}
-                    </p>
+                    <p className="mt-0.5 text-sm font-medium text-[#1a1a1a]">Order {order.id}</p>
                     <p className="mt-0.5 text-xs text-[#6b6560]">
                       {itemCount} {itemCount === 1 ? 'item' : 'items'}
                       {order.dropName && (

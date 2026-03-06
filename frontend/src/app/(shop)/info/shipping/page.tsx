@@ -37,8 +37,8 @@ export default function ShippingPage() {
       <section className="mb-16">
         <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">Shipping</h2>
         <p className="mb-6 text-sm leading-relaxed text-[#6b6560]">
-          All orders ship from our warehouse in Seoul, South Korea. Delivery timelines
-          below are estimates from the date of shipment, not the date of order.
+          All orders ship from our warehouse in Seoul, South Korea. Delivery timelines below are
+          estimates from the date of shipment, not the date of order.
         </p>
 
         <div className="overflow-x-auto">
@@ -59,9 +59,7 @@ export default function ShippingPage() {
             <tbody>
               {SHIPPING_REGIONS.map((r) => (
                 <tr key={r.region} className="border-b border-[#e8e4df]">
-                  <td className="px-4 py-3 text-sm font-medium text-[#1a1a1a]">
-                    {r.region}
-                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-[#1a1a1a]">{r.region}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6560]">{r.timeline}</td>
                   <td className="px-4 py-3 text-sm text-[#6b6560]">{r.duty}</td>
                 </tr>
@@ -74,9 +72,9 @@ export default function ShippingPage() {
           <p className="text-sm font-medium text-[#1a1a1a]">International Duties Note</p>
           <p className="mt-2 text-sm leading-relaxed text-[#6b6560]">
             International orders may be subject to import duties and taxes imposed by the
-            destination country. FOUNDRY provides flat rate duty estimates at checkout for
-            Japan and the United States. For all other regions, duties are collected upon
-            delivery and are the responsibility of the buyer.
+            destination country. FOUNDRY provides flat rate duty estimates at checkout for Japan and
+            the United States. For all other regions, duties are collected upon delivery and are the
+            responsibility of the buyer.
           </p>
         </div>
       </section>
@@ -85,8 +83,8 @@ export default function ShippingPage() {
       <section className="mb-16">
         <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">Returns</h2>
         <p className="mb-6 text-sm leading-relaxed text-[#6b6560]">
-          We accept returns on regular (non-drop) items within 14 days of delivery. Items must
-          be unworn, unwashed, and in their original packaging with all tags attached.
+          We accept returns on regular (non-drop) items within 14 days of delivery. Items must be
+          unworn, unwashed, and in their original packaging with all tags attached.
         </p>
 
         <div className="mb-8">
@@ -109,10 +107,10 @@ export default function ShippingPage() {
         <div className="border-l-4 border-[#c4633e] bg-[#fdf7f4] p-5">
           <p className="text-sm font-semibold text-[#1a1a1a]">Drop Items — Final Sale</p>
           <p className="mt-2 text-sm leading-relaxed text-[#6b6560]">
-            All items purchased through timed drops are <strong>final sale</strong>. No
-            returns, exchanges, or refunds. This is clearly indicated on each drop page
-            and at checkout. Drop items represent limited production runs that cannot be
-            restocked — this is the nature of the format.
+            All items purchased through timed drops are <strong>final sale</strong>. No returns,
+            exchanges, or refunds. This is clearly indicated on each drop page and at checkout. Drop
+            items represent limited production runs that cannot be restocked — this is the nature of
+            the format.
           </p>
         </div>
       </section>
@@ -121,8 +119,8 @@ export default function ShippingPage() {
       <section className="mb-16">
         <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">Exchanges</h2>
         <p className="text-sm leading-relaxed text-[#6b6560]">
-          We do not offer direct exchanges. To get a different size or product, please
-          initiate a return for the original item and place a new order. Use our{' '}
+          We do not offer direct exchanges. To get a different size or product, please initiate a
+          return for the original item and place a new order. Use our{' '}
           <Link href="/size-guide" className="text-[#c4633e] underline underline-offset-4">
             Size Guide
           </Link>{' '}
@@ -132,9 +130,7 @@ export default function ShippingPage() {
 
       {/* Contact */}
       <section>
-        <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">
-          Need Help?
-        </h2>
+        <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">Need Help?</h2>
         <p className="text-sm leading-relaxed text-[#6b6560]">
           Reach out to us at{' '}
           <a

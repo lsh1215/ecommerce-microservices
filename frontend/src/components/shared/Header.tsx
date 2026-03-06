@@ -22,10 +22,7 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-[#e8e4df] bg-[#faf9f6]/95 backdrop-blur-sm">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 md:px-6">
         {/* Left — Wordmark */}
-        <Link
-          href="/"
-          className="font-heading text-xl font-bold tracking-tight text-[#1a1a1a]"
-        >
+        <Link href="/" className="font-heading text-xl font-bold tracking-tight text-[#1a1a1a]">
           FOUNDRY
         </Link>
 

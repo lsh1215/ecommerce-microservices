@@ -122,9 +122,7 @@ export default function HomePage() {
               <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
                 Featured Brands
               </p>
-              <h2 className="font-heading text-3xl font-bold text-[#1a1a1a]">
-                Curated Heritage
-              </h2>
+              <h2 className="font-heading text-3xl font-bold text-[#1a1a1a]">Curated Heritage</h2>
             </div>
             <Link
               href="/brands"
@@ -169,9 +167,7 @@ export default function HomePage() {
                 <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
                   New Arrivals
                 </p>
-                <h2 className="font-heading text-3xl font-bold text-[#1a1a1a]">
-                  Just In
-                </h2>
+                <h2 className="font-heading text-3xl font-bold text-[#1a1a1a]">Just In</h2>
               </div>
               <Link
                 href="/products?sort=newest"

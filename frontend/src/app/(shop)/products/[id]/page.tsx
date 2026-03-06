@@ -149,12 +149,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <h1 className="font-heading mt-2 text-2xl font-bold text-[#1a1a1a] md:text-3xl">
                 {product.name}
               </h1>
-              {product.nameKo && (
-                <p className="mt-1 text-sm text-[#6b6560]">{product.nameKo}</p>
-              )}
-              {product.nameJa && (
-                <p className="mt-1 text-sm text-[#6b6560]">{product.nameJa}</p>
-              )}
+              {product.nameKo && <p className="mt-1 text-sm text-[#6b6560]">{product.nameKo}</p>}
+              {product.nameJa && <p className="mt-1 text-sm text-[#6b6560]">{product.nameJa}</p>}
               <div className="mt-3 flex items-center gap-3">
                 <p className="text-xl font-semibold text-[#1a1a1a]">
                   <CurrencyPrice
@@ -170,9 +166,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </div>
 
             {/* Description */}
-            <p className="text-sm leading-relaxed text-[#6b6560]">
-              {product.description}
-            </p>
+            <p className="text-sm leading-relaxed text-[#6b6560]">{product.description}</p>
 
             {/* Fabric details */}
             <div className="border-t border-[#e8e4df] pt-5">
@@ -249,9 +243,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                                 selectedSize === size.label ? 'bg-[#f3f0eb]' : ''
                               }`}
                             >
-                              <td className="py-2 pr-4 font-medium text-[#1a1a1a]">
-                                {size.label}
-                              </td>
+                              <td className="py-2 pr-4 font-medium text-[#1a1a1a]">{size.label}</td>
                               {measurementKeys.map((key) => (
                                 <td key={key} className="py-2 pr-4 text-[#1a1a1a]">
                                   {size.measurements?.[key] ?? '-'}

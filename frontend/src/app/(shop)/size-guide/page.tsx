@@ -9,7 +9,8 @@ const MEASUREMENT_POINTS = [
   {
     name: 'Chest',
     key: 'chest',
-    description: 'Measure around the fullest part of your chest, keeping the tape level under your arms.',
+    description:
+      'Measure around the fullest part of your chest, keeping the tape level under your arms.',
   },
   {
     name: 'Shoulder',
@@ -114,15 +115,14 @@ export default function SizeGuidePage() {
       <div className="mb-12">
         <h1 className="font-heading text-3xl font-bold text-[#1a1a1a]">Size Guide</h1>
         <p className="mt-2 text-sm text-[#6b6560]">
-          All measurements are in centimeters (cm) and refer to garment dimensions, not body measurements.
+          All measurements are in centimeters (cm) and refer to garment dimensions, not body
+          measurements.
         </p>
       </div>
 
       {/* How to Measure */}
       <section className="mb-16">
-        <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">
-          How to Measure
-        </h2>
+        <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">How to Measure</h2>
         <p className="mb-8 max-w-2xl text-sm leading-relaxed text-[#6b6560]">
           For the most accurate fit, measure a garment you already own and compare those
           measurements to the size charts below. Lay the garment flat and measure point to point.
@@ -169,9 +169,7 @@ export default function SizeGuidePage() {
             <tbody>
               {TOPS_SIZING.rows.map((row) => (
                 <tr key={row.size} className="border-b border-[#e8e4df]">
-                  <td className="px-4 py-3 text-sm font-medium text-[#1a1a1a]">
-                    {row.size}
-                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-[#1a1a1a]">{row.size}</td>
                   {row.values.map((val, i) => (
                     <td key={i} className="px-4 py-3 text-sm text-[#6b6560]">
                       {val}
@@ -210,9 +208,7 @@ export default function SizeGuidePage() {
             <tbody>
               {BOTTOMS_SIZING.rows.map((row) => (
                 <tr key={row.size} className="border-b border-[#e8e4df]">
-                  <td className="px-4 py-3 text-sm font-medium text-[#1a1a1a]">
-                    {row.size}
-                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-[#1a1a1a]">{row.size}</td>
                   {row.values.map((val, i) => (
                     <td key={i} className="px-4 py-3 text-sm text-[#6b6560]">
                       {val}
@@ -227,15 +223,11 @@ export default function SizeGuidePage() {
 
       {/* Brand notes */}
       <section>
-        <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">
-          Brand Sizing Notes
-        </h2>
+        <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">Brand Sizing Notes</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {featuredBrands.map((brand) => (
             <div key={brand.id} className="border border-[#e8e4df] p-5">
-              <h3 className="font-heading text-lg font-bold text-[#1a1a1a]">
-                {brand.name}
-              </h3>
+              <h3 className="font-heading text-lg font-bold text-[#1a1a1a]">{brand.name}</h3>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#6b6560]">
                 {brand.origin}
               </p>

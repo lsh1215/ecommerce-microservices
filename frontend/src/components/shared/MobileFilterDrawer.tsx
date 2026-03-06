@@ -24,10 +24,7 @@ export function MobileFilterDrawer({ children, resultCount }: MobileFilterDrawer
 
       {open && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
           <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto bg-[#faf9f6] px-4 pb-6 pt-4 animate-in">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-[#1a1a1a]">
@@ -43,9 +40,7 @@ export function MobileFilterDrawer({ children, resultCount }: MobileFilterDrawer
               </button>
             </div>
 
-            <div className="flex flex-col gap-6">
-              {children}
-            </div>
+            <div className="flex flex-col gap-6">{children}</div>
 
             <button
               type="button"

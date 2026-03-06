@@ -129,7 +129,10 @@ export default function CheckoutPage() {
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
       <h1 className="font-heading text-3xl font-bold text-[#1a1a1a]">Checkout</h1>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-3">
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-3"
+      >
         {/* Left: Shipping + Payment */}
         <div className="space-y-8 lg:col-span-2">
           {/* Shipping */}
@@ -137,7 +140,10 @@ export default function CheckoutPage() {
             <h2 className="font-heading text-lg font-bold text-[#1a1a1a]">Shipping Address</h2>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label htmlFor="name" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+                <label
+                  htmlFor="name"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+                >
                   Full Name
                 </label>
                 <input
@@ -145,17 +151,20 @@ export default function CheckoutPage() {
                   type="text"
                   {...register('name')}
                   className={`w-full border px-3 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#a39e93] focus:outline-none ${
-                    errors.name ? 'border-red-400 focus:border-red-500' : 'border-[#e8e4df] focus:border-[#1a1a1a]'
+                    errors.name
+                      ? 'border-red-400 focus:border-red-500'
+                      : 'border-[#e8e4df] focus:border-[#1a1a1a]'
                   }`}
                   placeholder="Kim Minsu"
                 />
-                {errors.name && (
-                  <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>
-                )}
+                {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
               </div>
 
               <div>
-                <label htmlFor="phone" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+                <label
+                  htmlFor="phone"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+                >
                   Phone
                 </label>
                 <input
@@ -163,7 +172,9 @@ export default function CheckoutPage() {
                   type="tel"
                   {...register('phone')}
                   className={`w-full border px-3 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#a39e93] focus:outline-none ${
-                    errors.phone ? 'border-red-400 focus:border-red-500' : 'border-[#e8e4df] focus:border-[#1a1a1a]'
+                    errors.phone
+                      ? 'border-red-400 focus:border-red-500'
+                      : 'border-[#e8e4df] focus:border-[#1a1a1a]'
                   }`}
                   placeholder="+82-10-1234-5678"
                 />
@@ -173,14 +184,19 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <label htmlFor="country" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+                <label
+                  htmlFor="country"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+                >
                   Country
                 </label>
                 <select
                   id="country"
                   {...register('country')}
                   className={`w-full border bg-white px-3 py-2.5 text-sm text-[#1a1a1a] focus:outline-none ${
-                    errors.country ? 'border-red-400 focus:border-red-500' : 'border-[#e8e4df] focus:border-[#1a1a1a]'
+                    errors.country
+                      ? 'border-red-400 focus:border-red-500'
+                      : 'border-[#e8e4df] focus:border-[#1a1a1a]'
                   }`}
                 >
                   {COUNTRIES.map((c) => (
@@ -195,7 +211,10 @@ export default function CheckoutPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label htmlFor="address" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+                <label
+                  htmlFor="address"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+                >
                   Address
                 </label>
                 <input
@@ -203,7 +222,9 @@ export default function CheckoutPage() {
                   type="text"
                   {...register('address')}
                   className={`w-full border px-3 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#a39e93] focus:outline-none ${
-                    errors.address ? 'border-red-400 focus:border-red-500' : 'border-[#e8e4df] focus:border-[#1a1a1a]'
+                    errors.address
+                      ? 'border-red-400 focus:border-red-500'
+                      : 'border-[#e8e4df] focus:border-[#1a1a1a]'
                   }`}
                   placeholder="123 Gangnam-daero"
                 />
@@ -213,7 +234,10 @@ export default function CheckoutPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label htmlFor="addressDetail" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+                <label
+                  htmlFor="addressDetail"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+                >
                   Address Detail (optional)
                 </label>
                 <input
@@ -226,7 +250,10 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <label htmlFor="city" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+                <label
+                  htmlFor="city"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+                >
                   City
                 </label>
                 <input
@@ -234,17 +261,20 @@ export default function CheckoutPage() {
                   type="text"
                   {...register('city')}
                   className={`w-full border px-3 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#a39e93] focus:outline-none ${
-                    errors.city ? 'border-red-400 focus:border-red-500' : 'border-[#e8e4df] focus:border-[#1a1a1a]'
+                    errors.city
+                      ? 'border-red-400 focus:border-red-500'
+                      : 'border-[#e8e4df] focus:border-[#1a1a1a]'
                   }`}
                   placeholder="Seoul"
                 />
-                {errors.city && (
-                  <p className="mt-1 text-xs text-red-500">{errors.city.message}</p>
-                )}
+                {errors.city && <p className="mt-1 text-xs text-red-500">{errors.city.message}</p>}
               </div>
 
               <div>
-                <label htmlFor="postalCode" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
+                <label
+                  htmlFor="postalCode"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+                >
                   Postal Code
                 </label>
                 <input
@@ -252,7 +282,9 @@ export default function CheckoutPage() {
                   type="text"
                   {...register('postalCode')}
                   className={`w-full border px-3 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#a39e93] focus:outline-none ${
-                    errors.postalCode ? 'border-red-400 focus:border-red-500' : 'border-[#e8e4df] focus:border-[#1a1a1a]'
+                    errors.postalCode
+                      ? 'border-red-400 focus:border-red-500'
+                      : 'border-[#e8e4df] focus:border-[#1a1a1a]'
                   }`}
                   placeholder="06234"
                 />

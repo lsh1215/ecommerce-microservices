@@ -37,7 +37,11 @@ function pad(n: number) {
 const emptySubscribe = () => () => {};
 
 export function CountdownTimer({ targetDate, onExpire, className = '' }: CountdownTimerProps) {
-  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
 
   const onExpireRef = useRef(onExpire);
   const timeLeftRef = useRef<TimeLeft>(computeTimeLeft(targetDate));
@@ -61,18 +65,21 @@ export function CountdownTimer({ targetDate, onExpire, className = '' }: Countdo
   }, [targetDate]);
 
   const timeLeft = useSyncExternalStore(
-    useCallback((notify: () => void) => {
-      const id = setInterval(() => {
-        const next = computeTimeLeft(targetDate);
-        timeLeftRef.current = next;
-        notify();
-        if (next.expired) {
-          clearInterval(id);
-          onExpireRef.current?.();
-        }
-      }, 1000);
-      return () => clearInterval(id);
-    }, [targetDate]),
+    useCallback(
+      (notify: () => void) => {
+        const id = setInterval(() => {
+          const next = computeTimeLeft(targetDate);
+          timeLeftRef.current = next;
+          notify();
+          if (next.expired) {
+            clearInterval(id);
+            onExpireRef.current?.();
+          }
+        }, 1000);
+        return () => clearInterval(id);
+      },
+      [targetDate],
+    ),
     getSnapshot,
     () => computeTimeLeft(targetDate),
   );

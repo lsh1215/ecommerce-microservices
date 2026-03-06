@@ -3,7 +3,8 @@ import Link from 'next/link';
 
 export const metadata = {
   title: 'About — FOUNDRY',
-  description: 'The story behind FOUNDRY: curated heritage menswear from Korea, Japan, and the USA.',
+  description:
+    'The story behind FOUNDRY: curated heritage menswear from Korea, Japan, and the USA.',
 };
 
 export default function AboutPage() {
@@ -34,20 +35,18 @@ export default function AboutPage() {
 
       {/* Story */}
       <section className="mx-auto max-w-3xl px-4 py-16 md:px-6 md:py-24">
-        <h2 className="font-heading mb-8 text-3xl font-bold text-[#1a1a1a]">
-          The FOUNDRY Story
-        </h2>
+        <h2 className="font-heading mb-8 text-3xl font-bold text-[#1a1a1a]">The FOUNDRY Story</h2>
         <div className="flex flex-col gap-6 text-base leading-relaxed text-[#6b6560]">
           <p>
-            FOUNDRY started with a simple frustration: the best heritage menswear in the
-            world is scattered across three countries, dozens of boutiques, and a tangle
-            of proxy services. An Outstanding & Co. jacket from Seoul requires a Korean
-            address. Warehouse denim from Kobe means navigating Japanese retail sites.
-            RRL drops sell out in minutes on the other side of the planet.
+            FOUNDRY started with a simple frustration: the best heritage menswear in the world is
+            scattered across three countries, dozens of boutiques, and a tangle of proxy services.
+            An Outstanding & Co. jacket from Seoul requires a Korean address. Warehouse denim from
+            Kobe means navigating Japanese retail sites. RRL drops sell out in minutes on the other
+            side of the planet.
           </p>
           <p>
-            We built FOUNDRY to solve that. One platform. Three origins. Curated drops.
-            No proxies, no translators, no missed restocks.
+            We built FOUNDRY to solve that. One platform. Three origins. Curated drops. No proxies,
+            no translators, no missed restocks.
           </p>
         </div>
       </section>
@@ -64,20 +63,19 @@ export default function AboutPage() {
             </h2>
             <div className="flex flex-col gap-4 text-sm leading-relaxed text-[#6b6560]">
               <p>
-                Heritage menswear is clothing built on history. It draws from workwear,
-                military surplus, and outdoor gear of the early-to-mid 20th century —
-                garments designed for labor, exploration, and survival.
+                Heritage menswear is clothing built on history. It draws from workwear, military
+                surplus, and outdoor gear of the early-to-mid 20th century — garments designed for
+                labor, exploration, and survival.
               </p>
               <p>
-                These are not reproductions for nostalgia. They are studies in durability:
-                selvedge denim woven on shuttle looms, waxed canvas that develops character
-                over years, hardware forged to military spec. The fabrics tell you where
-                they have been.
+                These are not reproductions for nostalgia. They are studies in durability: selvedge
+                denim woven on shuttle looms, waxed canvas that develops character over years,
+                hardware forged to military spec. The fabrics tell you where they have been.
               </p>
               <p>
-                Three countries dominate this space. Korea brings a fresh reinterpretation.
-                Japan brings obsessive reproduction accuracy. America brings the originals.
-                FOUNDRY brings all three together.
+                Three countries dominate this space. Korea brings a fresh reinterpretation. Japan
+                brings obsessive reproduction accuracy. America brings the originals. FOUNDRY brings
+                all three together.
               </p>
             </div>
           </div>
@@ -98,29 +96,25 @@ export default function AboutPage() {
         <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
           Our Curation
         </p>
-        <h2 className="font-heading mb-8 text-3xl font-bold text-[#1a1a1a]">
-          Korea. Japan. USA.
-        </h2>
+        <h2 className="font-heading mb-8 text-3xl font-bold text-[#1a1a1a]">Korea. Japan. USA.</h2>
         <div className="flex flex-col gap-6 text-sm leading-relaxed text-[#6b6560]">
           <p>
-            <strong className="text-[#1a1a1a]">Korea</strong> — Brands like Outstanding &
-            Co. take classic American silhouettes and filter them through Korean
-            sensibility. The result is heritage wear that feels lighter, more refined, and
-            slightly subversive. Korean makers are not bound by reproduction fidelity —
-            they reinterpret.
+            <strong className="text-[#1a1a1a]">Korea</strong> — Brands like Outstanding & Co. take
+            classic American silhouettes and filter them through Korean sensibility. The result is
+            heritage wear that feels lighter, more refined, and slightly subversive. Korean makers
+            are not bound by reproduction fidelity — they reinterpret.
           </p>
           <p>
             <strong className="text-[#1a1a1a]">Japan</strong> — Warehouse & Co. and Buzz
-            Rickson&apos;s represent Japan&apos;s legendary reproduction culture. These
-            makers study original garments with archaeological precision, sourcing
-            deadstock fabrics and rebuilding vintage looms to achieve textures that
-            modern manufacturing cannot replicate.
+            Rickson&apos;s represent Japan&apos;s legendary reproduction culture. These makers study
+            original garments with archaeological precision, sourcing deadstock fabrics and
+            rebuilding vintage looms to achieve textures that modern manufacturing cannot replicate.
           </p>
           <p>
-            <strong className="text-[#1a1a1a]">USA</strong> — RRL is the direct
-            descendant of the workwear and frontier traditions that inspired every brand on
-            this platform. It is the source material. Small-batch, ranch-inspired, and
-            built with some of the finest American and Japanese mills.
+            <strong className="text-[#1a1a1a]">USA</strong> — RRL is the direct descendant of the
+            workwear and frontier traditions that inspired every brand on this platform. It is the
+            source material. Small-batch, ranch-inspired, and built with some of the finest American
+            and Japanese mills.
           </p>
         </div>
       </section>
@@ -135,9 +129,9 @@ export default function AboutPage() {
             Every drop is final sale. No restocks. That is the point.
           </h2>
           <p className="mx-auto max-w-xl text-sm leading-relaxed text-[#a39e93]">
-            FOUNDRY exists to give heritage enthusiasts worldwide equal access to the
-            brands that define this space. No geographic gatekeeping. No proxy fees. Just
-            the best craftsmanship from three continents, delivered to your door.
+            FOUNDRY exists to give heritage enthusiasts worldwide equal access to the brands that
+            define this space. No geographic gatekeeping. No proxy fees. Just the best craftsmanship
+            from three continents, delivered to your door.
           </p>
           <Link
             href="/drops"

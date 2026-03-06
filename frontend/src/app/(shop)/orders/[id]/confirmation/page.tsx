@@ -38,17 +38,12 @@ export default async function OrderConfirmationPage({ params }: ConfirmationPage
         {isDropPurchase && (
           <p className="mt-3 text-sm text-[#6b6560]">
             You secured{' '}
-            <span className="font-semibold text-[#1a1a1a]">
-              {order.items[0]?.productName}
-            </span>{' '}
-            from{' '}
+            <span className="font-semibold text-[#1a1a1a]">{order.items[0]?.productName}</span> from{' '}
             <span className="font-semibold text-[#1a1a1a]">{order.dropName}</span>
           </p>
         )}
 
-        <p className="mt-2 text-sm text-[#6b6560]">
-          Order #{order.id}
-        </p>
+        <p className="mt-2 text-sm text-[#6b6560]">Order #{order.id}</p>
       </div>
 
       {/* Order summary */}

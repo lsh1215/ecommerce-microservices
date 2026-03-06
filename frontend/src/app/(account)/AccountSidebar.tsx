@@ -15,9 +15,7 @@ export function AccountSidebar() {
 
   return (
     <aside className="hidden w-48 shrink-0 md:block">
-      <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
-        Account
-      </p>
+      <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">Account</p>
       <nav className="flex flex-col gap-1" aria-label="Account navigation">
         {ACCOUNT_NAV.map((item) => {
           const Icon = item.icon;

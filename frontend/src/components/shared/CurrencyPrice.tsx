@@ -10,7 +10,12 @@ interface CurrencyPriceProps {
   className?: string;
 }
 
-export function CurrencyPrice({ priceKrw, priceUsd, priceJpy, className = '' }: CurrencyPriceProps) {
+export function CurrencyPrice({
+  priceKrw,
+  priceUsd,
+  priceJpy,
+  className = '',
+}: CurrencyPriceProps) {
   const currency = useCurrencyStore((s) => s.currency);
   const amount = getPrice({ priceKrw, priceUsd, priceJpy }, currency);
 

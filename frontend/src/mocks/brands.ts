@@ -39,9 +39,9 @@ export const mockBrands: Brand[] = [
     name: 'RRL',
     origin: 'USA',
     description:
-      'Ralph Lauren\'s premium Americana line. Small-batch drops inspired by frontier heritage and rodeo culture.',
+      "Ralph Lauren's premium Americana line. Small-batch drops inspired by frontier heritage and rodeo culture.",
     fullDescription:
-      'RRL (Double RL) is Ralph Lauren\'s most personal line, named after his ranch in Telluride, Colorado. Since 1993, RRL has drawn on the American frontier — ranches, rodeos, and the open West — to create small-batch clothing that feels like it has a story already woven in. Each season is deliberately limited. The fabrics are sourced from the finest Japanese and American mills. RRL does not chase trends; it builds a world you want to live in.',
+      "RRL (Double RL) is Ralph Lauren's most personal line, named after his ranch in Telluride, Colorado. Since 1993, RRL has drawn on the American frontier — ranches, rodeos, and the open West — to create small-batch clothing that feels like it has a story already woven in. Each season is deliberately limited. The fabrics are sourced from the finest Japanese and American mills. RRL does not chase trends; it builds a world you want to live in.",
     imageUrl: 'https://images.unsplash.com/photo-1604644401890-0bd678c83788?w=800&q=80',
     logoUrl: 'https://images.unsplash.com/photo-1604644401890-0bd678c83788?w=200&q=80',
     featured: true,
@@ -57,7 +57,7 @@ export const mockBrands: Brand[] = [
     description:
       'Precision reproductions of US military flight jackets from the 1940s–1960s. Authenticity unmatched.',
     fullDescription:
-      'Buzz Rickson\'s has spent over three decades reproducing US military flight jackets with a precision that borders on archaeological. Based in Tokyo, they source original military spec sheets, track down deadstock fabrics, and rebuild hardware from scratch. Each jacket is a thesis on a specific military contract — the MA-1, the B-15, the N-1 deck jacket. They have earned the respect of collectors and military historians alike. If the original factory could see these reproductions, they would not be able to tell the difference.',
+      "Buzz Rickson's has spent over three decades reproducing US military flight jackets with a precision that borders on archaeological. Based in Tokyo, they source original military spec sheets, track down deadstock fabrics, and rebuild hardware from scratch. Each jacket is a thesis on a specific military contract — the MA-1, the B-15, the N-1 deck jacket. They have earned the respect of collectors and military historians alike. If the original factory could see these reproductions, they would not be able to tell the difference.",
     imageUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80',
     logoUrl: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200&q=80',
     featured: false,

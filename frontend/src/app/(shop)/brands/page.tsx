@@ -40,10 +40,8 @@ export default async function BrandsPage({ searchParams }: BrandsPageProps) {
       {/* Origin filter */}
       <div className="mb-8 flex flex-wrap gap-2">
         {ORIGINS.map((origin) => {
-          const isActive =
-            (origin === 'All' && !selectedOrigin) || origin === selectedOrigin;
-          const href =
-            origin === 'All' ? '/brands' : `/brands?origin=${origin}`;
+          const isActive = (origin === 'All' && !selectedOrigin) || origin === selectedOrigin;
+          const href = origin === 'All' ? '/brands' : `/brands?origin=${origin}`;
 
           return (
             <a
@@ -85,16 +83,10 @@ export default async function BrandsPage({ searchParams }: BrandsPageProps) {
                   {brand.origin}
                 </p>
               </div>
-              <h2 className="font-heading text-xl font-bold text-[#1a1a1a]">
-                {brand.name}
-              </h2>
+              <h2 className="font-heading text-xl font-bold text-[#1a1a1a]">{brand.name}</h2>
               <div className="flex flex-wrap gap-3 text-xs text-[#6b6560]">
-                {brand.styleCategory && (
-                  <span>{brand.styleCategory}</span>
-                )}
-                {brand.foundedYear && (
-                  <span>Est. {brand.foundedYear}</span>
-                )}
+                {brand.styleCategory && <span>{brand.styleCategory}</span>}
+                {brand.foundedYear && <span>Est. {brand.foundedYear}</span>}
               </div>
               <p className="mt-1 text-sm leading-relaxed text-[#6b6560] line-clamp-2">
                 {brand.description}
