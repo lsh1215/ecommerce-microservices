@@ -1,25 +1,100 @@
 @import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* Typography */
+  --font-heading: var(--font-playfair), 'Playfair Display', Georgia, serif;
+  --font-body: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+
+  /* Base colors */
+  --color-base: #faf9f6;
+  --color-warm-gray: #e8e4df;
+  --color-stone: #a39e93;
+
+  /* Text */
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6b6560;
+
+  /* Accent */
+  --color-rust: #c4633e;
+
+  /* Status */
+  --color-status-blue: #3b82f6;
+  --color-status-red: #ef4444;
+  --color-status-gray: #9ca3af;
+
+  /* Semantic */
+  --color-background: var(--color-base);
+  --color-foreground: var(--color-text-primary);
+
+  /* Border radius */
+  --radius-none: 0px;
+  --radius-sm: 4px;
+
+  /* Line heights */
+  --leading-heading: 1.2;
+  --leading-body: 1.6;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: #faf9f6;
+  --foreground: #1a1a1a;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  line-height: 1.2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Remove default button styles */
+button {
+  cursor: pointer;
+}
+
+/* Focus visible outline */
+:focus-visible {
+  outline: 2px solid #c4633e;
+  outline-offset: 2px;
+}
+
+/* Mobile drawer slide-up */
+.animate-in {
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Hide scrollbar for carousel */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

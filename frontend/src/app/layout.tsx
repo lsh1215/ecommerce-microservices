@@ -1,16 +1,25 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Playfair_Display, DM_Sans } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { ToastContainer } from '@/components/shared/Toast';
 
-const inter = Inter({
+const playfair = Playfair_Display({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-playfair',
+  display: 'swap',
+});
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'E-Commerce Platform',
-  description: 'E-Commerce Order Platform',
+  title: 'FOUNDRY — Global Heritage Wear',
+  description:
+    'Curated global platform for heritage menswear. Korean, Japanese, and Western Americana brands through timed drop mechanics.',
 };
 
 export default function RootLayout({
@@ -20,8 +29,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
-        <QueryProvider>{children}</QueryProvider>
+      <body className={`${playfair.variable} ${dmSans.variable} antialiased`}>
+        <QueryProvider>
+          {children}
+          <ToastContainer />
+        </QueryProvider>
       </body>
     </html>
   );
