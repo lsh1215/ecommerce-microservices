@@ -25,7 +25,8 @@ public class TestContainersConfig {
     public static final MySQLContainer<?> MYSQL = new MySQLContainer<>("mysql:8.0")
             .withDatabaseName("ecommerce_test")
             .withUsername("test")
-            .withPassword("test");
+            .withPassword("test")
+            .withCommand("--max-connections=500");
 
     static {
         MYSQL.start();
