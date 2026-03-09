@@ -6,72 +6,99 @@ import { MobileNav } from '@/components/shared/MobileNav';
 import { ProductCard } from '@/components/shared/ProductCard';
 import { DropStatusBadge } from '@/components/shared/DropStatusBadge';
 import { CountdownTimer } from '@/components/shared/CountdownTimer';
-import { mockProducts, mockDrops, mockBrands } from '@/mocks';
+import { serverFetch } from '@/lib/server-fetch';
+import { mapProductResponse, mapBrandResponse, mapDropResponse } from '@/lib/mappers';
+import type { PageResponse } from '@/types';
+import type { ProductResponse, BrandResponse, DropEventResponse } from '@/types/api-responses';
 
-export default function HomePage() {
-  const liveDrops = mockDrops.filter((d) => d.status === 'SELLING' || d.status === 'OPEN');
-  const heroDropRaw = liveDrops[0] ?? mockDrops.find((d) => d.status === 'ANNOUNCED');
-  const heroDrop = heroDropRaw!;
-  const featuredBrands = mockBrands.filter((b) => b.featured);
-  const newArrivals = [...mockProducts]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8);
+const DEFAULT_DROP_IMAGE =
+  'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&q=80';
+
+export default async function HomePage() {
+  const [productsPage, dropsPage, brandsRaw] = await Promise.all([
+    serverFetch<PageResponse<ProductResponse>>(
+      '/api/products?page=0&size=8&sort=createdAt&direction=desc',
+    ),
+    serverFetch<PageResponse<DropEventResponse>>('/api/drops?page=0&size=10'),
+    serverFetch<BrandResponse[]>('/api/brands'),
+  ]);
+
+  const newArrivals = (productsPage?.content ?? []).map(mapProductResponse);
+  const allDrops = (dropsPage?.content ?? []).map(mapDropResponse);
+  const allBrands = (brandsRaw ?? []).map((b, i) => ({
+    ...mapBrandResponse(b),
+    featured: i < 3,
+  }));
+
+  const liveDrops = allDrops.filter((d) => d.status === 'SELLING' || d.status === 'OPEN');
+  const heroDropRaw = liveDrops[0] ?? allDrops.find((d) => d.status === 'ANNOUNCED');
+  const heroDrop = heroDropRaw ?? allDrops[0];
+
+  const featuredBrands = allBrands.filter((b) => b.featured);
 
   return (
     <>
       <Header />
       <main className="min-h-screen pb-16 md:pb-0">
         {/* Hero */}
-        <section className="relative h-[85vh] min-h-[520px] max-h-[800px] overflow-hidden bg-[#1a1a1a]">
-          <Image
-            src={heroDrop.heroImageUrl}
-            alt={heroDrop.name}
-            fill
-            priority
-            className="object-cover opacity-70"
-            sizes="100vw"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a]/80 via-transparent to-transparent" />
+        {heroDrop ? (
+          <section className="relative h-[85vh] min-h-[520px] max-h-[800px] overflow-hidden bg-[#1a1a1a]">
+            <Image
+              src={heroDrop.heroImageUrl || DEFAULT_DROP_IMAGE}
+              alt={heroDrop.name}
+              fill
+              priority
+              className="object-cover opacity-70"
+              sizes="100vw"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a]/80 via-transparent to-transparent" />
 
-          <div className="absolute inset-0 flex flex-col justify-end px-6 py-12 md:px-12 md:py-16">
-            <div className="max-w-2xl">
-              <DropStatusBadge status={heroDrop.status} className="mb-4" />
-              <h1 className="font-heading text-4xl font-bold leading-tight text-white md:text-6xl">
-                {heroDrop.name}
-              </h1>
-              <p className="mt-4 text-sm font-medium text-[#e8e4df]">
-                {heroDrop.brand.name} · {heroDrop.brand.origin}
-              </p>
-
-              {(heroDrop.status === 'SELLING' || heroDrop.status === 'OPEN') && (
-                <p className="mt-3 flex items-center gap-2 text-sm text-[#e8e4df]">
-                  <span>Closes in</span>
-                  <CountdownTimer
-                    targetDate={heroDrop.closesAt}
-                    className="font-semibold text-white"
-                  />
+            <div className="absolute inset-0 flex flex-col justify-end px-6 py-12 md:px-12 md:py-16">
+              <div className="max-w-2xl">
+                <DropStatusBadge status={heroDrop.status} className="mb-4" />
+                <h1 className="font-heading text-4xl font-bold leading-tight text-white md:text-6xl">
+                  {heroDrop.name}
+                </h1>
+                <p className="mt-4 text-sm font-medium text-[#e8e4df]">
+                  {heroDrop.name}
                 </p>
-              )}
 
-              {heroDrop.status === 'ANNOUNCED' && (
-                <p className="mt-3 flex items-center gap-2 text-sm text-[#e8e4df]">
-                  <span>Opens in</span>
-                  <CountdownTimer
-                    targetDate={heroDrop.opensAt}
-                    className="font-semibold text-white"
-                  />
-                </p>
-              )}
+                {(heroDrop.status === 'SELLING' || heroDrop.status === 'OPEN') && (
+                  <p className="mt-3 flex items-center gap-2 text-sm text-[#e8e4df]">
+                    <span>Closes in</span>
+                    <CountdownTimer
+                      targetDate={heroDrop.closesAt}
+                      className="font-semibold text-white"
+                    />
+                  </p>
+                )}
 
-              <Link
-                href={`/drops/${heroDrop.id}`}
-                className="mt-8 inline-block bg-white px-8 py-3 text-sm font-semibold uppercase tracking-widest text-[#1a1a1a] transition-opacity hover:opacity-90"
-              >
-                Shop Drop
-              </Link>
+                {heroDrop.status === 'ANNOUNCED' && (
+                  <p className="mt-3 flex items-center gap-2 text-sm text-[#e8e4df]">
+                    <span>Opens in</span>
+                    <CountdownTimer
+                      targetDate={heroDrop.opensAt}
+                      className="font-semibold text-white"
+                    />
+                  </p>
+                )}
+
+                <Link
+                  href={`/drops/${heroDrop.id}`}
+                  className="mt-8 inline-block bg-white px-8 py-3 text-sm font-semibold uppercase tracking-widest text-[#1a1a1a] transition-opacity hover:opacity-90"
+                >
+                  Shop Drop
+                </Link>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : (
+          <section className="relative h-[85vh] min-h-[520px] max-h-[800px] overflow-hidden bg-[#1a1a1a]">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <h1 className="font-heading text-4xl font-bold text-white md:text-6xl">FOUNDRY</h1>
+            </div>
+          </section>
+        )}
 
         {/* Live Drops Strip */}
         {liveDrops.length > 0 && (
@@ -96,7 +123,7 @@ export default function HomePage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-[#a39e93]">
-                        {drop.brand.name}
+                        {drop.name}
                       </p>
                       <DropStatusBadge status={drop.status} />
                     </div>
@@ -140,7 +167,7 @@ export default function HomePage() {
                 className="group relative aspect-[4/3] overflow-hidden bg-[#e8e4df]"
               >
                 <Image
-                  src={brand.imageUrl}
+                  src={brand.imageUrl || DEFAULT_DROP_IMAGE}
                   alt={brand.name}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-105"

@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { mockBrands } from '@/mocks';
+import { serverFetch } from '@/lib/server-fetch';
+import { mapBrandResponse } from '@/lib/mappers';
+import type { BrandResponse } from '@/types/api-responses';
 import type { Origin } from '@/types';
 
 export const metadata = {
@@ -24,9 +26,12 @@ export default async function BrandsPage({ searchParams }: BrandsPageProps) {
   const params = await searchParams;
   const selectedOrigin = params.origin as Origin | undefined;
 
+  const brandResponses = await serverFetch<BrandResponse[]>('/api/brands');
+  const allBrands = (brandResponses ?? []).map(mapBrandResponse);
+
   const filtered = selectedOrigin
-    ? mockBrands.filter((b) => b.origin === selectedOrigin)
-    : mockBrands;
+    ? allBrands.filter((b) => b.origin === selectedOrigin)
+    : allBrands;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">
@@ -69,7 +74,7 @@ export default async function BrandsPage({ searchParams }: BrandsPageProps) {
           >
             <div className="relative h-auto w-40 shrink-0 overflow-hidden bg-[#e8e4df]">
               <Image
-                src={brand.imageUrl}
+                src={brand.imageUrl || '/placeholder-brand.jpg'}
                 alt={brand.name}
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-105"

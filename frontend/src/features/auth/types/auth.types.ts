@@ -9,11 +9,9 @@ export interface RegisterRequest {
   name: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  user: {
-    id: string;
-    email: string;
-    name: string;
-  };
+export interface AuthUser {
+  id: number;
+  publicId: string;
+  name: string;
+  email: string;
 }

@@ -1,19 +1,19 @@
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  categoryId: string;
-  categoryName: string;
-  imageUrl?: string;
-  stockQuantity: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface ProductListParams {
+  brandId?: string;
+  category?: string;
+  era?: string;
+  fabricType?: string;
+  fabricWeave?: string;
+  minPrice?: string;
+  maxPrice?: string;
   page?: string;
   size?: string;
-  keyword?: string;
-  categoryId?: string;
+  sort?: string;
+  direction?: string;
+}
+
+export interface ProductSearchParams {
+  q: string;
+  page?: number;
+  size?: number;
 }

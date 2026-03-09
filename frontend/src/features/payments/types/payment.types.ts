@@ -1,14 +1,11 @@
-export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
-
-export interface Payment {
-  id: string;
-  orderId: string;
+export interface ProcessPaymentRequest {
+  orderId: number;
   amount: number;
-  status: PaymentStatus;
-  createdAt: string;
+  currency: string;
+  idempotencyKey: string;
+  paymentMethod: string;
 }
 
-export interface ProcessPaymentRequest {
-  orderId: string;
-  amount: number;
+export interface RefundRequest {
+  reason: string;
 }

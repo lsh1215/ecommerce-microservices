@@ -1,8 +1,14 @@
+'use client';
+
+import { use } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { notFound } from 'next/navigation';
-import { getOrderById } from '@/mocks/orders';
+import { redirect } from 'next/navigation';
+import { useAuthStore } from '@/features/auth/store/auth-store';
+import { useFromStore } from '@/hooks/use-from-store';
+import { useOrder } from '@/hooks/queries/use-orders';
 import { CurrencyPrice } from '@/components/shared/CurrencyPrice';
+import { Skeleton } from '@/components/shared/Skeleton';
 import { OrderCancelButton } from './OrderCancelButton';
 import type { OrderStatus } from '@/types';
 
@@ -20,18 +26,80 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; classes: string }> = {
 
 const STATUS_TIMELINE: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
 
-export async function generateMetadata({ params }: OrderDetailPageProps) {
-  const { id } = await params;
-  const order = getOrderById(id);
-  if (!order) return { title: 'Order Not Found — FOUNDRY' };
-  return { title: `Order ${order.id} — FOUNDRY` };
+function OrderDetailSkeleton() {
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <Skeleton className="h-6 w-24" />
+      </div>
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-24" />
+        <div className="flex gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-10" />
+          ))}
+        </div>
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    </div>
+  );
 }
 
-export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
-  const { id } = await params;
-  const order = getOrderById(id);
+export default function OrderDetailPage({ params }: OrderDetailPageProps) {
+  const { id } = use(params);
+  const user = useFromStore(useAuthStore, (s) => s.user);
+  const { data: order, isLoading, isError, error } = useOrder(id);
 
-  if (!order) notFound();
+  if (user === undefined) {
+    return <OrderDetailSkeleton />;
+  }
+
+  if (user === null) {
+    redirect('/auth?redirect=/orders');
+  }
+
+  if (isLoading) {
+    return <OrderDetailSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <div>
+        <Link
+          href="/orders"
+          className="mb-4 inline-block text-xs font-medium text-[#c4633e] underline underline-offset-4"
+        >
+          &larr; All Orders
+        </Link>
+        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error instanceof Error ? error.message : 'Failed to load order details'}
+        </div>
+      </div>
+    );
+  }
+
+  if (!order) {
+    return (
+      <div>
+        <Link
+          href="/orders"
+          className="mb-4 inline-block text-xs font-medium text-[#c4633e] underline underline-offset-4"
+        >
+          &larr; All Orders
+        </Link>
+        <p className="mt-4 text-sm text-[#6b6560]">Order not found.</p>
+      </div>
+    );
+  }
 
   const statusCfg = STATUS_CONFIG[order.status];
   const isCancelled = order.status === 'CANCELLED';
@@ -137,13 +205,19 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           {order.items.map((item) => (
             <div key={`${item.productId}-${item.size}`} className="flex gap-4 p-4">
               <div className="relative h-20 w-20 shrink-0 overflow-hidden bg-[#e8e4df]">
-                <Image
-                  src={item.imageUrl}
-                  alt={item.productName}
-                  fill
-                  className="object-cover"
-                  sizes="80px"
-                />
+                {item.imageUrl ? (
+                  <Image
+                    src={item.imageUrl}
+                    alt={item.productName}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xs text-[#a39e93]">
+                    No img
+                  </div>
+                )}
               </div>
               <div className="flex flex-1 flex-col justify-center gap-1">
                 <p className="text-xs font-medium uppercase tracking-wider text-[#6b6560]">

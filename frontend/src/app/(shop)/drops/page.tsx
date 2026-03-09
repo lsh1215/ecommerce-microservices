@@ -2,17 +2,29 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { CountdownTimer } from '@/components/shared/CountdownTimer';
 import { DropStatusBadge } from '@/components/shared/DropStatusBadge';
-import { getLiveDrops, getUpcomingDrops, getPastDrops } from '@/mocks/drops';
+import { serverFetch } from '@/lib/server-fetch';
+import { mapDropResponse } from '@/lib/mappers';
+import type { DropEventResponse } from '@/types/api-responses';
+import type { PageResponse } from '@/types';
 
 export const metadata = {
   title: 'Drops — FOUNDRY',
   description: 'Live, upcoming, and past drops from FOUNDRY heritage brands.',
 };
 
-export default function DropsPage() {
-  const liveDrops = getLiveDrops();
-  const upcomingDrops = getUpcomingDrops();
-  const pastDrops = getPastDrops();
+const PLACEHOLDER_IMAGE = '/placeholder-drop.jpg';
+
+export default async function DropsPage() {
+  const dropPage = await serverFetch<PageResponse<DropEventResponse>>('/api/drops?page=0&size=50');
+  const allDrops = (dropPage?.content ?? []).map(mapDropResponse);
+
+  const liveDrops = allDrops.filter(
+    (d) => d.status === 'SELLING' || d.status === 'OPEN',
+  );
+  const upcomingDrops = allDrops.filter((d) => d.status === 'ANNOUNCED');
+  const pastDrops = allDrops.filter(
+    (d) => d.status === 'CLOSED' || d.status === 'SOLD_OUT',
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">
@@ -35,7 +47,7 @@ export default function DropsPage() {
                 className="group relative aspect-[3/2] overflow-hidden bg-[#e8e4df]"
               >
                 <Image
-                  src={drop.heroImageUrl}
+                  src={drop.heroImageUrl || PLACEHOLDER_IMAGE}
                   alt={drop.name}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -47,7 +59,7 @@ export default function DropsPage() {
                     <DropStatusBadge status={drop.status} />
                   </div>
                   <p className="text-xs font-medium uppercase tracking-wide text-[#a39e93]">
-                    {drop.brand.name} · {drop.brand.origin}
+                    {drop.brand.name || 'FOUNDRY'}
                   </p>
                   <h3 className="font-heading mt-1 text-xl font-bold text-white md:text-2xl">
                     {drop.name}
@@ -80,7 +92,7 @@ export default function DropsPage() {
                 className="group relative aspect-[4/3] overflow-hidden bg-[#e8e4df]"
               >
                 <Image
-                  src={drop.heroImageUrl}
+                  src={drop.heroImageUrl || PLACEHOLDER_IMAGE}
                   alt={drop.name}
                   fill
                   className="object-cover opacity-80 transition-transform duration-500 group-hover:scale-105"
@@ -90,7 +102,7 @@ export default function DropsPage() {
                 <div className="absolute inset-0 flex flex-col justify-end p-5">
                   <DropStatusBadge status={drop.status} className="mb-2" />
                   <p className="text-xs font-medium uppercase tracking-wide text-[#a39e93]">
-                    {drop.brand.name}
+                    {drop.brand.name || 'FOUNDRY'}
                   </p>
                   <h3 className="font-heading mt-1 text-lg font-bold text-white">{drop.name}</h3>
                   <p className="mt-2 flex items-center gap-1.5 text-xs text-[#e8e4df]">
@@ -123,7 +135,7 @@ export default function DropsPage() {
                 <div className="flex items-center gap-4">
                   <div className="relative h-14 w-20 shrink-0 overflow-hidden bg-[#e8e4df]">
                     <Image
-                      src={drop.heroImageUrl}
+                      src={drop.heroImageUrl || PLACEHOLDER_IMAGE}
                       alt={drop.name}
                       fill
                       className="object-cover opacity-60"
@@ -132,7 +144,7 @@ export default function DropsPage() {
                   </div>
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-[#6b6560]">
-                      {drop.brand.name}
+                      {drop.brand.name || 'FOUNDRY'}
                     </p>
                     <p className="text-sm font-medium text-[#1a1a1a]">{drop.name}</p>
                     <p className="text-xs text-[#a39e93]">

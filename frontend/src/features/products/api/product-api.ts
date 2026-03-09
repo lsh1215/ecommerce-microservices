@@ -1,17 +1,19 @@
 import { apiClient } from '@/lib/api-client';
 import type { PageResponse } from '@/types';
-import type { Product, ProductListParams } from '../types/product.types';
+import type { ProductResponse, ProductDetailResponse } from '@/types/api-responses';
+import type { ProductListParams } from '../types/product.types';
 
 export const ProductAPI = {
   list: (params?: ProductListParams) => {
     const query = params ? `?${new URLSearchParams(params as Record<string, string>)}` : '';
-    return apiClient.get<PageResponse<Product>>(`/api/v1/products${query}`);
+    return apiClient.get<PageResponse<ProductResponse>>(`/api/products${query}`);
   },
 
-  detail: (id: string) => apiClient.get<Product>(`/api/v1/products/${id}`),
+  detail: (publicId: string) =>
+    apiClient.get<ProductDetailResponse>(`/api/products/${publicId}`),
 
-  search: (keyword: string) =>
-    apiClient.get<PageResponse<Product>>(
-      `/api/v1/products/search?keyword=${encodeURIComponent(keyword)}`,
+  search: (q: string, page = 0, size = 20) =>
+    apiClient.get<PageResponse<ProductResponse>>(
+      `/api/products/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`,
     ),
 };
