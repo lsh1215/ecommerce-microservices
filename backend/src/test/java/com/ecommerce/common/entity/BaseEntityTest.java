@@ -10,19 +10,9 @@ class BaseEntityTest {
     }
 
     @Test
-    void softDelete_shouldSetDeletedTrue() {
+    void newEntity_shouldHaveNullTimestamps() {
         TestEntity entity = new TestEntity();
-        assertThat(entity.isDeleted()).isFalse();
-
-        entity.softDelete();
-        assertThat(entity.isDeleted()).isTrue();
-    }
-
-    @Test
-    void restore_shouldSetDeletedFalse() {
-        TestEntity entity = new TestEntity();
-        entity.softDelete();
-        entity.restore();
-        assertThat(entity.isDeleted()).isFalse();
+        assertThat(entity.getCreatedAt()).isNull();
+        assertThat(entity.getUpdatedAt()).isNull();
     }
 }

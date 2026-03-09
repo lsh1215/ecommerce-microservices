@@ -1,6 +1,5 @@
 package com.ecommerce.common.exception;
 
-import com.ecommerce.common.config.SecurityConfig;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
