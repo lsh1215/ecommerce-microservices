@@ -32,6 +32,7 @@ export function AddToCartButton({
 
     addItem({
       productId: product.id,
+      variantId: sizeData?.id,
       productName: product.name,
       brandName: product.brand.name,
       size: selectedSize,

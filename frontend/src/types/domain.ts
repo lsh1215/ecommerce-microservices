@@ -41,6 +41,7 @@ export interface Measurements {
 }
 
 export interface ProductSize {
+  id?: number;
   label: string;
   stock: number;
   measurements?: Measurements;
@@ -100,6 +101,7 @@ export interface DropSummary {
 
 export interface CartItem {
   productId: string;
+  variantId?: number;
   productName: string;
   brandName: string;
   size: string;

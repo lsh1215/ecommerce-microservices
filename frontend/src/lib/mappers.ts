@@ -115,6 +115,7 @@ export function mapProductDetailResponse(
   const imageUrls = sortedImages.map((img) => img.url);
 
   const sizes: ProductSize[] = (backend.variants ?? []).map((v) => ({
+    id: v.id,
     label: v.sizeLabel,
     stock: inventoryMap.get(v.id) ?? 0,
     measurements: buildMeasurements(v),

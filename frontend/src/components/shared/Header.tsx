@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { ShoppingBag, Search, User, ChevronDown } from 'lucide-react';
 import { useCartStore } from '@/features/cart/store/cart-store';
 import { useCurrencyStore } from '@/stores/currency-store';
+import { useAuthStore } from '@/features/auth/store/auth-store';
+import { useFromStore } from '@/hooks/use-from-store';
 import type { Currency } from '@/types';
 
 const CURRENCIES: Currency[] = ['USD', 'KRW', 'JPY'];
@@ -17,6 +19,7 @@ const NAV_LINKS = [
 export function Header() {
   const totalItems = useCartStore((s) => s.totalItems);
   const { currency, setCurrency } = useCurrencyStore();
+  const user = useFromStore(useAuthStore, (s) => s.user);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#e8e4df] bg-[#faf9f6]/95 backdrop-blur-sm">
@@ -72,7 +75,7 @@ export function Header() {
 
           {/* Auth */}
           <Link
-            href="/auth"
+            href={user ? '/profile' : '/auth'}
             className="flex h-10 w-10 items-center justify-center rounded-none text-[#1a1a1a] transition-colors hover:text-[#c4633e]"
             aria-label="Account"
           >

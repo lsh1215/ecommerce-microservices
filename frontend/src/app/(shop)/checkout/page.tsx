@@ -119,10 +119,12 @@ export default function CheckoutPage() {
         .filter(Boolean)
         .join(', ');
 
-      const orderItems = items.map((item) => ({
-        productVariantId: Number(item.productId),
-        quantity: item.quantity,
-      }));
+      const orderItems = items
+        .filter((item) => item.variantId != null)
+        .map((item) => ({
+          productVariantId: item.variantId!,
+          quantity: item.quantity,
+        }));
 
       const orderRes = await OrderAPI.create({
         customerId: Number(user.id),
