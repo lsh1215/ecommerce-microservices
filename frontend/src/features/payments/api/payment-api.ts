@@ -6,8 +6,7 @@ export const PaymentAPI = {
   process: (request: ProcessPaymentRequest) =>
     apiClient.post<PaymentResponse>('/api/payments', request),
 
-  detail: (publicId: string) =>
-    apiClient.get<PaymentResponse>(`/api/payments/${publicId}`),
+  detail: (publicId: string) => apiClient.get<PaymentResponse>(`/api/payments/${publicId}`),
 
   refund: (publicId: string, request: RefundRequest) =>
     apiClient.post<PaymentResponse>(`/api/payments/${publicId}/refund`, request),

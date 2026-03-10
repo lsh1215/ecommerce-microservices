@@ -13,12 +13,9 @@ export const OrderAPI = {
     return apiClient.get<PageResponse<OrderResponse>>(`/api/orders?${query}`);
   },
 
-  detail: (publicId: string) =>
-    apiClient.get<OrderResponse>(`/api/orders/${publicId}`),
+  detail: (publicId: string) => apiClient.get<OrderResponse>(`/api/orders/${publicId}`),
 
-  create: (request: CreateOrderRequest) =>
-    apiClient.post<OrderResponse>('/api/orders', request),
+  create: (request: CreateOrderRequest) => apiClient.post<OrderResponse>('/api/orders', request),
 
-  cancel: (publicId: string) =>
-    apiClient.post<OrderResponse>(`/api/orders/${publicId}/cancel`, {}),
+  cancel: (publicId: string) => apiClient.post<OrderResponse>(`/api/orders/${publicId}/cancel`, {}),
 };

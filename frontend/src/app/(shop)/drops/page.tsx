@@ -18,13 +18,9 @@ export default async function DropsPage() {
   const dropPage = await serverFetch<PageResponse<DropEventResponse>>('/api/drops?page=0&size=50');
   const allDrops = (dropPage?.content ?? []).map(mapDropResponse);
 
-  const liveDrops = allDrops.filter(
-    (d) => d.status === 'SELLING' || d.status === 'OPEN',
-  );
+  const liveDrops = allDrops.filter((d) => d.status === 'SELLING' || d.status === 'OPEN');
   const upcomingDrops = allDrops.filter((d) => d.status === 'ANNOUNCED');
-  const pastDrops = allDrops.filter(
-    (d) => d.status === 'CLOSED' || d.status === 'SOLD_OUT',
-  );
+  const pastDrops = allDrops.filter((d) => d.status === 'CLOSED' || d.status === 'SOLD_OUT');
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">

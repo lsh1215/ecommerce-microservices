@@ -96,9 +96,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     products = products.filter((p) => p.origin === (origin as Origin));
   }
 
-  const totalProducts = origin
-    ? products.length
-    : (productsPage?.totalElements ?? products.length);
+  const totalProducts = origin ? products.length : (productsPage?.totalElements ?? products.length);
   const totalPages = origin
     ? Math.max(1, Math.ceil(products.length / PAGE_SIZE))
     : Math.max(1, productsPage?.totalPages ?? 1);

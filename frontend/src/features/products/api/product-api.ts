@@ -9,8 +9,7 @@ export const ProductAPI = {
     return apiClient.get<PageResponse<ProductResponse>>(`/api/products${query}`);
   },
 
-  detail: (publicId: string) =>
-    apiClient.get<ProductDetailResponse>(`/api/products/${publicId}`),
+  detail: (publicId: string) => apiClient.get<ProductDetailResponse>(`/api/products/${publicId}`),
 
   search: (q: string, page = 0, size = 20) =>
     apiClient.get<PageResponse<ProductResponse>>(

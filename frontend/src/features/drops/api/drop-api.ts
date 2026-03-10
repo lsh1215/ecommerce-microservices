@@ -6,6 +6,5 @@ export const DropAPI = {
   list: (page = 0, size = 20) =>
     apiClient.get<PageResponse<DropEventResponse>>(`/api/drops?page=${page}&size=${size}`),
 
-  detail: (publicId: string) =>
-    apiClient.get<DropEventResponse>(`/api/drops/${publicId}`),
+  detail: (publicId: string) => apiClient.get<DropEventResponse>(`/api/drops/${publicId}`),
 };

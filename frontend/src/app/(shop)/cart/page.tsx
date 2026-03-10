@@ -174,7 +174,9 @@ export default function CartPage() {
                           onClick={() =>
                             updateQuantity(item.productId, item.size, item.quantity + 1)
                           }
-                          disabled={item.currentStock < Infinity && item.quantity >= item.currentStock}
+                          disabled={
+                            item.currentStock < Infinity && item.quantity >= item.currentStock
+                          }
                           className="px-2 py-1 text-[#6b6560] hover:text-[#1a1a1a] disabled:opacity-40"
                           aria-label="Increase quantity"
                         >

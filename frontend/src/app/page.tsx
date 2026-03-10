@@ -59,9 +59,7 @@ export default async function HomePage() {
                 <h1 className="font-heading text-4xl font-bold leading-tight text-white md:text-6xl">
                   {heroDrop.name}
                 </h1>
-                <p className="mt-4 text-sm font-medium text-[#e8e4df]">
-                  {heroDrop.name}
-                </p>
+                <p className="mt-4 text-sm font-medium text-[#e8e4df]">{heroDrop.name}</p>
 
                 {(heroDrop.status === 'SELLING' || heroDrop.status === 'OPEN') && (
                   <p className="mt-3 flex items-center gap-2 text-sm text-[#e8e4df]">

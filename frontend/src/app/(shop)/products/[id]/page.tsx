@@ -62,9 +62,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { data: product, isLoading, error } = useProduct(id);
 
   const { data: relatedData } = useProducts(
-    product
-      ? { category: product.category.toUpperCase(), size: '4', page: '0' }
-      : undefined,
+    product ? { category: product.category.toUpperCase(), size: '4', page: '0' } : undefined,
   );
 
   const related = (relatedData?.content ?? []).filter((p) => p.id !== id).slice(0, 4);

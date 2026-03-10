@@ -155,7 +155,8 @@ export default function CheckoutPage() {
       clearCart();
       router.push(`/orders/${order.publicId}/confirmation`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const message =
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       addToast('error', message);
     } finally {
       setIsSubmitting(false);
