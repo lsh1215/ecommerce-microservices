@@ -1,9 +1,11 @@
 'use client';
 
+import { redirect } from 'next/navigation';
 import { useCurrencyStore } from '@/stores/currency-store';
 import { useAuthStore } from '@/features/auth/store/auth-store';
 import { useFromStore } from '@/hooks/use-from-store';
-import type { Currency, ShippingAddress } from '@/types';
+import { Skeleton } from '@/components/shared/Skeleton';
+import type { Currency } from '@/types';
 
 const CURRENCIES: { value: Currency; label: string }[] = [
   { value: 'KRW', label: 'KRW — Korean Won (₩)' },
@@ -11,33 +13,29 @@ const CURRENCIES: { value: Currency; label: string }[] = [
   { value: 'JPY', label: 'JPY — Japanese Yen (¥)' },
 ];
 
-const MOCK_ADDRESSES: ShippingAddress[] = [
-  {
-    name: 'Kim Minsu',
-    phone: '+82-10-1234-5678',
-    address: '123 Gangnam-daero',
-    addressDetail: 'Apt 1204',
-    city: 'Seoul',
-    country: 'KR',
-    postalCode: '06234',
-  },
-  {
-    name: 'Kim Minsu',
-    phone: '+82-10-1234-5678',
-    address: '456 Teheran-ro',
-    city: 'Seoul',
-    country: 'KR',
-    postalCode: '06174',
-  },
-];
-
 export default function ProfilePage() {
   const user = useFromStore(useAuthStore, (s) => s.user);
   const currency = useFromStore(useCurrencyStore, (s) => s.currency);
   const setCurrency = useCurrencyStore((s) => s.setCurrency);
 
-  const displayName = user?.name ?? 'Kim Minsu';
-  const displayEmail = user?.email ?? 'minsu@example.com';
+  if (user === undefined) {
+    return (
+      <div>
+        <h1 className="font-heading mb-8 text-3xl font-bold text-[#1a1a1a]">Profile</h1>
+        <div className="space-y-6">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (user === null) {
+    redirect('/auth?redirect=/profile');
+  }
+
+  const displayName = user.name;
+  const displayEmail = user.email;
 
   return (
     <div>
@@ -102,42 +100,12 @@ export default function ProfilePage() {
           <h2 className="text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
             Saved Addresses
           </h2>
-          <button
-            type="button"
-            className="text-sm font-medium text-[#c4633e] underline underline-offset-4"
-          >
-            Add New Address
-          </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {MOCK_ADDRESSES.map((addr, idx) => (
-            <div key={idx} className="border border-[#e8e4df] p-5">
-              <p className="text-sm font-medium text-[#1a1a1a]">{addr.name}</p>
-              <p className="mt-1 text-sm text-[#6b6560]">{addr.phone}</p>
-              <p className="mt-2 text-sm text-[#6b6560]">
-                {addr.address}
-                {addr.addressDetail && `, ${addr.addressDetail}`}
-              </p>
-              <p className="text-sm text-[#6b6560]">
-                {addr.city}, {addr.country} {addr.postalCode}
-              </p>
-              <div className="mt-4 flex gap-3">
-                <button
-                  type="button"
-                  className="text-xs font-medium text-[#1a1a1a] underline underline-offset-4"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-[#c4633e] underline underline-offset-4"
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="border border-[#e8e4df] p-5 text-center">
+          <p className="text-sm text-[#6b6560]">
+            No saved addresses yet. Addresses will be saved from your orders.
+          </p>
         </div>
       </section>
     </div>

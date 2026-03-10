@@ -6,12 +6,9 @@ import Link from 'next/link';
 import { Minus, Plus, Trash2, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { useCartStore } from '@/features/cart/store/cart-store';
 import { CurrencyPrice } from '@/components/shared/CurrencyPrice';
-import { CountdownTimer } from '@/components/shared/CountdownTimer';
 import { useCurrencyStore } from '@/stores/currency-store';
 import { formatPrice, getPrice } from '@/utils/currency';
 import { useFromStore } from '@/hooks/use-from-store';
-import { getProductById } from '@/mocks/products';
-import { getDropById } from '@/mocks/drops';
 
 const DUTY_RATE = 0.08;
 
@@ -24,34 +21,12 @@ export default function CartPage() {
   const enrichedItems = useMemo(() => {
     if (!items) return [];
     return items.map((item) => {
-      const product = getProductById(item.productId);
-      const sizeData = product?.sizes.find((s) => s.label === item.size);
-      const currentStock = sizeData?.stock ?? 0;
+      const currentStock = item.stockAvailable ?? Infinity;
       const soldOut = currentStock === 0;
-      const lowStock = !soldOut && currentStock <= 3;
+      const lowStock = !soldOut && currentStock <= 3 && currentStock < Infinity;
       return { ...item, currentStock, soldOut, lowStock };
     });
   }, [items]);
-
-  const activeDropIds = useMemo(() => {
-    if (!items) return new Set<string>();
-    const ids = new Set<string>();
-    items.forEach((item) => {
-      if (item.dropId) {
-        const drop = getDropById(item.dropId);
-        if (drop && (drop.status === 'SELLING' || drop.status === 'OPEN')) {
-          ids.add(drop.id);
-        }
-      }
-    });
-    return ids;
-  }, [items]);
-
-  const activeDrops = useMemo(() => {
-    return Array.from(activeDropIds)
-      .map((id) => getDropById(id))
-      .filter(Boolean);
-  }, [activeDropIds]);
 
   const hasSoldOutItems = enrichedItems.some((i) => i.soldOut);
 
@@ -116,24 +91,10 @@ export default function CartPage() {
       </p>
 
       {/* Drop timers */}
-      {activeDrops.length > 0 && (
+      {enrichedItems.some((i) => i.dropName) && (
         <div className="mt-6 space-y-2">
-          {activeDrops.map((drop) => (
-            <div
-              key={drop!.id}
-              className="flex items-center justify-between border border-[#e8e4df] bg-[#f3f0eb] px-4 py-3"
-            >
-              <div className="flex items-center gap-2">
-                <AlertTriangle size={14} className="text-[#c4633e]" />
-                <span className="text-xs font-medium text-[#1a1a1a]">{drop!.name} closes in</span>
-              </div>
-              <CountdownTimer
-                targetDate={drop!.closesAt}
-                className="text-sm font-semibold text-[#1a1a1a]"
-              />
-            </div>
-          ))}
-          <p className="text-xs text-[#6b6560]">
+          <p className="flex items-center gap-2 text-xs text-[#6b6560]">
+            <AlertTriangle size={14} className="text-[#c4633e]" />
             Items are not reserved until checkout is complete.
           </p>
         </div>
@@ -213,7 +174,9 @@ export default function CartPage() {
                           onClick={() =>
                             updateQuantity(item.productId, item.size, item.quantity + 1)
                           }
-                          disabled={item.quantity >= item.currentStock}
+                          disabled={
+                            item.currentStock < Infinity && item.quantity >= item.currentStock
+                          }
                           className="px-2 py-1 text-[#6b6560] hover:text-[#1a1a1a] disabled:opacity-40"
                           aria-label="Increase quantity"
                         >

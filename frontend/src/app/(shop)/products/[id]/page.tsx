@@ -7,14 +7,13 @@ import Link from 'next/link';
 import { use } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { CurrencyPrice } from '@/components/shared/CurrencyPrice';
-import { CountdownTimer } from '@/components/shared/CountdownTimer';
-import { DropStatusBadge } from '@/components/shared/DropStatusBadge';
 import { ProductCard } from '@/components/shared/ProductCard';
 import { MobileImageCarousel } from '@/components/shared/MobileImageCarousel';
+import { Skeleton } from '@/components/shared/Skeleton';
 import { SizeSelector } from '@/features/products/components/SizeSelector';
 import { AddToCartButton } from '@/features/products/components/AddToCartButton';
-import { getProductById, getRelatedProducts } from '@/mocks/products';
-import { getDropById } from '@/mocks/drops';
+import { useProduct } from '@/hooks/queries/use-products';
+import { useProducts } from '@/hooks/queries/use-products';
 import type { Measurements } from '@/types';
 
 const ORIGIN_FLAGS: Record<string, string> = {
@@ -38,24 +37,35 @@ interface ProductDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
+function ProductDetailSkeleton() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
+      <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+        <div>
+          <Skeleton className="aspect-[3/4] w-full" />
+        </div>
+        <div className="flex flex-col gap-6">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { id } = use(params);
-  const product = getProductById(id);
+  const { data: product, isLoading, error } = useProduct(id);
 
-  if (!product) notFound();
+  const { data: relatedData } = useProducts(
+    product ? { category: product.category.toUpperCase(), size: '4', page: '0' } : undefined,
+  );
 
-  const drop = product.dropId ? getDropById(product.dropId) : null;
-  const related = getRelatedProducts(product, 4);
-
-  const isDropLive = drop?.status === 'SELLING' || drop?.status === 'OPEN';
-  const isDropAnnounced = drop?.status === 'ANNOUNCED';
-
-  const hasMeasurements = product.sizes.some((s) => s.measurements);
-  const measurementKeys = hasMeasurements
-    ? (Object.keys(
-        product.sizes.find((s) => s.measurements)?.measurements ?? {},
-      ) as (keyof Measurements)[])
-    : [];
+  const related = (relatedData?.content ?? []).filter((p) => p.id !== id).slice(0, 4);
 
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [activeImage, setActiveImage] = useState(0);
@@ -65,29 +75,18 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     setSelectedSize(size);
   }, []);
 
+  if (isLoading) return <ProductDetailSkeleton />;
+  if (error || !product) return notFound();
+
+  const hasMeasurements = product.sizes.some((s) => s.measurements);
+  const measurementKeys = hasMeasurements
+    ? (Object.keys(
+        product.sizes.find((s) => s.measurements)?.measurements ?? {},
+      ) as (keyof Measurements)[])
+    : [];
+
   return (
     <div>
-      {/* Drop countdown bar */}
-      {drop && (isDropLive || isDropAnnounced) && (
-        <div className="sticky top-14 z-40 border-b border-[#e8e4df] bg-[#1a1a1a] px-4 py-2.5">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-            <Link
-              href={`/drops/${drop.id}`}
-              className="text-xs font-medium text-[#a39e93] hover:text-white"
-            >
-              {drop.name}
-            </Link>
-            <div className="flex items-center gap-3">
-              <DropStatusBadge status={drop.status} />
-              <CountdownTimer
-                targetDate={isDropLive ? drop.closesAt : drop.opensAt}
-                className="font-semibold text-white"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
           {/* Image gallery */}
@@ -258,39 +257,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               </div>
             )}
 
-            {/* Drop banner */}
-            {drop && (isDropLive || isDropAnnounced) && (
-              <div className="border border-[#e8e4df] bg-[#f3f0eb] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
-                      Part of
-                    </p>
-                    <Link
-                      href={`/drops/${drop.id}`}
-                      className="text-sm font-medium text-[#1a1a1a] hover:text-[#c4633e]"
-                    >
-                      {drop.name}
-                    </Link>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <DropStatusBadge status={drop.status} />
-                    <CountdownTimer
-                      targetDate={isDropLive ? drop.closesAt : drop.opensAt}
-                      className="text-sm font-semibold text-[#1a1a1a]"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Add to cart (desktop) */}
             <div className="hidden md:block">
               <AddToCartButton
                 product={product}
                 selectedSize={selectedSize}
-                isDropAnnounced={isDropAnnounced}
-                dropOpensAt={drop?.opensAt}
+                isDropAnnounced={false}
               />
             </div>
           </div>
@@ -328,8 +300,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             <AddToCartButton
               product={product}
               selectedSize={selectedSize}
-              isDropAnnounced={isDropAnnounced}
-              dropOpensAt={drop?.opensAt}
+              isDropAnnounced={false}
             />
           </div>
         </div>

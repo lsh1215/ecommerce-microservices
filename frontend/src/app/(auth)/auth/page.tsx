@@ -7,6 +7,7 @@ import { z } from 'zod/v4';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/auth-store';
+import { AuthAPI } from '@/features/auth/api/auth-api';
 
 type AuthTab = 'login' | 'register';
 
@@ -51,22 +52,63 @@ function AuthForm() {
   const handleLogin = async (data: LoginFormData) => {
     setIsSubmitting(true);
     setError(null);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    setAuth(
-      { id: 'user-001', email: data.email, name: data.email.split('@')[0] ?? 'User' },
-      'mock-jwt-token',
-    );
-    router.push(redirect);
+    try {
+      const res = await AuthAPI.login({ email: data.email, password: data.password });
+      if (!res.success || !res.data) {
+        setError(res.error?.message ?? 'Invalid credentials');
+        return;
+      }
+      setAuth({
+        id: res.data.id,
+        publicId: res.data.publicId,
+        name: res.data.name,
+        email: res.data.email,
+      });
+      router.push(redirect);
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleRegister = async (data: RegisterFormData) => {
     setIsSubmitting(true);
     setError(null);
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const registerRes = await AuthAPI.register({
+        email: data.email,
+        password: data.password,
+        name: data.name,
+      });
+      if (!registerRes.success) {
+        const code = registerRes.error?.code;
+        if (code === '409' || registerRes.error?.message?.toLowerCase().includes('duplicate')) {
+          setError('An account with this email already exists.');
+        } else {
+          setError(registerRes.error?.message ?? 'Registration failed');
+        }
+        return;
+      }
 
-    setAuth({ id: 'user-001', email: data.email, name: data.name }, 'mock-jwt-token');
-    router.push(redirect);
+      const loginRes = await AuthAPI.login({ email: data.email, password: data.password });
+      if (!loginRes.success || !loginRes.data) {
+        setError('Account created but login failed. Please try logging in.');
+        setTab('login');
+        return;
+      }
+      setAuth({
+        id: loginRes.data.id,
+        publicId: loginRes.data.publicId,
+        name: loginRes.data.name,
+        email: loginRes.data.email,
+      });
+      router.push(redirect);
+    } catch {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const inputClass = (hasError: boolean) =>

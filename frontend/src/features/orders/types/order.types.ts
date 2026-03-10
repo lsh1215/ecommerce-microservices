@@ -1,21 +1,18 @@
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-
-export interface OrderItem {
-  productId: string;
-  productName: string;
-  price: number;
+export interface CreateOrderItem {
+  productVariantId: number;
   quantity: number;
 }
 
-export interface Order {
-  id: string;
-  status: OrderStatus;
-  items: OrderItem[];
-  totalAmount: number;
-  createdAt: string;
-  updatedAt: string;
+export interface CreateOrderRequest {
+  customerId: number;
+  shippingAddress: string;
+  idempotencyKey: string;
+  currency: string;
+  items: CreateOrderItem[];
 }
 
-export interface CreateOrderRequest {
-  items: { productId: string; quantity: number }[];
+export interface OrderListParams {
+  customerId: number;
+  page?: number;
+  size?: number;
 }

@@ -1,26 +1,41 @@
+'use client';
+
+import { use } from 'react';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Check, Package } from 'lucide-react';
 import { CurrencyPrice } from '@/components/shared/CurrencyPrice';
-import { mockOrder } from '@/mocks/orders';
+import { useOrder } from '@/hooks/queries';
 
 interface ConfirmationPageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({ params }: ConfirmationPageProps) {
-  const { id } = await params;
-  if (id !== mockOrder.id) return { title: 'Order Not Found — FOUNDRY' };
-  return { title: `Order Confirmed — FOUNDRY` };
-}
+export default function OrderConfirmationPage({ params }: ConfirmationPageProps) {
+  const { id } = use(params);
+  const { data: order, isLoading, error } = useOrder(id);
 
-export default async function OrderConfirmationPage({ params }: ConfirmationPageProps) {
-  const { id } = await params;
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-16 md:px-6">
+        <div className="flex flex-col items-center">
+          <div className="h-16 w-16 animate-pulse bg-[#e8e4df]" />
+          <div className="mt-6 h-8 w-64 animate-pulse bg-[#e8e4df]" />
+          <div className="mt-4 h-4 w-48 animate-pulse bg-[#e8e4df]" />
+        </div>
+        <div className="mt-10 animate-pulse space-y-4">
+          <div className="h-6 w-40 bg-[#e8e4df]" />
+          <div className="h-24 bg-[#e8e4df]" />
+        </div>
+      </div>
+    );
+  }
 
-  if (id !== mockOrder.id) notFound();
+  if (error || !order) {
+    notFound();
+  }
 
-  const order = mockOrder;
   const isDropPurchase = !!order.dropId;
 
   return (

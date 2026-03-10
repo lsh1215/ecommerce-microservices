@@ -4,8 +4,11 @@ import { ProductCard } from '@/components/shared/ProductCard';
 import { ProductGridSkeleton } from '@/components/shared/Skeleton';
 import { MobileFilterDrawer } from '@/components/shared/MobileFilterDrawer';
 import { SortSelect } from '@/components/shared/SortSelect';
-import { mockProducts, mockBrands } from '@/mocks';
+import { serverFetch } from '@/lib/server-fetch';
+import { mapProductResponse, mapBrandResponse } from '@/lib/mappers';
+import type { PageResponse } from '@/types';
 import type { Category, Origin } from '@/types';
+import type { ProductResponse, BrandResponse } from '@/types/api-responses';
 
 export const metadata = {
   title: 'Products — FOUNDRY',
@@ -33,50 +36,73 @@ const SORT_OPTIONS = [
 ];
 const PAGE_SIZE = 24;
 
+function buildSortParams(sort: string): { sort: string; direction: string } {
+  switch (sort) {
+    case 'price_asc':
+      return { sort: 'basePrice', direction: 'asc' };
+    case 'price_desc':
+      return { sort: 'basePrice', direction: 'desc' };
+    case 'brand_az':
+      return { sort: 'brandName', direction: 'asc' };
+    case 'newest':
+    default:
+      return { sort: 'createdAt', direction: 'desc' };
+  }
+}
+
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams;
   const { q, brand, origin, category, sort = 'newest' } = params;
   const currentPage = Math.max(1, parseInt(params.page ?? '1', 10) || 1);
+  const backendPage = currentPage - 1;
 
-  let filtered = [...mockProducts];
+  const brandsRaw = await serverFetch<BrandResponse[]>('/api/brands');
+  const allBrands = (brandsRaw ?? []).map(mapBrandResponse);
+
+  let productsPage: PageResponse<ProductResponse> | null = null;
 
   if (q) {
-    const lower = q.toLowerCase();
-    filtered = filtered.filter(
-      (p) =>
-        p.name.toLowerCase().includes(lower) ||
-        p.nameKo?.toLowerCase().includes(lower) ||
-        p.brand.name.toLowerCase().includes(lower) ||
-        p.description.toLowerCase().includes(lower),
+    productsPage = await serverFetch<PageResponse<ProductResponse>>(
+      `/api/products/search?q=${encodeURIComponent(q)}&page=${backendPage}&size=${PAGE_SIZE}`,
+    );
+  } else {
+    const queryParts: string[] = [];
+    queryParts.push(`page=${backendPage}`);
+    queryParts.push(`size=${PAGE_SIZE}`);
+
+    if (brand) {
+      const matchedBrand = allBrands.find((b) => b.slug === brand);
+      if (matchedBrand) {
+        queryParts.push(`brandId=${matchedBrand.id}`);
+      }
+    }
+
+    if (category) {
+      queryParts.push(`category=${category.toUpperCase()}`);
+    }
+
+    const { sort: sortField, direction } = buildSortParams(sort);
+    queryParts.push(`sort=${sortField}`);
+    queryParts.push(`direction=${direction}`);
+
+    productsPage = await serverFetch<PageResponse<ProductResponse>>(
+      `/api/products?${queryParts.join('&')}`,
     );
   }
 
-  if (brand) {
-    filtered = filtered.filter((p) => p.brand.slug === brand || p.brand.name === brand);
-  }
+  let products = (productsPage?.content ?? []).map(mapProductResponse);
 
   if (origin) {
-    filtered = filtered.filter((p) => p.origin === (origin as Origin));
+    products = products.filter((p) => p.origin === (origin as Origin));
   }
 
-  if (category) {
-    filtered = filtered.filter((p) => p.category === (category as Category));
-  }
-
-  if (sort === 'price_asc') {
-    filtered.sort((a, b) => a.priceUsd - b.priceUsd);
-  } else if (sort === 'price_desc') {
-    filtered.sort((a, b) => b.priceUsd - a.priceUsd);
-  } else if (sort === 'brand_az') {
-    filtered.sort((a, b) => a.brand.name.localeCompare(b.brand.name));
-  } else {
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }
-
-  const totalProducts = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalProducts / PAGE_SIZE));
+  const totalProducts = origin ? products.length : (productsPage?.totalElements ?? products.length);
+  const totalPages = origin
+    ? Math.max(1, Math.ceil(products.length / PAGE_SIZE))
+    : Math.max(1, productsPage?.totalPages ?? 1);
   const safePage = Math.min(currentPage, totalPages);
-  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const paged = origin ? products : products;
 
   const activeFiltersCount = [q, brand, origin, category].filter(Boolean).length;
 
@@ -129,7 +155,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <div>
         <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6b6560]">Brand</p>
         <div className="flex flex-col gap-2">
-          {mockBrands.map((b) => (
+          {allBrands.map((b) => (
             <a
               key={b.id}
               href={buildFilterUrl({ brand: brand === b.slug ? undefined : b.slug })}
@@ -235,7 +261,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   href={buildFilterUrl({ brand: undefined })}
                   className="flex items-center gap-1 border border-[#1a1a1a] px-2 py-1 text-xs font-medium"
                 >
-                  {mockBrands.find((b) => b.slug === brand)?.name ?? brand} &times;
+                  {allBrands.find((b) => b.slug === brand)?.name ?? brand} &times;
                 </a>
               )}
               {origin && (

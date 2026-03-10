@@ -1,6 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
+import { OrderAPI } from '@/features/orders/api/order-api';
+import { useToastStore } from '@/stores/toast-store';
 
 interface OrderCancelButtonProps {
   orderId: string;
@@ -8,6 +12,28 @@ interface OrderCancelButtonProps {
 
 export function OrderCancelButton({ orderId }: OrderCancelButtonProps) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const queryClient = useQueryClient();
+  const addToast = useToastStore((s) => s.addToast);
+
+  const handleCancel = async () => {
+    setIsCancelling(true);
+    try {
+      const res = await OrderAPI.cancel(orderId);
+      if (!res.success) {
+        addToast('error', res.error?.message ?? 'Unable to cancel this order.');
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+      addToast('success', 'Order has been cancelled.');
+      setShowConfirm(false);
+    } catch {
+      addToast('error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   return (
     <>
@@ -28,12 +54,22 @@ export function OrderCancelButton({ orderId }: OrderCancelButtonProps) {
           <div className="flex gap-3">
             <button
               type="button"
-              className="bg-red-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+              disabled={isCancelling}
+              onClick={handleCancel}
+              className="flex items-center gap-2 bg-red-600 px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-60"
             >
-              Confirm Cancellation
+              {isCancelling ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                'Confirm Cancellation'
+              )}
             </button>
             <button
               type="button"
+              disabled={isCancelling}
               onClick={() => setShowConfirm(false)}
               className="border border-[#e8e4df] px-6 py-2 text-sm font-medium text-[#1a1a1a] transition-colors hover:border-[#1a1a1a]"
             >

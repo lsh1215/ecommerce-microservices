@@ -13,7 +13,10 @@ import { useCurrencyStore } from '@/stores/currency-store';
 import { CurrencyPrice } from '@/components/shared/CurrencyPrice';
 import { formatPrice, getPrice } from '@/utils/currency';
 import { useFromStore } from '@/hooks/use-from-store';
-import { mockOrder } from '@/mocks/orders';
+import { useAuthStore } from '@/features/auth/store/auth-store';
+import { useToastStore } from '@/stores/toast-store';
+import { OrderAPI } from '@/features/orders/api/order-api';
+import { PaymentAPI } from '@/features/payments/api/payment-api';
 
 const DUTY_RATE = 0.08;
 
@@ -52,6 +55,8 @@ export default function CheckoutPage() {
   const items = useFromStore(useCartStore, (s) => s.items);
   const clearCart = useCartStore((s) => s.clearCart);
   const currency = useCurrencyStore((s) => s.currency);
+  const user = useAuthStore((s) => s.user);
+  const addToast = useToastStore((s) => s.addToast);
 
   const [paymentMethod, setPaymentMethod] = useState<string>('credit_card');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,11 +97,70 @@ export default function CheckoutPage() {
     priceJpy: subtotal.priceJpy + duty.priceJpy,
   };
 
-  const onSubmit = async () => {
+  const onSubmit = async (formData: ShippingFormData) => {
+    if (!user) {
+      addToast('error', 'Please log in to place an order.');
+      router.push('/login');
+      return;
+    }
+
+    if (!items || items.length === 0) return;
+
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    clearCart();
-    router.push(`/orders/${mockOrder.id}/confirmation`);
+
+    try {
+      const shippingAddress = [
+        formData.address,
+        formData.addressDetail,
+        formData.city,
+        formData.postalCode,
+        formData.country,
+      ]
+        .filter(Boolean)
+        .join(', ');
+
+      const orderItems = items
+        .filter((item) => item.variantId != null)
+        .map((item) => ({
+          productVariantId: item.variantId!,
+          quantity: item.quantity,
+        }));
+
+      const orderRes = await OrderAPI.create({
+        customerId: Number(user.id),
+        shippingAddress,
+        idempotencyKey: crypto.randomUUID(),
+        currency,
+        items: orderItems,
+      });
+
+      if (!orderRes.success || !orderRes.data) {
+        throw new Error(orderRes.error?.message ?? 'Failed to create order');
+      }
+
+      const order = orderRes.data;
+
+      const paymentRes = await PaymentAPI.process({
+        orderId: order.id,
+        amount: order.totalAmount,
+        currency: order.totalCurrency,
+        idempotencyKey: crypto.randomUUID(),
+        paymentMethod: paymentMethod === 'credit_card' ? 'CARD' : 'BANK_TRANSFER',
+      });
+
+      if (!paymentRes.success) {
+        throw new Error(paymentRes.error?.message ?? 'Payment failed');
+      }
+
+      clearCart();
+      router.push(`/orders/${order.publicId}/confirmation`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      addToast('error', message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (items === undefined) {

@@ -1,13 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { getBrandBySlug } from '@/mocks/brands';
-import { getProductsByBrand } from '@/mocks/products';
-import { mockDrops } from '@/mocks';
+import { serverFetch } from '@/lib/server-fetch';
+import { mapBrandResponse, mapProductResponse } from '@/lib/mappers';
 import { ProductCard } from '@/components/shared/ProductCard';
-import { DropStatusBadge } from '@/components/shared/DropStatusBadge';
-import { CountdownTimer } from '@/components/shared/CountdownTimer';
-import type { Origin } from '@/types';
+import type { BrandResponse, ProductResponse } from '@/types/api-responses';
+import type { PageResponse, Origin } from '@/types';
 
 const ORIGIN_FLAGS: Record<Origin, string> = {
   Korea: '🇰🇷',
@@ -21,8 +19,9 @@ interface BrandDetailPageProps {
 
 export async function generateMetadata({ params }: BrandDetailPageProps) {
   const { slug } = await params;
-  const brand = getBrandBySlug(slug);
-  if (!brand) return { title: 'Brand Not Found — FOUNDRY' };
+  const brandRes = await serverFetch<BrandResponse>(`/api/brands/${slug}`);
+  if (!brandRes) return { title: 'Brand Not Found — FOUNDRY' };
+  const brand = mapBrandResponse(brandRes);
   return {
     title: `${brand.name} — FOUNDRY`,
     description: brand.description,
@@ -31,23 +30,23 @@ export async function generateMetadata({ params }: BrandDetailPageProps) {
 
 export default async function BrandDetailPage({ params }: BrandDetailPageProps) {
   const { slug } = await params;
-  const brand = getBrandBySlug(slug);
+  const brandRes = await serverFetch<BrandResponse>(`/api/brands/${slug}`);
 
-  if (!brand) notFound();
+  if (!brandRes) notFound();
 
-  const products = getProductsByBrand(slug);
-  const activeDrops = mockDrops.filter(
-    (d) =>
-      d.brand.slug === slug &&
-      (d.status === 'SELLING' || d.status === 'OPEN' || d.status === 'ANNOUNCED'),
+  const brand = mapBrandResponse(brandRes);
+
+  const productPage = await serverFetch<PageResponse<ProductResponse>>(
+    `/api/products?brandId=${brandRes.id}&page=0&size=20`,
   );
+  const products = (productPage?.content ?? []).map(mapProductResponse);
 
   return (
     <div>
       {/* Hero */}
       <section className="relative h-[50vh] min-h-[320px] max-h-[500px] overflow-hidden bg-[#1a1a1a]">
         <Image
-          src={brand.imageUrl}
+          src={brand.imageUrl || '/placeholder-brand.jpg'}
           alt={brand.name}
           fill
           priority
@@ -92,42 +91,6 @@ export default async function BrandDetailPage({ params }: BrandDetailPageProps) 
       </section>
 
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">
-        {/* Active Drops */}
-        {activeDrops.length > 0 && (
-          <section className="mb-16">
-            <h2 className="font-heading mb-6 text-2xl font-bold text-[#1a1a1a]">Active Drops</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {activeDrops.map((drop) => (
-                <Link
-                  key={drop.id}
-                  href={`/drops/${drop.id}`}
-                  className="group relative aspect-[3/2] overflow-hidden bg-[#e8e4df]"
-                >
-                  <Image
-                    src={drop.heroImageUrl}
-                    alt={drop.name}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a]/80 via-transparent" />
-                  <div className="absolute inset-0 flex flex-col justify-end p-5">
-                    <DropStatusBadge status={drop.status} className="mb-2" />
-                    <h3 className="font-heading text-lg font-bold text-white">{drop.name}</h3>
-                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[#e8e4df]">
-                      {drop.status === 'ANNOUNCED' ? 'Opens in ' : 'Closes in '}
-                      <CountdownTimer
-                        targetDate={drop.status === 'ANNOUNCED' ? drop.opensAt : drop.closesAt}
-                        className="font-semibold text-white"
-                      />
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Products */}
         <section>
           <div className="mb-6 flex items-end justify-between">
