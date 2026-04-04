@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-payment
+  namespace: ecommerce
+spec:
+  ports:
+    - port: 8083
+      targetPort: 8083
+  selector:
+    app: service-payment
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: service-payment
+  namespace: ecommerce
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-payment
+  template:
+    metadata:
+      labels:
+        app: service-payment
+    spec:
+      containers:
+        - name: service-payment
+          image: ecommerce/service-payment:latest
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: ecommerce-config
+            - secretRef:
+                name: ecommerce-secrets
+          env:
+            - name: SERVER_PORT
+              value: "8083"
+            - name: DB_NAME
+              value: "ecommerce_payment"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 20
