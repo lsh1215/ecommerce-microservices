@@ -1,0 +1,21 @@
+package com.ecommerce.order;
+
+import com.ecommerce.common.exception.ErrorCodeBase;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+
+@Getter
+@RequiredArgsConstructor
+public enum OrderErrorCode implements ErrorCodeBase {
+
+    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_001", "Order not found"),
+    INVALID_ORDER_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "ORDER_002", "Invalid order status transition"),
+    CUSTOMER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_003", "Customer not found"),
+    STOCK_RESERVATION_FAILED(HttpStatus.BAD_REQUEST, "ORDER_004", "Stock reservation failed"),
+    ORDER_CANCEL_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "ORDER_005", "Order cancellation not allowed");
+
+    private final HttpStatus status;
+    private final String code;
+    private final String message;
+}
