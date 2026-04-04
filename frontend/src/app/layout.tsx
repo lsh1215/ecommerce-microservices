@@ -1,25 +1,19 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, DM_Sans } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastContainer } from '@/components/shared/Toast';
+import { cn } from '@/lib/utils';
 
-const playfair = Playfair_Display({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-playfair',
-  display: 'swap',
-});
-
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  variable: '--font-dm-sans',
+  variable: '--font-inter',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'FOUNDRY — Global Heritage Wear',
-  description:
-    'Curated global platform for heritage menswear. Korean, Japanese, and Western Americana brands through timed drop mechanics.',
+  title: 'E-Commerce',
+  description: 'Shop the best products at great prices.',
 };
 
 export default function RootLayout({
@@ -28,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${playfair.variable} ${dmSans.variable} antialiased`}>
+    <html lang="ko" className={cn('font-sans', inter.variable)}>
+      <body className="antialiased">
         <QueryProvider>
           {children}
           <ToastContainer />
