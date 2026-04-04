@@ -1,5 +1,10 @@
--- Grant permissions and set character encoding
-ALTER DATABASE ecommerce CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ecommerce_product CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ecommerce_order CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ecommerce_payment CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ecommerce_customer CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- Schema tables will be created by Spring JPA (ddl-auto: update in local profile)
--- This file is for any baseline setup that JPA should not manage.
+GRANT ALL PRIVILEGES ON ecommerce_product.* TO 'sa'@'%';
+GRANT ALL PRIVILEGES ON ecommerce_order.* TO 'sa'@'%';
+GRANT ALL PRIVILEGES ON ecommerce_payment.* TO 'sa'@'%';
+GRANT ALL PRIVILEGES ON ecommerce_customer.* TO 'sa'@'%';
+FLUSH PRIVILEGES;
