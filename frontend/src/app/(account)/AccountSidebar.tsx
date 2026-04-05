@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, Package } from 'lucide-react';
+import { User, Package, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const ACCOUNT_NAV = [
   { href: '/account/profile', label: 'Profile', icon: User },
+  { href: '/account/addresses', label: 'Addresses', icon: MapPin },
   { href: '/account/orders', label: 'Orders', icon: Package },
 ];
 

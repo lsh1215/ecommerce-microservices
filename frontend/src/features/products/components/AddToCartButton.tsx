@@ -9,9 +9,10 @@ import type { Product, ProductVariant } from '@/types';
 interface AddToCartButtonProps {
   product: Product;
   selectedVariant: ProductVariant | null;
+  quantity?: number;
 }
 
-export function AddToCartButton({ product, selectedVariant }: AddToCartButtonProps) {
+export function AddToCartButton({ product, selectedVariant, quantity = 1 }: AddToCartButtonProps) {
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
   const addToast = useToastStore((s) => s.addToast);
@@ -31,7 +32,7 @@ export function AddToCartButton({ product, selectedVariant }: AddToCartButtonPro
       color: selectedVariant.color,
       price: selectedVariant.price ?? product.price,
       imageUrl: primaryImage?.url ?? '',
-      quantity: 1,
+      quantity,
       stockAvailable: selectedVariant.stockQuantity,
     });
 

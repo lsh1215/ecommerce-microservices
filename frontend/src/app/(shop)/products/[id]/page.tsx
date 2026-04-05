@@ -9,6 +9,7 @@ import { PriceDisplay } from '@/components/shared/PriceDisplay';
 import { ProductCard } from '@/components/shared/ProductCard';
 import { SizeSelector } from '@/features/products/components/SizeSelector';
 import { AddToCartButton } from '@/features/products/components/AddToCartButton';
+import { QuantitySelector } from '@/features/products/components/QuantitySelector';
 import { getProductById, getRelatedProducts } from '@/mocks/products';
 import type { ProductVariant } from '@/types';
 
@@ -22,9 +23,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const product = getProductById(id);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
+  const [quantity, setQuantity] = useState(1);
 
   const handleVariantChange = useCallback((variant: ProductVariant | null) => {
     setSelectedVariant(variant);
+    setQuantity(1);
   }, []);
 
   if (!product) return notFound();
@@ -111,8 +114,21 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <SizeSelector variants={product.variants} onVariantChange={handleVariantChange} />
             </div>
 
+            {selectedVariant && selectedVariant.stockQuantity > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Quantity
+                </p>
+                <QuantitySelector
+                  quantity={quantity}
+                  max={selectedVariant.stockQuantity}
+                  onChange={setQuantity}
+                />
+              </div>
+            )}
+
             <div className="hidden md:block">
-              <AddToCartButton product={product} selectedVariant={selectedVariant} />
+              <AddToCartButton product={product} selectedVariant={selectedVariant} quantity={quantity} />
             </div>
 
             <div className="rounded-lg bg-surface p-4 text-sm text-muted-foreground">
@@ -143,7 +159,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             </p>
           </div>
           <div className="w-48">
-            <AddToCartButton product={product} selectedVariant={selectedVariant} />
+            <AddToCartButton product={product} selectedVariant={selectedVariant} quantity={quantity} />
           </div>
         </div>
       </div>

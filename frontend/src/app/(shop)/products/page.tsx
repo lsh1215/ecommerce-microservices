@@ -3,7 +3,10 @@ import Link from 'next/link';
 import { ProductCard } from '@/components/shared/ProductCard';
 import { ProductGridSkeleton } from '@/components/shared/Skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { FilterPanel } from '@/features/products/components/FilterPanel';
+import { SortControl } from '@/features/products/components/SortControl';
 import { mockProducts } from '@/mocks/products';
+import { mockBrands } from '@/mocks/brands';
 import type { Category } from '@/types';
 
 export const metadata = {
@@ -11,24 +14,22 @@ export const metadata = {
   description: 'Browse all products.',
 };
 
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: 'tops', label: 'Tops' },
-  { value: 'bottoms', label: 'Bottoms' },
-  { value: 'outerwear', label: 'Outerwear' },
-  { value: 'shoes', label: 'Shoes' },
-  { value: 'accessories', label: 'Accessories' },
-];
+const PAGE_SIZE = 12;
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest' },
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
+  { value: 'name_az', label: 'Name: A–Z' },
 ];
 
 interface ProductsPageProps {
   searchParams: Promise<{
     q?: string;
-    category?: string;
+    brandId?: string | string[];
+    category?: string | string[];
+    minPrice?: string;
+    maxPrice?: string;
     sort?: string;
     page?: string;
   }>;
@@ -36,7 +37,25 @@ interface ProductsPageProps {
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams;
-  const { q, category, sort = 'newest' } = params;
+
+  const q = params.q ?? '';
+  const sort = params.sort ?? 'newest';
+  const page = Math.max(1, parseInt(params.page ?? '1', 10));
+
+  const brandIds = Array.isArray(params.brandId)
+    ? params.brandId
+    : params.brandId
+      ? [params.brandId]
+      : [];
+
+  const categories = Array.isArray(params.category)
+    ? params.category
+    : params.category
+      ? [params.category]
+      : [];
+
+  const minPrice = params.minPrice ? parseInt(params.minPrice, 10) : undefined;
+  const maxPrice = params.maxPrice ? parseInt(params.maxPrice, 10) : undefined;
 
   let products = [...mockProducts];
 
@@ -50,35 +69,56 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     );
   }
 
-  if (category) {
-    products = products.filter((p) => p.category === category);
+  if (brandIds.length > 0) {
+    products = products.filter((p) => brandIds.includes(p.brand.id));
+  }
+
+  if (categories.length > 0) {
+    products = products.filter((p) => categories.includes(p.category));
+  }
+
+  if (minPrice !== undefined) {
+    products = products.filter((p) => p.price >= minPrice);
+  }
+
+  if (maxPrice !== undefined) {
+    products = products.filter((p) => p.price <= maxPrice);
   }
 
   if (sort === 'price_asc') {
     products = products.sort((a, b) => a.price - b.price);
   } else if (sort === 'price_desc') {
     products = products.sort((a, b) => b.price - a.price);
+  } else if (sort === 'name_az') {
+    products = products.sort((a, b) => a.name.localeCompare(b.name));
   } else {
     products = products.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }
 
-  function buildFilterUrl(overrides: Record<string, string | undefined>): string {
-    const base: Record<string, string | undefined> = {
-      ...(q && { q }),
-      ...(category && { category }),
-      ...(sort !== 'newest' && { sort }),
-    };
-    const merged = { ...base, ...overrides };
-    const clean = Object.fromEntries(
-      Object.entries(merged).filter(([, v]) => v !== undefined),
-    ) as Record<string, string>;
-    const qs = new URLSearchParams(clean).toString();
+  const totalCount = products.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedProducts = products.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  function buildPageUrl(targetPage: number): string {
+    const p = new URLSearchParams();
+    if (q) p.set('q', q);
+    if (sort !== 'newest') p.set('sort', sort);
+    brandIds.forEach((id) => p.append('brandId', id));
+    categories.forEach((c) => p.append('category', c as Category));
+    if (params.minPrice) p.set('minPrice', params.minPrice);
+    if (params.maxPrice) p.set('maxPrice', params.maxPrice);
+    if (targetPage > 1) p.set('page', String(targetPage));
+    const qs = p.toString();
     return `/products${qs ? `?${qs}` : ''}`;
   }
 
-  const activeFiltersCount = [q, category].filter(Boolean).length;
+  const activeFilterCount =
+    brandIds.length +
+    categories.length +
+    (minPrice !== undefined || maxPrice !== undefined ? 1 : 0);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
@@ -87,111 +127,134 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           {q ? `Results for "${q}"` : 'All Products'}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {products.length} {products.length === 1 ? 'product' : 'products'}
+          {totalCount} {totalCount === 1 ? 'product' : 'products'}
         </p>
       </div>
 
       <div className="flex gap-8">
-        <aside className="hidden w-48 shrink-0 md:block">
-          <div className="flex flex-col gap-8">
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Search
-              </p>
-              <form action="/products" method="get">
-                <input
-                  name="q"
-                  type="search"
-                  defaultValue={q ?? ''}
-                  placeholder="Search products..."
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                />
-              </form>
-            </div>
-
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Category
-              </p>
-              <div className="flex flex-col gap-2">
-                {CATEGORIES.map((cat) => (
-                  <a
-                    key={cat.value}
-                    href={buildFilterUrl({
-                      category: category === cat.value ? undefined : cat.value,
-                    })}
-                    className={`text-sm transition-colors hover:text-primary ${
-                      category === cat.value
-                        ? 'font-semibold text-primary'
-                        : 'text-foreground'
-                    }`}
-                  >
-                    {cat.label}
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            {activeFiltersCount > 0 && (
-              <Link
-                href="/products"
-                className="text-xs font-medium text-primary underline underline-offset-4"
-              >
-                Clear all filters
-              </Link>
-            )}
-          </div>
-        </aside>
+        <Suspense fallback={null}>
+          <FilterPanel
+            brands={mockBrands}
+            selectedBrandIds={brandIds}
+            selectedCategories={categories}
+            minPrice={params.minPrice ?? ''}
+            maxPrice={params.maxPrice ?? ''}
+          />
+        </Suspense>
 
         <div className="min-w-0 flex-1">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               {q && (
-                <a
-                  href={buildFilterUrl({ q: undefined })}
+                <Link
+                  href={(() => {
+                    const p = new URLSearchParams();
+                    if (sort !== 'newest') p.set('sort', sort);
+                    brandIds.forEach((id) => p.append('brandId', id));
+                    categories.forEach((c) => p.append('category', c as Category));
+                    if (params.minPrice) p.set('minPrice', params.minPrice);
+                    if (params.maxPrice) p.set('maxPrice', params.maxPrice);
+                    const qs = p.toString();
+                    return `/products${qs ? `?${qs}` : ''}`;
+                  })()}
                   className="flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-medium hover:border-foreground"
                 >
                   &ldquo;{q}&rdquo; &times;
-                </a>
+                </Link>
               )}
-              {category && (
-                <a
-                  href={buildFilterUrl({ category: undefined })}
-                  className="flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-medium capitalize hover:border-foreground"
+
+              {brandIds.map((id) => {
+                const brand = mockBrands.find((b) => b.id === id);
+                const nextIds = brandIds.filter((b) => b !== id);
+                const p = new URLSearchParams();
+                if (q) p.set('q', q);
+                if (sort !== 'newest') p.set('sort', sort);
+                nextIds.forEach((bid) => p.append('brandId', bid));
+                categories.forEach((c) => p.append('category', c as Category));
+                if (params.minPrice) p.set('minPrice', params.minPrice);
+                if (params.maxPrice) p.set('maxPrice', params.maxPrice);
+                const qs = p.toString();
+                return (
+                  <Link
+                    key={id}
+                    href={`/products${qs ? `?${qs}` : ''}`}
+                    className="flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-medium hover:border-foreground"
+                  >
+                    {brand?.name ?? id} &times;
+                  </Link>
+                );
+              })}
+
+              {categories.map((cat) => {
+                const nextCats = categories.filter((c) => c !== cat);
+                const p = new URLSearchParams();
+                if (q) p.set('q', q);
+                if (sort !== 'newest') p.set('sort', sort);
+                brandIds.forEach((id) => p.append('brandId', id));
+                nextCats.forEach((c) => p.append('category', c as Category));
+                if (params.minPrice) p.set('minPrice', params.minPrice);
+                if (params.maxPrice) p.set('maxPrice', params.maxPrice);
+                const qs = p.toString();
+                return (
+                  <Link
+                    key={cat}
+                    href={`/products${qs ? `?${qs}` : ''}`}
+                    className="flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-medium capitalize hover:border-foreground"
+                  >
+                    {cat} &times;
+                  </Link>
+                );
+              })}
+
+              {(minPrice !== undefined || maxPrice !== undefined) && (
+                <Link
+                  href={(() => {
+                    const p = new URLSearchParams();
+                    if (q) p.set('q', q);
+                    if (sort !== 'newest') p.set('sort', sort);
+                    brandIds.forEach((id) => p.append('brandId', id));
+                    categories.forEach((c) => p.append('category', c as Category));
+                    const qs = p.toString();
+                    return `/products${qs ? `?${qs}` : ''}`;
+                  })()}
+                  className="flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-medium hover:border-foreground"
                 >
-                  {category} &times;
-                </a>
+                  Price filter &times;
+                </Link>
+              )}
+
+              {activeFilterCount > 0 && (
+                <Link
+                  href={(() => {
+                    const p = new URLSearchParams();
+                    if (q) p.set('q', q);
+                    if (sort !== 'newest') p.set('sort', sort);
+                    const qs = p.toString();
+                    return `/products${qs ? `?${qs}` : ''}`;
+                  })()}
+                  className="text-xs font-medium text-primary underline underline-offset-4"
+                >
+                  Clear all
+                </Link>
               )}
             </div>
 
-            <select
-              name="sort"
-              defaultValue={sort}
-              onChange={(e) => {
-                const url = buildFilterUrl({ sort: e.target.value === 'newest' ? undefined : e.target.value });
-                window.location.href = url;
-              }}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none"
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <Suspense fallback={null}>
+              <SortControl sortOptions={SORT_OPTIONS} currentSort={sort} />
+            </Suspense>
           </div>
 
           <Suspense fallback={<ProductGridSkeleton />}>
-            {products.length > 0 ? (
+            {paginatedProducts.length > 0 ? (
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                {products.map((product) => (
+                {paginatedProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             ) : (
               <EmptyState
                 title="No products found"
-                description="Try adjusting your filters."
+                description="Try adjusting your filters or search term."
                 action={
                   <Link
                     href="/products"
@@ -203,8 +266,100 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               />
             )}
           </Suspense>
+
+          {totalPages > 1 && (
+            <div className="mt-10">
+              <PaginationNav
+                currentPage={currentPage}
+                totalPages={totalPages}
+                buildPageUrl={buildPageUrl}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+function PaginationNav({
+  currentPage,
+  totalPages,
+  buildPageUrl,
+}: {
+  currentPage: number;
+  totalPages: number;
+  buildPageUrl: (page: number) => string;
+}) {
+  const pages = buildPageRange(currentPage, totalPages);
+
+  return (
+    <nav className="flex items-center justify-center gap-1" aria-label="Pagination">
+      <Link
+        href={buildPageUrl(currentPage - 1)}
+        aria-disabled={currentPage <= 1}
+        className={`flex h-9 w-9 items-center justify-center rounded-md border border-border text-sm transition-colors ${
+          currentPage <= 1
+            ? 'pointer-events-none opacity-40'
+            : 'text-foreground hover:bg-muted'
+        }`}
+        aria-label="Previous page"
+      >
+        ‹
+      </Link>
+
+      {pages.map((p, idx) =>
+        p === '...' ? (
+          <span
+            key={`ellipsis-${idx}`}
+            className="flex h-9 w-9 items-center justify-center text-sm text-muted-foreground"
+          >
+            &hellip;
+          </span>
+        ) : (
+          <Link
+            key={p}
+            href={buildPageUrl(p as number)}
+            aria-current={p === currentPage ? 'page' : undefined}
+            className={`flex h-9 w-9 items-center justify-center rounded-md text-sm transition-colors ${
+              p === currentPage
+                ? 'bg-primary font-semibold text-primary-foreground'
+                : 'border border-border text-foreground hover:bg-muted'
+            }`}
+          >
+            {p}
+          </Link>
+        ),
+      )}
+
+      <Link
+        href={buildPageUrl(currentPage + 1)}
+        aria-disabled={currentPage >= totalPages}
+        className={`flex h-9 w-9 items-center justify-center rounded-md border border-border text-sm transition-colors ${
+          currentPage >= totalPages
+            ? 'pointer-events-none opacity-40'
+            : 'text-foreground hover:bg-muted'
+        }`}
+        aria-label="Next page"
+      >
+        ›
+      </Link>
+    </nav>
+  );
+}
+
+function buildPageRange(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const pages: (number | '...')[] = [1];
+  if (current > 3) pages.push('...');
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  if (current < total - 2) pages.push('...');
+  pages.push(total);
+
+  return pages;
 }
