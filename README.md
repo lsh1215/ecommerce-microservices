@@ -1,212 +1,185 @@
-# E-Commerce Order Platform
+# E-Commerce Microservices Platform
 
 [English](README.md) | [한국어](README-ko.md) | [中文](README-zh.md)
 
-A backend-focused e-commerce platform designed to experience the journey from **monolith to microservices**. Starting as a single Spring Boot application, this project will evolve through load testing, async messaging, service decomposition, and full observability — with measurable data at every step.
+A Spring Boot-based microservices platform for an e-commerce domain (Product, Order, Payment, Customer). The system is built around Domain-Driven Design, event-driven communication via Kafka, and synchronous inter-service calls via RestClient, and is packaged for both local Docker Compose and Kubernetes deployment.
 
 ![Java](https://img.shields.io/badge/Java_21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot_3-6DB33F?style=flat-square&logo=spring-boot&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL_8-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Kafka](https://img.shields.io/badge/Kafka_KRaft-231F20?style=flat-square&logo=apache-kafka&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
-![k6](https://img.shields.io/badge/k6-7D64FF?style=flat-square&logo=k6&logoColor=white)
-
-## Table of Contents
-
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Tech Stack](#tech-stack)
-- [Domain Model](#domain-model)
-- [Key Design Decisions](#key-design-decisions)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [License](#license)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-02303A?style=flat-square&logo=gradle&logoColor=white)
 
 ## Overview
 
-The core idea: **don't introduce complexity until the data proves you need it.**
+This project implements an e-commerce backend as a set of cooperating microservices. Each service owns its own database and communicates with peers through a mix of synchronous REST calls (for read-side lookups and stock reservations) and asynchronous Kafka events (for order/payment orchestration). The codebase is deliberately kept free of over-engineered abstractions so the boundaries between services, the event flow, and the deployment topology remain easy to reason about.
 
-1. Build a monolith that handles Order, Payment, Product, and Search domains
-2. Load test it until it breaks — capture p50/p95/p99 baselines
-3. Introduce each technology (Kafka, MSA, Elasticsearch, Circuit Breaker) only to solve a specific, measured bottleneck
+## Core Architecture
 
-This is the **Phase 1 monolith** — a single Spring Boot application with all domains sharing one MySQL database and synchronous REST communication.
+The system employs several architectural patterns:
 
-## System Architecture
+- **Microservices Architecture**: Independent services per bounded context, each with its own database
+- **Domain-Driven Design**: Rich domain models, aggregates, value objects, and domain events per bounded context
+- **Event-Driven Architecture**: Asynchronous communication via Kafka for cross-service orchestration
+- **Synchronous Inter-Service Calls**: Spring `RestClient` with configurable timeouts and error handling for read-side lookups and stock operations
+- **Database-per-Service**: Each service owns a dedicated MySQL schema; no shared tables
+- **Layered Architecture per Service**: `api` → `application` → `domain` → `infra` package separation
+- **Shared Kernel (`common` module)**: `BaseEntity`, `ApiResponse`, `PageResponse`, `GlobalExceptionHandler`, `BusinessException`, `DomainEvent`, `KafkaTopics`, and cross-cutting Spring configs
 
-> Single Spring Boot application serving all domains through a unified REST API.
+## Technology Stack
 
-<!-- Replace with actual architecture diagram -->
-```
-┌────────────────────────────────────────────────────┐
-│                  Spring Boot (:8080)                │
-├────────────────────────────────────────────────────┤
-│                                                    │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐      │
-│  │   Order   │  │  Payment  │  │  Product  │      │
-│  │ Controller│  │ Controller│  │ Controller│      │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘      │
-│        ▼              ▼              ▼             │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐      │
-│  │   Order   │  │  Payment  │  │  Product  │      │
-│  │  Service  │─→│  Service  │  │  Service  │      │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘      │
-│        │              │              │             │
-│        ▼              ▼              ▼             │
-│  ┌─────────────────────────────────────────┐       │
-│  │           Spring Data JPA               │       │
-│  └──────────────────┬──────────────────────┘       │
-│                     │                              │
-└─────────────────────┼──────────────────────────────┘
-                      ▼
-               ┌─────────────┐
-               │ MySQL  │
-               └─────────────┘
-```
+**Languages & Frameworks**
 
-### ERD
+- Java 21 (LTS, virtual threads support)
+- Spring Boot 3.x
+- Spring Data JPA / Hibernate
+- QueryDSL 5.1 (type-safe queries)
+- Spring Kafka
+- jBCrypt (password hashing)
 
-<!-- Replace with actual ERD screenshot -->
-_To be added after domain implementation._
+**Data & Messaging**
 
-### API Endpoints
+- MySQL 8.0 (transactional data, database-per-service)
+- Apache Kafka in KRaft mode (event streaming, no ZooKeeper)
 
-<!-- Replace with actual API documentation screenshot -->
-_To be added after REST API implementation._
+**API & Documentation**
 
-## Tech Stack
+- Spring Web (REST controllers)
+- springdoc-openapi (Swagger UI per service)
+- Jakarta Bean Validation (request validation)
 
-### Backend
+**Build & Deployment**
 
-| Category | Technology | Purpose |
-|----------|-----------|---------|
-| Language | Java 21 | LTS with virtual threads support |
-| Framework | Spring Boot 3.x | Application framework |
-| ORM | Spring Data JPA / Hibernate | Database access |
-| Security | Spring Security + JWT | Authentication & authorization |
-| Validation | Jakarta Bean Validation | Request validation |
+- Gradle multi-module
+- Docker & Docker Compose (local development)
+- Kubernetes (namespace, ConfigMap, Secrets, StatefulSet, Deployment, Ingress)
+- GitHub Actions (CI)
 
-### Data
+**Testing**
 
-| Category | Technology | Purpose |
-|----------|-----------|---------|
-| Database | MySQL | Primary relational data store |
-| Search | MySQL LIKE / Full-text | Product search (baseline before ES) |
+- JUnit 5
+- Spring Boot Test slices
+- Testcontainers (MySQL, Kafka)
 
-### Infrastructure & Tooling
+## Microservices
 
-| Category | Technology | Purpose |
-|----------|-----------|---------|
-| Container | Docker + Docker Compose | Local development environment |
-| Build | Gradle | Build management |
-| Load Test | k6 | Stress test, spike test for bottleneck identification |
-| Testing | JUnit 5 + Testcontainers | Unit, slice, integration tests |
+| Service | Port | Responsibility | Key Aggregates |
+|---|---|---|---|
+| **service-product** | 8081 | Product catalog, brand, stock | `Product`, `ProductVariant`, `ProductImage`, `Brand` |
+| **service-order** | 8082 | Order creation, lifecycle, cancellation | `Order`, `OrderItem`, `ShippingAddress` |
+| **service-payment** | 8083 | Payment processing and refunds | `Payment` |
+| **service-customer** | 8084 | Customer profile and addresses | `Customer`, `CustomerAddress` |
 
-## Domain Model
+Each service exposes its API under `/api/{resource}` and its OpenAPI spec at `/swagger-ui.html`.
 
-### Domains
+## Domain Documentation
 
-| Domain | Responsibility | Key Entities |
-|--------|---------------|-------------|
-| **Order** | Order creation, status tracking, history | `Order`, `OrderItem`, `OrderStatus` |
-| **Payment** | Synchronous payment processing, refunds | `Payment`, `PaymentStatus` |
-| **Product** | Catalog management, inventory | `Product`, `Category`, `Inventory` |
-| **Search** | Product search by keyword, filtering | Delegates to Product domain (DB query) |
+Domain-driven design artifacts live in [`docs/domain/`](docs/domain/):
 
-### Inter-Domain Communication (Monolith)
+- [Ubiquitous Language](docs/domain/01-ubiquitous-language.md)
+- [Bounded Context Map](docs/domain/02-bounded-context-map.md)
+- [Use Cases](docs/domain/03-use-cases.md)
+- [Aggregate Design](docs/domain/04-aggregate-design.md)
 
-In the monolith phase, all communication is **synchronous method calls** within the same JVM:
+## Kafka Events
+
+Services communicate asynchronously through domain events defined in `common/KafkaTopics.java`:
+
+| Topic | Producer | Consumer(s) | Purpose |
+|---|---|---|---|
+| `order.created` | Order | Payment | Trigger payment processing |
+| `order.cancelled` | Order | Payment | Trigger refund if already paid |
+| `payment.completed` | Payment | Order | Mark order as paid |
+| `payment.failed` | Payment | Order | Cancel order |
+| `product.stock-reserved` | Product | (audit / future) | Stock reservation audit trail |
+| `product.stock-released` | Product | (audit / future) | Stock release audit trail |
+| `customer.registered` | Customer | (notification / future) | New customer signup |
+
+## Project Structure
 
 ```
-OrderService.placeOrder()
-  → ProductService.reserveInventory()
-  → PaymentService.processPayment()
-  → Order status updated
+ecommerce-microservices/
+├── backend-v2/              # Gradle multi-module backend
+│   ├── common/              # Shared kernel (BaseEntity, ApiResponse, configs, KafkaTopics)
+│   ├── service-product/     # Product service (8081)
+│   ├── service-order/       # Order service (8082)
+│   ├── service-payment/     # Payment service (8083)
+│   ├── service-customer/    # Customer service (8084)
+│   ├── build.gradle         # Root build with dependency management
+│   └── settings.gradle
+├── infra/                   # Docker Compose files and infra config
+├── k8s/                     # Kubernetes manifests
+│   ├── namespace.yml
+│   ├── base/                # MySQL StatefulSet, Kafka deployment, ConfigMap, Secrets
+│   ├── services/            # Per-service Deployment + Service manifests
+│   └── ingress/             # nginx IngressRoute
+├── scripts/                 # Helper scripts (k8s-deploy.sh, k8s-teardown.sh, etc.)
+└── frontend/                # Next.js 16 storefront (separate track)
 ```
 
-This synchronous coupling is intentional — it becomes the **measured bottleneck** that justifies Kafka introduction in Phase 3.
-
-### Package Structure
-
-```
-com.ecommerce/
-├── order/
-│   ├── controller/        # OrderController
-│   ├── service/           # OrderService
-│   ├── repository/        # OrderRepository
-│   ├── entity/            # Order, OrderItem, OrderStatus
-│   └── dto/               # OrderRequest, OrderResponse
-├── payment/
-│   ├── controller/        # PaymentController
-│   ├── service/           # PaymentService
-│   ├── repository/        # PaymentRepository
-│   ├── entity/            # Payment, PaymentStatus
-│   └── dto/               # PaymentRequest, PaymentResponse
-├── product/
-│   ├── controller/        # ProductController
-│   ├── service/           # ProductService
-│   ├── repository/        # ProductRepository
-│   ├── entity/            # Product, Category
-│   └── dto/               # ProductRequest, ProductResponse
-└── common/
-    ├── config/            # Spring configuration
-    ├── exception/         # Global exception handler
-    └── dto/               # Shared DTOs (PageResponse, ErrorResponse)
-```
-
-## Key Design Decisions
-
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Architecture | Monolith-first | Establish baselines before introducing distributed complexity |
-| Database | Single shared MySQL | Intentional coupling to measure lock contention under load |
-| Search | MySQL LIKE query | Baseline before Elasticsearch; measures degradation at scale |
-| Testing | TDD per layer | Unit (domain) → Slice (@WebMvcTest, @DataJpaTest) → Integration (Testcontainers) |
-
-## Getting Started
+## Setup & Configuration
 
 ### Prerequisites
 
 - Java 21+
 - Docker & Docker Compose
 - Gradle 8.x (wrapper included)
+- (Optional) `kubectl` + a local Kubernetes cluster (k3s, minikube, kind, or Docker Desktop)
 
-### Setup
+### Quick Start (Docker Compose)
 
 ```bash
-git clone https://github.com/<your-username>/ecommerce-microservices.git
+# 1. Clone the repository
+git clone https://github.com/lsh1215/ecommerce-microservices.git
 cd ecommerce-microservices
 
-# Start MySQL
-docker compose up -d mysql
+# 2. Start MySQL + Kafka locally
+docker compose -f infra/docker-compose.yml up -d
 
-# Build & run
-./gradlew bootRun
+# 3. Build the backend
+cd backend-v2
+./gradlew build -x test
+
+# 4. Run each service (separate terminals, or use your IDE)
+./gradlew :service-product:bootRun
+./gradlew :service-order:bootRun
+./gradlew :service-payment:bootRun
+./gradlew :service-customer:bootRun
 ```
+
+Each service activates the `local` profile by default, connecting to `localhost:3306` (MySQL) and `localhost:9092` (Kafka).
 
 ### Verify
 
 ```bash
-# Health check
-curl http://localhost:8080/actuator/health
+# Health checks
+curl http://localhost:8081/actuator/health   # product
+curl http://localhost:8082/actuator/health   # order
+curl http://localhost:8083/actuator/health   # payment
+curl http://localhost:8084/actuator/health   # customer
 
-# API example
-curl http://localhost:8080/api/v1/products
+# Swagger UI
+open http://localhost:8081/swagger-ui.html
 ```
 
-## Project Structure
+### Kubernetes Deployment
 
+```bash
+# Apply namespace, base infra, services, and ingress
+./scripts/k8s-deploy.sh
+
+# Tear down
+./scripts/k8s-teardown.sh
 ```
-ecommerce-microservices/
-├── backend/               # Spring Boot monolith
-├── frontend/              # Frontend (TBD)
-├── docs/
-│   ├── adr/               # Architecture Decision Records
-│   └── performance/       # Load test results & analysis
-├── infra/                 # Docker Compose, infrastructure config
-├── k6/                    # Load test scripts
-└── scripts/               # Utility scripts
-```
+
+Manifests use the `k8s` profile, which resolves MySQL/Kafka through in-cluster service DNS and tightens CORS and `ddl-auto`.
+
+## Contributing
+
+Contributions, issues, and feature requests are welcome. Please open an issue to discuss significant changes before submitting a pull request.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is released under the [MIT License](LICENSE).
