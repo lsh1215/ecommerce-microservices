@@ -3,7 +3,7 @@ name: Backend CI
 on:
   pull_request:
     paths:
-      - 'backend/**'
+      - 'backend-v2/**'
       - '.github/workflows/ci-backend.yml'
 
 concurrency:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: backend
+        working-directory: backend-v2
 
     steps:
       - name: Checkout
