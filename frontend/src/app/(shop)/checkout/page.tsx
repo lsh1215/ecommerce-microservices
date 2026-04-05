@@ -121,7 +121,10 @@ export default function CheckoutPage() {
           title="Nothing to check out"
           description="Your cart is empty."
           action={
-            <Link href="/products" className="text-sm font-medium text-primary underline underline-offset-4">
+            <Link
+              href="/products"
+              className="text-sm font-medium text-primary underline underline-offset-4"
+            >
               Shop Products
             </Link>
           }
@@ -140,7 +143,10 @@ export default function CheckoutPage() {
             <h2 className="text-lg font-bold text-foreground">Shipping Address</h2>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label htmlFor="recipientName" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label
+                  htmlFor="recipientName"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Recipient Name *
                 </label>
                 <input
@@ -155,7 +161,10 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <label htmlFor="phone" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label
+                  htmlFor="phone"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Phone *
                 </label>
                 <input
@@ -170,7 +179,10 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <label htmlFor="zipCode" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label
+                  htmlFor="zipCode"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Zip Code *
                 </label>
                 <input
@@ -185,7 +197,10 @@ export default function CheckoutPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label htmlFor="address1" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label
+                  htmlFor="address1"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Address *
                 </label>
                 <input
@@ -200,7 +215,10 @@ export default function CheckoutPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label htmlFor="address2" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label
+                  htmlFor="address2"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Apartment / Suite (optional)
                 </label>
                 <input
@@ -266,7 +284,9 @@ export default function CheckoutPage() {
               {items.map((item) => (
                 <div key={`${item.productId}-${item.variantId}`} className="flex gap-3 py-3">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{item.productName}</p>
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {item.productName}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {item.brandName} · {item.size} · Qty {item.quantity}
                     </p>

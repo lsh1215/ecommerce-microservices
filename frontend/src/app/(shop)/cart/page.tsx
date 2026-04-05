@@ -111,7 +111,9 @@ export default function CartPage() {
                       <div className="flex items-center rounded-md border border-border">
                         <button
                           type="button"
-                          onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}
+                          onClick={() =>
+                            updateQuantity(item.productId, item.variantId, item.quantity - 1)
+                          }
                           className="px-2 py-1 text-muted-foreground transition-colors hover:text-foreground"
                           aria-label="Decrease quantity"
                         >
@@ -122,7 +124,9 @@ export default function CartPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
+                          onClick={() =>
+                            updateQuantity(item.productId, item.variantId, item.quantity + 1)
+                          }
                           disabled={
                             item.stockAvailable != null && item.quantity >= item.stockAvailable
                           }

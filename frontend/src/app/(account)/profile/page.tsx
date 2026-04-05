@@ -39,7 +39,12 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ProfileFormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
   });
 
@@ -130,7 +135,10 @@ export default function ProfilePage() {
           <form onSubmit={handleSubmit(onSubmit)} className="rounded-lg border border-border p-5">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
-                <label htmlFor="name" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label
+                  htmlFor="name"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Full Name
                 </label>
                 <input
@@ -146,7 +154,10 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label htmlFor="email" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label
+                  htmlFor="email"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Email
                 </label>
                 <input
@@ -160,7 +171,10 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <label htmlFor="phone" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <label
+                  htmlFor="phone"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                >
                   Phone <span className="font-normal normal-case">(optional)</span>
                 </label>
                 <input

@@ -10,10 +10,7 @@ export const AddressAPI = {
     customerClient.post<AddressResponse>(`/api/customers/${customerId}/addresses`, req),
 
   update: (customerId: string | number, addressId: string | number, req: UpdateAddressRequest) =>
-    customerClient.put<AddressResponse>(
-      `/api/customers/${customerId}/addresses/${addressId}`,
-      req,
-    ),
+    customerClient.put<AddressResponse>(`/api/customers/${customerId}/addresses/${addressId}`, req),
 
   remove: (customerId: string | number, addressId: string | number) =>
     customerClient.delete<void>(`/api/customers/${customerId}/addresses/${addressId}`),

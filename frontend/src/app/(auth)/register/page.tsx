@@ -61,7 +61,11 @@ function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [watchedPassword, setWatchedPassword] = useState('');
 
-  const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
   });
 
@@ -111,7 +115,10 @@ function RegisterForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label htmlFor="name" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="name"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Full Name
           </label>
           <input
@@ -121,13 +128,14 @@ function RegisterForm() {
             className={inputClass(!!errors.name)}
             placeholder="Your full name"
           />
-          {errors.name && (
-            <p className="mt-1 text-xs text-destructive">{errors.name.message}</p>
-          )}
+          {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="email"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Email
           </label>
           <input
@@ -137,13 +145,14 @@ function RegisterForm() {
             className={inputClass(!!errors.email)}
             placeholder="you@example.com"
           />
-          {errors.email && (
-            <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>
-          )}
+          {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="phone" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="phone"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Phone <span className="font-normal normal-case text-muted-foreground">(optional)</span>
           </label>
           <input
@@ -153,13 +162,14 @@ function RegisterForm() {
             className={inputClass(!!errors.phone)}
             placeholder="010-0000-0000"
           />
-          {errors.phone && (
-            <p className="mt-1 text-xs text-destructive">{errors.phone.message}</p>
-          )}
+          {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="password"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Password
           </label>
           <input
@@ -186,7 +196,8 @@ function RegisterForm() {
               </div>
               {strength.label && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Password strength: <span className="font-medium text-foreground">{strength.label}</span>
+                  Password strength:{' '}
+                  <span className="font-medium text-foreground">{strength.label}</span>
                 </p>
               )}
             </div>
@@ -197,7 +208,10 @@ function RegisterForm() {
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="confirmPassword"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Confirm Password
           </label>
           <input

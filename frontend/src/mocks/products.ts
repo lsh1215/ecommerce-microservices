@@ -181,9 +181,7 @@ export const mockProducts: Product[] = [
         isPrimary: true,
       },
     ],
-    variants: [
-      { id: 'v-008-os', size: 'OS', color: 'Navy', sku: 'BNE-OS-N', stockQuantity: 30 },
-    ],
+    variants: [{ id: 'v-008-os', size: 'OS', color: 'Navy', sku: 'BNE-OS-N', stockQuantity: 30 }],
     status: 'ACTIVE',
     createdAt: '2025-01-22T00:00:00Z',
   },
@@ -205,8 +203,7 @@ export function getRelatedProducts(product: Product, limit = 4): Product[] {
   return mockProducts
     .filter(
       (p) =>
-        p.id !== product.id &&
-        (p.brand.id === product.brand.id || p.category === product.category),
+        p.id !== product.id && (p.brand.id === product.brand.id || p.category === product.category),
     )
     .slice(0, limit);
 }

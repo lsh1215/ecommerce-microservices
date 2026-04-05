@@ -25,19 +25,20 @@ export function SizeSelector({ variants, onVariantChange }: SizeSelectorProps) {
     <div>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</p>
-        {selectedId && (() => {
-          const selected = variants.find((v) => v.id === selectedId);
-          if (!selected) return null;
-          return (
-            <p className="text-xs text-muted-foreground">
-              {selected.stockQuantity === 0
-                ? 'Sold Out'
-                : selected.stockQuantity <= 3
-                  ? `Only ${selected.stockQuantity} left`
-                  : 'In Stock'}
-            </p>
-          );
-        })()}
+        {selectedId &&
+          (() => {
+            const selected = variants.find((v) => v.id === selectedId);
+            if (!selected) return null;
+            return (
+              <p className="text-xs text-muted-foreground">
+                {selected.stockQuantity === 0
+                  ? 'Sold Out'
+                  : selected.stockQuantity <= 3
+                    ? `Only ${selected.stockQuantity} left`
+                    : 'In Stock'}
+              </p>
+            );
+          })()}
       </div>
       <div className="flex flex-wrap gap-2">
         {uniqueSizes.map((variant) => {

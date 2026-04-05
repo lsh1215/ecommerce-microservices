@@ -54,13 +54,9 @@ export const useCartStore = create<CartStore>()(
         set((state) => {
           const items =
             quantity <= 0
-              ? state.items.filter(
-                  (i) => !(i.productId === productId && i.variantId === variantId),
-                )
+              ? state.items.filter((i) => !(i.productId === productId && i.variantId === variantId))
               : state.items.map((i) =>
-                  i.productId === productId && i.variantId === variantId
-                    ? { ...i, quantity }
-                    : i,
+                  i.productId === productId && i.variantId === variantId ? { ...i, quantity } : i,
                 );
           return { items, ...recalculate(items) };
         }),

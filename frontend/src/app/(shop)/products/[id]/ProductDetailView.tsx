@@ -94,7 +94,9 @@ export function ProductDetailView({ product, relatedProducts }: ProductDetailVie
               >
                 {product.brand.name}
               </Link>
-              <h1 className="mt-2 text-2xl font-bold text-foreground md:text-3xl">{product.name}</h1>
+              <h1 className="mt-2 text-2xl font-bold text-foreground md:text-3xl">
+                {product.name}
+              </h1>
               <p className="mt-3 text-xl font-semibold text-foreground">
                 <PriceDisplay amount={selectedVariant?.price ?? product.price} />
               </p>
@@ -120,12 +122,18 @@ export function ProductDetailView({ product, relatedProducts }: ProductDetailVie
             )}
 
             <div className="hidden md:block">
-              <AddToCartButton product={product} selectedVariant={selectedVariant} quantity={quantity} />
+              <AddToCartButton
+                product={product}
+                selectedVariant={selectedVariant}
+                quantity={quantity}
+              />
             </div>
 
             <div className="rounded-lg bg-surface p-4 text-sm text-muted-foreground">
               <p className="font-medium text-foreground">Shipping & Returns</p>
-              <p className="mt-1">Free shipping on orders over ₩50,000. Returns accepted within 14 days.</p>
+              <p className="mt-1">
+                Free shipping on orders over ₩50,000. Returns accepted within 14 days.
+              </p>
             </div>
           </div>
         </div>
@@ -151,7 +159,11 @@ export function ProductDetailView({ product, relatedProducts }: ProductDetailVie
             </p>
           </div>
           <div className="w-48">
-            <AddToCartButton product={product} selectedVariant={selectedVariant} quantity={quantity} />
+            <AddToCartButton
+              product={product}
+              selectedVariant={selectedVariant}
+              quantity={quantity}
+            />
           </div>
         </div>
       </div>

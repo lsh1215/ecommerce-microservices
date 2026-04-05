@@ -289,9 +289,7 @@ function PaginationNav({
         href={buildPageUrl(currentPage - 1)}
         aria-disabled={currentPage <= 1}
         className={`flex h-9 w-9 items-center justify-center rounded-md border border-border text-sm transition-colors ${
-          currentPage <= 1
-            ? 'pointer-events-none opacity-40'
-            : 'text-foreground hover:bg-muted'
+          currentPage <= 1 ? 'pointer-events-none opacity-40' : 'text-foreground hover:bg-muted'
         }`}
         aria-label="Previous page"
       >

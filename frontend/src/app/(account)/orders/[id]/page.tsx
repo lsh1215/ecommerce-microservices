@@ -169,7 +169,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
             Shipping Address
           </h2>
           <div className="rounded-lg border border-border p-5">
-            <p className="text-sm font-medium text-foreground">{order.shippingAddress.recipientName}</p>
+            <p className="text-sm font-medium text-foreground">
+              {order.shippingAddress.recipientName}
+            </p>
             <p className="mt-1 text-sm text-muted-foreground">{order.shippingAddress.phone}</p>
             <p className="mt-2 text-sm text-muted-foreground">
               ({order.shippingAddress.zipCode}) {order.shippingAddress.address1}

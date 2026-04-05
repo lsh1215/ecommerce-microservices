@@ -29,7 +29,10 @@ export function Pagination({ page, totalPages, onPageChange, className }: Pagina
 
       {pages.map((p, idx) =>
         p === '...' ? (
-          <span key={`ellipsis-${idx}`} className="flex h-9 w-9 items-center justify-center text-sm text-muted-foreground">
+          <span
+            key={`ellipsis-${idx}`}
+            className="flex h-9 w-9 items-center justify-center text-sm text-muted-foreground"
+          >
             &hellip;
           </span>
         ) : (

@@ -3,13 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { Filter, X } from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import type { Brand, Category } from '@/types';
 
 const CATEGORIES: { value: Category; label: string }[] = [
@@ -138,10 +132,7 @@ function FiltersContent({
           {brands.map((brand) => {
             const checked = selectedBrandIds.includes(brand.id);
             return (
-              <label
-                key={brand.id}
-                className="flex cursor-pointer items-center gap-2 text-sm"
-              >
+              <label key={brand.id} className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={checked}
@@ -165,10 +156,7 @@ function FiltersContent({
           {CATEGORIES.map((cat) => {
             const checked = selectedCategories.includes(cat.value);
             return (
-              <label
-                key={cat.value}
-                className="flex cursor-pointer items-center gap-2 text-sm"
-              >
+              <label key={cat.value} className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={checked}

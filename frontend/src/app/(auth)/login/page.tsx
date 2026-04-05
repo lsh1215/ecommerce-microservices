@@ -33,7 +33,11 @@ function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
 
@@ -68,7 +72,10 @@ function LoginForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label htmlFor="email" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="email"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Email
           </label>
           <input
@@ -78,19 +85,18 @@ function LoginForm() {
             className={inputClass(!!errors.email)}
             placeholder="you@example.com"
           />
-          {errors.email && (
-            <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>
-          )}
+          {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
         </div>
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <label
+              htmlFor="password"
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
               Password
             </label>
-            <span className="text-xs text-muted-foreground">
-              Forgot password?
-            </span>
+            <span className="text-xs text-muted-foreground">Forgot password?</span>
           </div>
           <input
             id="password"
@@ -122,7 +128,10 @@ function LoginForm() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{' '}
-        <Link href="/register" className="font-medium text-primary hover:underline underline-offset-4">
+        <Link
+          href="/register"
+          className="font-medium text-primary hover:underline underline-offset-4"
+        >
           Create one
         </Link>
       </p>

@@ -103,7 +103,10 @@ export default function OrdersPage() {
           title="No orders yet"
           description="You have not placed any orders yet."
           action={
-            <Link href="/products" className="text-sm font-medium text-primary underline underline-offset-4">
+            <Link
+              href="/products"
+              className="text-sm font-medium text-primary underline underline-offset-4"
+            >
               Start browsing
             </Link>
           }

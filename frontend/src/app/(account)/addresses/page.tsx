@@ -16,9 +16,7 @@ import type { AddressResponse, AddressLabel } from '@/types/api-responses';
 const addressSchema = z.object({
   label: z.enum(['HOME', 'WORK', 'OTHER']),
   recipientName: z.string().min(2, 'Recipient name is required'),
-  phone: z
-    .string()
-    .regex(/^010-\d{4}-\d{4}$/, 'Phone must be in format 010-XXXX-XXXX'),
+  phone: z.string().regex(/^010-\d{4}-\d{4}$/, 'Phone must be in format 010-XXXX-XXXX'),
   zipCode: z.string().min(5, 'Zip code is required'),
   address1: z.string().min(5, 'Address is required'),
   address2: z.string().optional(),
@@ -46,16 +44,32 @@ interface AddressFormProps {
   submitLabel: string;
 }
 
-function AddressForm({ defaultValues, onSubmit, onCancel, isSubmitting, submitLabel }: AddressFormProps) {
-  const { register, handleSubmit, formState: { errors } } = useForm<AddressFormData>({
+function AddressForm({
+  defaultValues,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  submitLabel,
+}: AddressFormProps) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<AddressFormData>({
     resolver: zodResolver(addressSchema),
     defaultValues,
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 rounded-lg border border-border p-5">
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="space-y-4 rounded-lg border border-border p-5"
+    >
       <div>
-        <label htmlFor="label" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <label
+          htmlFor="label"
+          className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           Label
         </label>
         <select
@@ -67,14 +81,15 @@ function AddressForm({ defaultValues, onSubmit, onCancel, isSubmitting, submitLa
           <option value="WORK">Work</option>
           <option value="OTHER">Other</option>
         </select>
-        {errors.label && (
-          <p className="mt-1 text-xs text-destructive">{errors.label.message}</p>
-        )}
+        {errors.label && <p className="mt-1 text-xs text-destructive">{errors.label.message}</p>}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="recipientName" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="recipientName"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Recipient Name
           </label>
           <input
@@ -90,7 +105,10 @@ function AddressForm({ defaultValues, onSubmit, onCancel, isSubmitting, submitLa
         </div>
 
         <div>
-          <label htmlFor="phone" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <label
+            htmlFor="phone"
+            className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
             Phone
           </label>
           <input
@@ -100,14 +118,15 @@ function AddressForm({ defaultValues, onSubmit, onCancel, isSubmitting, submitLa
             className={inputClass(!!errors.phone)}
             placeholder="010-0000-0000"
           />
-          {errors.phone && (
-            <p className="mt-1 text-xs text-destructive">{errors.phone.message}</p>
-          )}
+          {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone.message}</p>}
         </div>
       </div>
 
       <div>
-        <label htmlFor="zipCode" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <label
+          htmlFor="zipCode"
+          className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           Zip Code
         </label>
         <input
@@ -123,7 +142,10 @@ function AddressForm({ defaultValues, onSubmit, onCancel, isSubmitting, submitLa
       </div>
 
       <div>
-        <label htmlFor="address1" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <label
+          htmlFor="address1"
+          className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           Address
         </label>
         <input
@@ -139,7 +161,10 @@ function AddressForm({ defaultValues, onSubmit, onCancel, isSubmitting, submitLa
       </div>
 
       <div>
-        <label htmlFor="address2" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <label
+          htmlFor="address2"
+          className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+        >
           Address Line 2 <span className="font-normal normal-case">(optional)</span>
         </label>
         <input
@@ -404,7 +429,10 @@ export default function AddressesPage() {
                       )}
                       <button
                         type="button"
-                        onClick={() => { setEditingId(address.id); setShowAddForm(false); }}
+                        onClick={() => {
+                          setEditingId(address.id);
+                          setShowAddForm(false);
+                        }}
                         className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                         aria-label="Edit address"
                       >
