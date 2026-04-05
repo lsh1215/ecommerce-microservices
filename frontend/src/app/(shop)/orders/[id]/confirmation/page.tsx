@@ -1,21 +1,23 @@
-'use client';
-
-import { use } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Check, Package } from 'lucide-react';
 import { PriceDisplay } from '@/components/shared/PriceDisplay';
-import { getOrderById } from '@/mocks/orders';
+import { serverFetch } from '@/lib/server-fetch';
+import { mapOrderResponse } from '@/lib/mappers';
+import type { OrderResponse, PaymentResponse } from '@/types/api-responses';
 
 interface ConfirmationPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default function OrderConfirmationPage({ params }: ConfirmationPageProps) {
-  const { id } = use(params);
+export default async function OrderConfirmationPage({ params }: ConfirmationPageProps) {
+  const { id } = await params;
 
-  const order = getOrderById(id);
-  if (!order) return notFound();
+  const orderData = await serverFetch<OrderResponse>('order', `/api/orders/${id}`);
+  if (!orderData) return notFound();
+  const order = mapOrderResponse(orderData);
+
+  const payment = await serverFetch<PaymentResponse>('payment', `/api/payments/order/${id}`);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 md:px-6">
@@ -35,12 +37,14 @@ export default function OrderConfirmationPage({ params }: ConfirmationPageProps)
           {order.items.map((item, idx) => (
             <div key={`${item.productId}-${idx}`} className="flex gap-4 py-4">
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {item.brandName}
-                </p>
+                {item.brandName && (
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {item.brandName}
+                  </p>
+                )}
                 <p className="mt-0.5 text-sm font-medium text-foreground">{item.productName}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {item.size} / {item.color} · Qty {item.quantity}
+                  {[item.size, item.color].filter(Boolean).join(' / ')} · Qty {item.quantity}
                 </p>
               </div>
               <p className="shrink-0 text-sm font-semibold text-foreground">
@@ -71,6 +75,28 @@ export default function OrderConfirmationPage({ params }: ConfirmationPageProps)
           </div>
         </div>
       </div>
+
+      {payment && (
+        <div className="mt-6 rounded-lg border border-border p-6">
+          <h2 className="text-lg font-bold text-foreground">Payment</h2>
+          <div className="mt-3 space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Method</span>
+              <span className="font-medium text-foreground">{payment.paymentMethod}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Status</span>
+              <span className="font-medium text-foreground">{payment.status}</span>
+            </div>
+            {payment.transactionId && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Transaction</span>
+                <span className="font-mono text-xs text-foreground">{payment.transactionId}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 flex items-start gap-3 rounded-lg border border-border bg-surface p-4">
         <Package size={18} strokeWidth={1.5} className="mt-0.5 shrink-0 text-muted-foreground" />

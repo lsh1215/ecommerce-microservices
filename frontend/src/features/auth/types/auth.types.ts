@@ -10,6 +10,11 @@ export interface RegisterRequest {
   phone?: string;
 }
 
+export interface UpdateProfileRequest {
+  name?: string;
+  phone?: string;
+}
+
 export interface AuthUser {
   id: number;
   name: string;

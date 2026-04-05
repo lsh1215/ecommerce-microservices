@@ -7,13 +7,28 @@ import type {
 } from '@/types/api-responses';
 
 function toCategory(raw: string): Category {
-  const valid: Category[] = ['tops', 'bottoms', 'outerwear', 'shoes', 'accessories', 'electronics', 'home'];
-  const lower = raw.toLowerCase();
+  const valid: Category[] = [
+    'tops',
+    'bottoms',
+    'outerwear',
+    'shoes',
+    'accessories',
+    'electronics',
+    'home',
+  ];
+  const lower = raw?.toLowerCase?.() ?? '';
   return valid.includes(lower as Category) ? (lower as Category) : 'accessories';
 }
 
 function toOrderStatus(raw: string): OrderStatus {
-  const valid: OrderStatus[] = ['PENDING', 'CONFIRMED', 'PAID', 'SHIPPING', 'DELIVERED', 'CANCELLED'];
+  const valid: OrderStatus[] = [
+    'PENDING',
+    'CONFIRMED',
+    'PAID',
+    'SHIPPING',
+    'DELIVERED',
+    'CANCELLED',
+  ];
   return valid.includes(raw as OrderStatus) ? (raw as OrderStatus) : 'PENDING';
 }
 
@@ -53,15 +68,21 @@ export function mapProductResponse(backend: ProductResponse): Product {
   };
 }
 
-export function mapOrderItemResponse(backend: OrderItemResponse): OrderItem {
-  const parts = backend.variantInfo?.split('/') ?? [];
+function parseVariantInfo(raw: string | undefined): { size: string; color: string } {
+  if (!raw) return { size: '', color: '' };
+  const parts = raw.split('/').map((p) => p.trim());
+  return { size: parts[0] ?? '', color: parts[1] ?? '' };
+}
+
+export function mapOrderItemResponse(backend: OrderItemResponse, brandName = ''): OrderItem {
+  const { size, color } = parseVariantInfo(backend.variantInfo);
   return {
     productId: String(backend.productId),
-    variantId: String(backend.variantId),
+    variantId: String(backend.productVariantId),
     productName: backend.productName,
-    brandName: backend.brandName,
-    size: parts[0]?.trim() ?? '',
-    color: parts[1]?.trim() ?? '',
+    brandName,
+    size,
+    color,
     price: backend.unitPrice,
     imageUrl: '',
     quantity: backend.quantity,
@@ -74,7 +95,7 @@ export function mapOrderResponse(backend: OrderResponse): Order {
     id: String(backend.id),
     orderNumber: backend.orderNumber,
     status: toOrderStatus(backend.status),
-    items: (backend.items ?? []).map(mapOrderItemResponse),
+    items: (backend.items ?? []).map((item) => mapOrderItemResponse(item)),
     shippingAddress: {
       recipientName: backend.shippingAddress.recipientName,
       phone: backend.shippingAddress.phone,

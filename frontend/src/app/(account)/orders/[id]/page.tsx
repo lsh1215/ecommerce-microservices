@@ -8,7 +8,7 @@ import { useFromStore } from '@/hooks/use-from-store';
 import { PriceDisplay } from '@/components/shared/PriceDisplay';
 import { Skeleton } from '@/components/shared/Skeleton';
 import { OrderCancelButton } from './OrderCancelButton';
-import { getOrderById } from '@/mocks/orders';
+import { useOrder } from '@/hooks/queries/use-orders';
 import type { OrderStatus } from '@/types';
 
 interface OrderDetailPageProps {
@@ -29,6 +29,7 @@ const STATUS_TIMELINE: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPING', 'DEL
 export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const { id } = use(params);
   const user = useFromStore(useAuthStore, (s) => s.user);
+  const query = useOrder(id);
 
   if (user === undefined) {
     return (
@@ -44,9 +45,19 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     redirect('/auth?redirect=/account/orders');
   }
 
-  const order = getOrderById(id);
-  if (!order) return notFound();
+  if (query.isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
 
+  if (query.isError || !query.data) return notFound();
+
+  const order = query.data;
   const statusCfg = STATUS_CONFIG[order.status];
   const isCancelled = order.status === 'CANCELLED';
   const currentStepIdx = isCancelled ? -1 : STATUS_TIMELINE.indexOf(order.status);
@@ -132,12 +143,14 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           {order.items.map((item, idx) => (
             <div key={`${item.productId}-${idx}`} className="flex gap-4 p-4">
               <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                  {item.brandName}
-                </p>
+                {item.brandName && (
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {item.brandName}
+                  </p>
+                )}
                 <p className="text-sm font-medium text-foreground">{item.productName}</p>
                 <p className="text-xs text-muted-foreground">
-                  {item.size} / {item.color} · Qty: {item.quantity}
+                  {[item.size, item.color].filter(Boolean).join(' / ')} · Qty: {item.quantity}
                 </p>
               </div>
               <div className="flex items-center">

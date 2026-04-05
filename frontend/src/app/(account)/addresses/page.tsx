@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod/v4';
@@ -10,41 +10,8 @@ import { useAuthStore } from '@/features/auth/store/auth-store';
 import { useFromStore } from '@/hooks/use-from-store';
 import { Skeleton } from '@/components/shared/Skeleton';
 import { cn } from '@/lib/utils';
-
-type AddressLabel = 'HOME' | 'WORK' | 'OTHER';
-
-interface Address {
-  id: string;
-  label: AddressLabel;
-  recipientName: string;
-  phone: string;
-  zipCode: string;
-  address1: string;
-  address2?: string;
-  isDefault: boolean;
-}
-
-const MOCK_ADDRESSES: Address[] = [
-  {
-    id: 'addr-001',
-    label: 'HOME',
-    recipientName: 'Kim Minsu',
-    phone: '010-1234-5678',
-    zipCode: '06234',
-    address1: '서울특별시 강남구 강남대로 123',
-    address2: '101동 1001호',
-    isDefault: true,
-  },
-  {
-    id: 'addr-002',
-    label: 'WORK',
-    recipientName: 'Kim Minsu',
-    phone: '010-1234-5678',
-    zipCode: '03737',
-    address1: '서울특별시 서대문구 충정로 50',
-    isDefault: false,
-  },
-];
+import { AddressAPI } from '@/features/addresses/api/address-api';
+import type { AddressResponse, AddressLabel } from '@/types/api-responses';
 
 const addressSchema = z.object({
   label: z.enum(['HOME', 'WORK', 'OTHER']),
@@ -214,10 +181,32 @@ function AddressForm({ defaultValues, onSubmit, onCancel, isSubmitting, submitLa
 
 export default function AddressesPage() {
   const user = useFromStore(useAuthStore, (s) => s.user);
-  const [addresses, setAddresses] = useState<Address[]>(MOCK_ADDRESSES);
+  const [addresses, setAddresses] = useState<AddressResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      const res = await AddressAPI.list(user.id);
+      if (cancelled) return;
+      if (res.success && res.data) {
+        setAddresses(res.data);
+      } else {
+        setLoadError(res.error?.message ?? 'Failed to load addresses.');
+      }
+      setIsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   if (user === undefined) {
     return (
@@ -238,60 +227,75 @@ export default function AddressesPage() {
   const handleAdd = async (data: AddressFormData) => {
     setIsSubmitting(true);
     try {
-      // Stub: real API call in B7
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      const newAddress: Address = {
+      const res = await AddressAPI.create(user.id, {
         ...data,
-        id: `addr-${Date.now()}`,
         address2: data.address2 || undefined,
         isDefault: addresses.length === 0,
-      };
-      setAddresses((prev) => [...prev, newAddress]);
-      setShowAddForm(false);
+      });
+      if (res.success && res.data) {
+        setAddresses((prev) => [...prev, res.data as AddressResponse]);
+        setShowAddForm(false);
+      } else {
+        setLoadError(res.error?.message ?? 'Failed to add address.');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleEdit = async (data: AddressFormData) => {
-    if (!editingId) return;
+    if (editingId == null) return;
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      setAddresses((prev) =>
-        prev.map((a) =>
-          a.id === editingId
-            ? { ...a, ...data, address2: data.address2 || undefined }
-            : a,
-        ),
-      );
-      setEditingId(null);
+      const res = await AddressAPI.update(user.id, editingId, {
+        ...data,
+        address2: data.address2 || undefined,
+      });
+      if (res.success && res.data) {
+        const updated = res.data;
+        setAddresses((prev) => prev.map((a) => (a.id === editingId ? updated : a)));
+        setEditingId(null);
+      } else {
+        setLoadError(res.error?.message ?? 'Failed to update address.');
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    setAddresses((prev) => {
-      const remaining = prev.filter((a) => a.id !== id);
-      if (remaining.length > 0 && !remaining.some((a) => a.isDefault)) {
-        return remaining.map((a, i) => (i === 0 ? { ...a, isDefault: true } : a));
-      }
-      return remaining;
-    });
+  const handleDelete = async (id: number) => {
+    const res = await AddressAPI.remove(user.id, id);
+    if (res.success) {
+      setAddresses((prev) => prev.filter((a) => a.id !== id));
+    } else {
+      setLoadError(res.error?.message ?? 'Failed to delete address.');
+    }
   };
 
-  const handleSetDefault = (id: string) => {
-    setAddresses((prev) =>
-      prev.map((a) => ({ ...a, isDefault: a.id === id })),
-    );
+  const handleSetDefault = async (id: number) => {
+    const address = addresses.find((a) => a.id === id);
+    if (!address) return;
+    const res = await AddressAPI.update(user.id, id, {
+      label: address.label,
+      recipientName: address.recipientName,
+      phone: address.phone,
+      zipCode: address.zipCode,
+      address1: address.address1,
+      address2: address.address2,
+      isDefault: true,
+    });
+    if (res.success) {
+      setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
+    } else {
+      setLoadError(res.error?.message ?? 'Failed to set default address.');
+    }
   };
 
   return (
     <div>
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-foreground">Addresses</h1>
-        {!showAddForm && !editingId && (
+        {!showAddForm && editingId == null && (
           <button
             type="button"
             onClick={() => setShowAddForm(true)}
@@ -302,6 +306,12 @@ export default function AddressesPage() {
           </button>
         )}
       </div>
+
+      {loadError && (
+        <div className="mb-6 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          {loadError}
+        </div>
+      )}
 
       {showAddForm && (
         <div className="mb-6">
@@ -317,7 +327,12 @@ export default function AddressesPage() {
         </div>
       )}
 
-      {addresses.length === 0 && !showAddForm ? (
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      ) : addresses.length === 0 && !showAddForm ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
           <MapPin size={36} className="mb-3 text-muted-foreground" strokeWidth={1.5} />
           <p className="text-sm font-medium text-foreground">No saved addresses</p>

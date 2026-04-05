@@ -3,7 +3,8 @@ export interface BrandResponse {
   name: string;
   description?: string;
   logoUrl?: string;
-  createdAt: string;
+  country?: string;
+  createdAt?: string;
 }
 
 export interface ProductVariantResponse {
@@ -40,6 +41,8 @@ export interface CustomerResponse {
   email: string;
   name: string;
   phone?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LoginResponse {
@@ -48,9 +51,11 @@ export interface LoginResponse {
   email: string;
 }
 
+export type AddressLabel = 'HOME' | 'WORK' | 'OTHER';
+
 export interface AddressResponse {
   id: number;
-  label: string;
+  label: AddressLabel;
   recipientName: string;
   phone: string;
   zipCode: string;
@@ -62,13 +67,20 @@ export interface AddressResponse {
 export interface OrderItemResponse {
   id: number;
   productId: number;
-  variantId: number;
+  productVariantId: number;
   productName: string;
-  brandName: string;
   variantInfo: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+}
+
+export interface ShippingAddressResponse {
+  recipientName: string;
+  phone: string;
+  zipCode: string;
+  address1: string;
+  address2?: string;
 }
 
 export interface OrderResponse {
@@ -77,13 +89,8 @@ export interface OrderResponse {
   customerId: number;
   status: string;
   totalAmount: number;
-  shippingAddress: {
-    recipientName: string;
-    phone: string;
-    zipCode: string;
-    address1: string;
-    address2?: string;
-  };
+  shippingAddress: ShippingAddressResponse;
+  memo?: string;
   items: OrderItemResponse[];
   createdAt: string;
   updatedAt: string;
@@ -92,10 +99,14 @@ export interface OrderResponse {
 export interface PaymentResponse {
   id: number;
   orderId: number;
+  orderNumber?: string;
   amount: number;
   status: string;
   paymentMethod: string;
   transactionId?: string;
+  failureReason?: string;
+  paidAt?: string;
+  refundedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

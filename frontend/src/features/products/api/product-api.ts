@@ -1,18 +1,32 @@
-import { apiClient } from '@/lib/api-client';
+import { productClient } from '@/lib/api-client';
 import type { PageResponse } from '@/types';
-import type { ProductResponse } from '@/types/api-responses';
+import type { BrandResponse, ProductResponse } from '@/types/api-responses';
 import type { ProductListParams } from '../types/product.types';
 
-export const ProductAPI = {
-  list: (params?: ProductListParams) => {
-    const query = params ? `?${new URLSearchParams(params as Record<string, string>)}` : '';
-    return apiClient.get<PageResponse<ProductResponse>>(`/api/products${query}`);
-  },
+function buildQuery(params?: ProductListParams): string {
+  if (!params) return '';
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null || value === '') continue;
+    search.set(key, String(value));
+  }
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
 
-  detail: (id: string) => apiClient.get<ProductResponse>(`/api/products/${id}`),
+export const ProductAPI = {
+  list: (params?: ProductListParams) =>
+    productClient.get<PageResponse<ProductResponse>>(`/api/products${buildQuery(params)}`),
+
+  detail: (id: string | number) => productClient.get<ProductResponse>(`/api/products/${id}`),
 
   search: (q: string, page = 0, size = 20) =>
-    apiClient.get<PageResponse<ProductResponse>>(
-      `/api/products?q=${encodeURIComponent(q)}&page=${page}&size=${size}`,
+    productClient.get<PageResponse<ProductResponse>>(
+      `/api/products?keyword=${encodeURIComponent(q)}&page=${page}&size=${size}`,
     ),
+};
+
+export const BrandAPI = {
+  list: () => productClient.get<BrandResponse[]>('/api/brands'),
+  detail: (id: string | number) => productClient.get<BrandResponse>(`/api/brands/${id}`),
 };

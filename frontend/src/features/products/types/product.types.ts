@@ -1,10 +1,10 @@
 export interface ProductListParams {
-  brandId?: string;
+  keyword?: string;
+  brandId?: string | number;
   category?: string;
-  minPrice?: string;
-  maxPrice?: string;
-  q?: string;
-  page?: string;
-  size?: string;
+  minPrice?: string | number;
+  maxPrice?: string | number;
+  page?: string | number;
+  size?: string | number;
   sort?: string;
 }

@@ -11,6 +11,7 @@ import { useFromStore } from '@/hooks/use-from-store';
 import { useAuthStore } from '@/features/auth/store/auth-store';
 import { useToastStore } from '@/stores/toast-store';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { OrderAPI } from '@/features/orders/api/order-api';
 
 type PaymentMethod = 'CARD' | 'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT';
 
@@ -66,10 +67,35 @@ export default function CheckoutPage() {
 
     setIsSubmitting(true);
     try {
-      // API integration will happen in B7. For now simulate success.
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const customerId = Number(user.id);
+      if (!Number.isFinite(customerId)) {
+        addToast('error', 'Invalid customer session. Please log in again.');
+        router.push('/auth?redirect=/checkout');
+        return;
+      }
+
+      const res = await OrderAPI.create({
+        customerId,
+        shippingAddress: {
+          recipientName: form.recipientName,
+          phone: form.phone,
+          zipCode: form.zipCode,
+          address1: form.address1,
+          address2: form.address2 || undefined,
+        },
+        items: items.map((item) => ({
+          productVariantId: Number(item.variantId),
+          quantity: item.quantity,
+        })),
+      });
+
+      if (!res.success || !res.data) {
+        addToast('error', res.error?.message ?? 'Failed to place order.');
+        return;
+      }
+
       clearCart();
-      router.push('/orders/order-001/confirmation');
+      router.push(`/orders/${res.data.id}/confirmation`);
     } catch {
       addToast('error', 'Something went wrong. Please try again.');
     } finally {

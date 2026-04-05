@@ -5,9 +5,11 @@ import { ProductGridSkeleton } from '@/components/shared/Skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { FilterPanel } from '@/features/products/components/FilterPanel';
 import { SortControl } from '@/features/products/components/SortControl';
-import { mockProducts } from '@/mocks/products';
-import { mockBrands } from '@/mocks/brands';
-import type { Category } from '@/types';
+import { serverFetch } from '@/lib/server-fetch';
+import { mapBrandResponse, mapProductResponse } from '@/lib/mappers';
+import type { PageResponse } from '@/types';
+import type { BrandResponse, ProductResponse } from '@/types/api-responses';
+import type { Brand, Category } from '@/types';
 
 export const metadata = {
   title: 'Products',
@@ -57,50 +59,38 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
   const minPrice = params.minPrice ? parseInt(params.minPrice, 10) : undefined;
   const maxPrice = params.maxPrice ? parseInt(params.maxPrice, 10) : undefined;
 
-  let products = [...mockProducts];
+  // Build backend query. Backend supports a single brandId/category at a time.
+  const query = new URLSearchParams();
+  if (q) query.set('keyword', q);
+  if (brandIds[0]) query.set('brandId', brandIds[0]);
+  if (categories[0]) query.set('category', categories[0]);
+  if (minPrice != null) query.set('minPrice', String(minPrice));
+  if (maxPrice != null) query.set('maxPrice', String(maxPrice));
+  query.set('page', String(Math.max(0, page - 1)));
+  query.set('size', String(PAGE_SIZE));
 
-  if (q) {
-    const lower = q.toLowerCase();
-    products = products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(lower) ||
-        p.brand.name.toLowerCase().includes(lower) ||
-        p.description.toLowerCase().includes(lower),
-    );
-  }
+  const [pageData, brandsData] = await Promise.all([
+    serverFetch<PageResponse<ProductResponse>>('product', `/api/products?${query.toString()}`),
+    serverFetch<BrandResponse[]>('product', '/api/brands'),
+  ]);
 
-  if (brandIds.length > 0) {
-    products = products.filter((p) => brandIds.includes(p.brand.id));
-  }
+  let products = (pageData?.content ?? []).map(mapProductResponse);
+  const brands: Brand[] = (brandsData ?? []).map(mapBrandResponse);
 
-  if (categories.length > 0) {
-    products = products.filter((p) => categories.includes(p.category));
-  }
-
-  if (minPrice !== undefined) {
-    products = products.filter((p) => p.price >= minPrice);
-  }
-
-  if (maxPrice !== undefined) {
-    products = products.filter((p) => p.price <= maxPrice);
-  }
-
+  // Client-side sort on the current page. Backend sort not yet specified
+  // for all options, so we sort the returned page to preserve UX.
   if (sort === 'price_asc') {
-    products = products.sort((a, b) => a.price - b.price);
+    products = [...products].sort((a, b) => a.price - b.price);
   } else if (sort === 'price_desc') {
-    products = products.sort((a, b) => b.price - a.price);
+    products = [...products].sort((a, b) => b.price - a.price);
   } else if (sort === 'name_az') {
-    products = products.sort((a, b) => a.name.localeCompare(b.name));
-  } else {
-    products = products.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+    products = [...products].sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  const totalCount = products.length;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const totalCount = pageData?.totalElements ?? products.length;
+  const totalPages = Math.max(1, pageData?.totalPages ?? 1);
   const currentPage = Math.min(page, totalPages);
-  const paginatedProducts = products.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const paginatedProducts = products;
 
   function buildPageUrl(targetPage: number): string {
     const p = new URLSearchParams();
@@ -134,7 +124,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <div className="flex gap-8">
         <Suspense fallback={null}>
           <FilterPanel
-            brands={mockBrands}
+            brands={brands}
             selectedBrandIds={brandIds}
             selectedCategories={categories}
             minPrice={params.minPrice ?? ''}
@@ -164,7 +154,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               )}
 
               {brandIds.map((id) => {
-                const brand = mockBrands.find((b) => b.id === id);
+                const brand = brands.find((b) => b.id === id);
                 const nextIds = brandIds.filter((b) => b !== id);
                 const p = new URLSearchParams();
                 if (q) p.set('q', q);

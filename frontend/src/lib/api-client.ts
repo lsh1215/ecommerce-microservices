@@ -1,69 +1,132 @@
-import type { ApiResponse } from '@/types';
-import { API_BASE_URL } from './constants';
+import type { ApiResponse, BackendApiResponse } from '@/types';
+import { SERVICE_BASE_URLS, type ServiceName } from './constants';
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
-  const url = `${API_BASE_URL}${path}`;
+interface RequestOptions extends Omit<RequestInit, 'body'> {
+  body?: unknown;
+  /** Next.js fetch cache control. Defaults to no-store for dynamic data. */
+  cache?: RequestCache;
+  next?: { revalidate?: number | false; tags?: string[] };
+}
 
-  const defaultHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
+function normalize<T>(json: unknown, httpStatus: number, statusText: string): ApiResponse<T> {
+  if (json && typeof json === 'object' && 'success' in json) {
+    const body = json as BackendApiResponse<T>;
+    if (body.success) {
+      return { success: true, data: body.data, error: null };
+    }
+    return {
+      success: false,
+      data: null,
+      error: {
+        code: String(httpStatus),
+        message: body.message ?? statusText ?? 'Request failed',
+      },
+    };
+  }
+
+  return {
+    success: false,
+    data: null,
+    error: {
+      code: String(httpStatus),
+      message: statusText || 'Unexpected response shape',
+    },
   };
+}
+
+async function request<T>(
+  service: ServiceName,
+  path: string,
+  { body, headers, cache, next, method = 'GET', ...rest }: RequestOptions = {},
+): Promise<ApiResponse<T>> {
+  const url = `${SERVICE_BASE_URLS[service]}${path}`;
 
   try {
     const response = await fetch(url, {
-      ...options,
+      method,
+      ...rest,
+      cache: cache ?? (next ? undefined : 'no-store'),
+      next,
       headers: {
-        ...defaultHeaders,
-        ...options.headers,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...headers,
       },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
-    const json = (await response.json()) as ApiResponse<T>;
-
-    if (!response.ok) {
-      return {
-        success: false,
-        data: null,
-        error: json.error ?? {
-          code: String(response.status),
-          message: response.statusText || 'Request failed',
-        },
-      };
+    let json: unknown = null;
+    const text = await response.text();
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch {
+        return {
+          success: false,
+          data: null,
+          error: {
+            code: String(response.status),
+            message: 'Invalid JSON response',
+          },
+        };
+      }
     }
 
-    return json;
+    return normalize<T>(json, response.status, response.statusText);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Network error';
     return {
       success: false,
       data: null,
-      error: {
-        code: 'NETWORK_ERROR',
-        message,
-      },
+      error: { code: 'NETWORK_ERROR', message },
     };
   }
 }
 
-export const apiClient = {
-  get<T>(path: string): Promise<ApiResponse<T>> {
-    return request<T>(path, { method: 'GET' });
-  },
+function makeServiceClient(service: ServiceName) {
+  return {
+    get<T>(path: string, options?: RequestOptions): Promise<ApiResponse<T>> {
+      return request<T>(service, path, { ...options, method: 'GET' });
+    },
+    post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+      return request<T>(service, path, { ...options, method: 'POST', body });
+    },
+    put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+      return request<T>(service, path, { ...options, method: 'PUT', body });
+    },
+    patch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
+      return request<T>(service, path, { ...options, method: 'PATCH', body });
+    },
+    delete<T>(path: string, options?: RequestOptions): Promise<ApiResponse<T>> {
+      return request<T>(service, path, { ...options, method: 'DELETE' });
+    },
+  };
+}
 
-  post<T>(path: string, body: unknown): Promise<ApiResponse<T>> {
-    return request<T>(path, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-  },
+export const productClient = makeServiceClient('product');
+export const orderClient = makeServiceClient('order');
+export const paymentClient = makeServiceClient('payment');
+export const customerClient = makeServiceClient('customer');
 
-  put<T>(path: string, body: unknown): Promise<ApiResponse<T>> {
-    return request<T>(path, {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    });
-  },
+/**
+ * Legacy default client — routes to the product service. Prefer the
+ * service-specific clients above when adding new call sites.
+ */
+export const apiClient = productClient;
 
-  delete<T>(path: string): Promise<ApiResponse<T>> {
-    return request<T>(path, { method: 'DELETE' });
-  },
-};
+export class ApiError extends Error {
+  readonly code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+    this.name = 'ApiError';
+  }
+}
+
+/** Unwraps an ApiResponse, throwing ApiError on failure. */
+export function unwrap<T>(res: ApiResponse<T>): T {
+  if (!res.success || res.data == null) {
+    throw new ApiError(res.error?.code ?? 'UNKNOWN', res.error?.message ?? 'Request failed');
+  }
+  return res.data;
+}

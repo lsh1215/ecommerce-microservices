@@ -1,7 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ProductCard } from '@/components/shared/ProductCard';
-import { getFeaturedProducts } from '@/mocks/products';
+import { serverFetch } from '@/lib/server-fetch';
+import { mapProductResponse } from '@/lib/mappers';
+import type { PageResponse } from '@/types';
+import type { ProductResponse } from '@/types/api-responses';
 import type { Category } from '@/types';
 
 export const metadata = {
@@ -48,8 +51,12 @@ const CATEGORIES: { value: Category; label: string; image: string; description: 
   },
 ];
 
-export default function HomePage() {
-  const featuredProducts = getFeaturedProducts(8);
+export default async function HomePage() {
+  const page = await serverFetch<PageResponse<ProductResponse>>(
+    'product',
+    '/api/products?size=8&sort=createdAt,desc',
+  );
+  const featuredProducts = (page?.content ?? []).map(mapProductResponse);
 
   return (
     <>
@@ -151,11 +158,17 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {featuredProducts.length > 0 ? (
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Products will appear here once the catalog is available.
+            </p>
+          )}
 
           <div className="mt-10 text-center md:hidden">
             <Link

@@ -10,6 +10,7 @@ import { useAuthStore } from '@/features/auth/store/auth-store';
 import { useFromStore } from '@/hooks/use-from-store';
 import { Skeleton } from '@/components/shared/Skeleton';
 import { cn } from '@/lib/utils';
+import { CustomerAPI } from '@/features/auth/api/auth-api';
 
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -75,9 +76,15 @@ export default function ProfilePage() {
     setSaveError(null);
     setSaveSuccess(false);
     try {
-      // Profile update stub — real wiring in B7
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setAuth({ ...user, name: data.name });
+      const res = await CustomerAPI.updateProfile(user.id, {
+        name: data.name,
+        phone: data.phone || undefined,
+      });
+      if (!res.success || !res.data) {
+        setSaveError(res.error?.message ?? 'Failed to update profile.');
+        return;
+      }
+      setAuth({ ...user, name: res.data.name, email: res.data.email });
       setSaveSuccess(true);
       setIsEditing(false);
     } catch {

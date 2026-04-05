@@ -1,2 +1,2 @@
-export type { ApiResponse, ErrorDetail, PageResponse } from './api';
+export type { ApiResponse, BackendApiResponse, ErrorDetail, PageResponse } from './api';
 export type * from './domain';

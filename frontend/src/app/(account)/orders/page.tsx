@@ -1,13 +1,13 @@
 'use client';
 
-import { redirect } from 'next/navigation';
+import { redirect, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/features/auth/store/auth-store';
 import { useFromStore } from '@/hooks/use-from-store';
 import { PriceDisplay } from '@/components/shared/PriceDisplay';
 import { Skeleton } from '@/components/shared/Skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { mockOrders } from '@/mocks/orders';
+import { useMyOrders } from '@/hooks/queries/use-orders';
 import type { OrderStatus } from '@/types';
 import { Package } from 'lucide-react';
 
@@ -19,6 +19,8 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; classes: string }> = {
   DELIVERED: { label: 'Delivered', classes: 'bg-green-50 text-green-700 border border-green-200' },
   CANCELLED: { label: 'Cancelled', classes: 'bg-gray-100 text-gray-500 border border-gray-200' },
 };
+
+const PAGE_SIZE = 10;
 
 function OrderListSkeleton() {
   return (
@@ -44,6 +46,16 @@ function OrderListSkeleton() {
 
 export default function OrdersPage() {
   const user = useFromStore(useAuthStore, (s) => s.user);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentPage = Math.max(0, parseInt(searchParams.get('page') ?? '0', 10));
+
+  const customerId = user ? Number(user.id) : null;
+  const query = useMyOrders(
+    customerId != null && Number.isFinite(customerId)
+      ? { customerId, page: currentPage, size: PAGE_SIZE }
+      : { customerId: -1, page: 0, size: PAGE_SIZE },
+  );
 
   if (user === undefined) {
     return (
@@ -58,7 +70,29 @@ export default function OrdersPage() {
     redirect('/auth?redirect=/account/orders');
   }
 
-  const orders = mockOrders;
+  if (query.isLoading) {
+    return (
+      <div>
+        <h1 className="mb-8 text-3xl font-bold text-foreground">Orders</h1>
+        <OrderListSkeleton />
+      </div>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <div>
+        <h1 className="mb-8 text-3xl font-bold text-foreground">Orders</h1>
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Failed to load orders. Please try again.
+        </div>
+      </div>
+    );
+  }
+
+  const pageData = query.data;
+  const orders = pageData?.content ?? [];
+  const totalPages = pageData?.totalPages ?? 1;
 
   if (orders.length === 0) {
     return (
@@ -123,6 +157,30 @@ export default function OrdersPage() {
           );
         })}
       </div>
+
+      {totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            disabled={currentPage === 0}
+            onClick={() => router.push(`/account/orders?page=${currentPage - 1}`)}
+            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-muted-foreground">
+            Page {currentPage + 1} of {totalPages}
+          </span>
+          <button
+            type="button"
+            disabled={currentPage >= totalPages - 1}
+            onClick={() => router.push(`/account/orders?page=${currentPage + 1}`)}
+            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
