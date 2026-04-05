@@ -1,239 +1,202 @@
 import type { Product } from '@/types';
-import { mockBrands } from './brands';
 
-const outstanding = mockBrands[0]!;
-const warehouse = mockBrands[1]!;
-const rrl = mockBrands[2]!;
+const brandA = { id: 'brand-1', name: 'Nordic Basic' };
+const brandB = { id: 'brand-2', name: 'Urban Thread' };
+const brandC = { id: 'brand-3', name: 'Coastal Wear' };
 
 export const mockProducts: Product[] = [
   {
     id: 'prod-001',
-    slug: 'outstanding-selvedge-denim-type-2',
-    name: 'Selvedge Denim Type II Jacket',
-    nameKo: '셀비지 데님 타입 II 재킷',
-    description:
-      '14oz selvedge right-hand twill denim jacket cut in the classic Type II silhouette. Sanforized for minimal shrinkage.',
-    brand: outstanding,
-    category: 'outerwear',
-    origin: 'Korea',
-    imageUrls: [
-      'https://images.unsplash.com/photo-1601333144130-8cbb312386b6?w=800&q=80',
-      'https://images.unsplash.com/photo-1578932750294-f5075e85f44a?w=800&q=80',
-      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80',
+    name: 'Classic Oxford Shirt',
+    description: 'A timeless oxford shirt in a relaxed fit. 100% cotton.',
+    price: 49000,
+    category: 'tops',
+    brand: brandA,
+    images: [
+      {
+        id: 'img-001',
+        url: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80',
+        sortOrder: 0,
+        isPrimary: true,
+      },
     ],
-    priceKrw: 220000,
-    priceUsd: 168,
-    priceJpy: 25200,
-    fabric: { type: 'Selvedge denim', weightOz: 14, weave: 'Right-hand twill' },
-    era: '1950s workwear',
-    sizes: [
-      { label: '1', stock: 3, measurements: { chest: 52, shoulder: 43, sleeve: 60, length: 62 } },
-      { label: '2', stock: 5, measurements: { chest: 54, shoulder: 44, sleeve: 61, length: 63 } },
-      { label: '3', stock: 2, measurements: { chest: 56, shoulder: 45, sleeve: 62, length: 64 } },
-      { label: '4', stock: 0, measurements: { chest: 58, shoulder: 46, sleeve: 63, length: 65 } },
+    variants: [
+      { id: 'v-001-s', size: 'S', color: 'White', sku: 'OXF-S-W', stockQuantity: 10 },
+      { id: 'v-001-m', size: 'M', color: 'White', sku: 'OXF-M-W', stockQuantity: 15 },
+      { id: 'v-001-l', size: 'L', color: 'White', sku: 'OXF-L-W', stockQuantity: 8 },
     ],
-    dropId: 'drop-fw2024-outstanding',
-    createdAt: '2024-09-01T00:00:00Z',
-    updatedAt: '2024-09-01T00:00:00Z',
+    status: 'ACTIVE',
+    createdAt: '2025-01-01T00:00:00Z',
   },
   {
     id: 'prod-002',
-    slug: 'outstanding-reverse-weave-sweatshirt',
-    name: 'Reverse Weave Sweatshirt',
-    nameKo: '리버스위브 스웻셔츠',
-    description:
-      'Loopwheeled terry cotton sweatshirt with vintage print graphics. Cut in a slightly boxy silhouette.',
-    brand: outstanding,
-    category: 'knitwear',
-    origin: 'Korea',
-    imageUrls: [
-      'https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=800&q=80',
-      'https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=800&q=80',
+    name: 'Slim Chino Trousers',
+    description: 'Clean-cut slim chinos with a comfortable stretch fabric.',
+    price: 69000,
+    category: 'bottoms',
+    brand: brandA,
+    images: [
+      {
+        id: 'img-002',
+        url: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80',
+        sortOrder: 0,
+        isPrimary: true,
+      },
     ],
-    priceKrw: 98000,
-    priceUsd: 75,
-    priceJpy: 11200,
-    fabric: { type: 'Loopwheeled terry cotton', weightOz: 12, weave: 'French terry' },
-    era: '1960s outdoor',
-    sizes: [
-      { label: 'S', stock: 8 },
-      { label: 'M', stock: 12 },
-      { label: 'L', stock: 6 },
-      { label: 'XL', stock: 4 },
+    variants: [
+      { id: 'v-002-30', size: '30', color: 'Khaki', sku: 'CHN-30-K', stockQuantity: 6 },
+      { id: 'v-002-32', size: '32', color: 'Khaki', sku: 'CHN-32-K', stockQuantity: 9 },
+      { id: 'v-002-34', size: '34', color: 'Khaki', sku: 'CHN-34-K', stockQuantity: 4 },
     ],
-    createdAt: '2024-08-15T00:00:00Z',
-    updatedAt: '2024-08-15T00:00:00Z',
+    status: 'ACTIVE',
+    createdAt: '2025-01-05T00:00:00Z',
   },
   {
     id: 'prod-003',
-    slug: 'warehouse-1000xx-selvedge-jeans',
-    name: 'Lot 1000XX Selvedge Jeans',
-    nameJa: 'ロット1000XXセルヴィッジジーンズ',
-    description:
-      "Warehouse's flagship denim. 13.5oz Banner Denim selvedge, irregular slub texture reminiscent of vintage shuttle looms.",
-    brand: warehouse,
-    category: 'denim',
-    origin: 'Japan',
-    imageUrls: [
-      'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80',
-      'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80',
+    name: 'Wool Blend Overcoat',
+    description: 'A sophisticated overcoat in a warm wool-polyester blend.',
+    price: 189000,
+    category: 'outerwear',
+    brand: brandB,
+    images: [
+      {
+        id: 'img-003',
+        url: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80',
+        sortOrder: 0,
+        isPrimary: true,
+      },
     ],
-    priceKrw: 320000,
-    priceUsd: 245,
-    priceJpy: 36700,
-    fabric: { type: 'Banner Denim selvedge', weightOz: 13.5, weave: 'Left-hand twill' },
-    era: '1950s workwear',
-    sizes: [
-      { label: '28', stock: 3, measurements: { waist: 74, inseam: 83, thigh: 31, hem: 18 } },
-      { label: '30', stock: 5, measurements: { waist: 78, inseam: 83, thigh: 32, hem: 18 } },
-      { label: '32', stock: 4, measurements: { waist: 82, inseam: 83, thigh: 33, hem: 19 } },
-      { label: '34', stock: 2, measurements: { waist: 86, inseam: 83, thigh: 34, hem: 19 } },
-      { label: '36', stock: 1, measurements: { waist: 90, inseam: 83, thigh: 35, hem: 20 } },
+    variants: [
+      { id: 'v-003-m', size: 'M', color: 'Camel', sku: 'OC-M-C', stockQuantity: 5 },
+      { id: 'v-003-l', size: 'L', color: 'Camel', sku: 'OC-L-C', stockQuantity: 3 },
+      { id: 'v-003-xl', size: 'XL', color: 'Camel', sku: 'OC-XL-C', stockQuantity: 2 },
     ],
-    createdAt: '2024-07-01T00:00:00Z',
-    updatedAt: '2024-07-01T00:00:00Z',
+    status: 'ACTIVE',
+    createdAt: '2025-01-10T00:00:00Z',
   },
   {
     id: 'prod-004',
-    slug: 'warehouse-chambray-work-shirt',
-    name: 'Chambray Work Shirt',
-    nameJa: 'シャンブレーワークシャツ',
-    description:
-      'Classic chambray work shirt cut from 5oz indigo-dyed cotton. Single needle construction throughout.',
-    brand: warehouse,
-    category: 'shirts',
-    origin: 'Japan',
-    imageUrls: ['https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&q=80'],
-    priceKrw: 195000,
-    priceUsd: 149,
-    priceJpy: 22300,
-    fabric: { type: 'Chambray', weightOz: 5, weave: 'Plain' },
-    era: '1950s workwear',
-    sizes: [
-      { label: '14', stock: 6 },
-      { label: '14.5', stock: 8 },
-      { label: '15', stock: 5 },
-      { label: '15.5', stock: 3 },
-      { label: '16', stock: 2 },
+    name: 'Essential Crewneck Tee',
+    description: 'Heavyweight cotton crewneck tee. Pre-washed for softness.',
+    price: 29000,
+    category: 'tops',
+    brand: brandC,
+    images: [
+      {
+        id: 'img-004',
+        url: 'https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=800&q=80',
+        sortOrder: 0,
+        isPrimary: true,
+      },
     ],
-    createdAt: '2024-08-01T00:00:00Z',
-    updatedAt: '2024-08-01T00:00:00Z',
+    variants: [
+      { id: 'v-004-s', size: 'S', color: 'Black', sku: 'TEE-S-BK', stockQuantity: 20 },
+      { id: 'v-004-m', size: 'M', color: 'Black', sku: 'TEE-M-BK', stockQuantity: 25 },
+      { id: 'v-004-l', size: 'L', color: 'Black', sku: 'TEE-L-BK', stockQuantity: 18 },
+    ],
+    status: 'ACTIVE',
+    createdAt: '2025-01-12T00:00:00Z',
   },
   {
     id: 'prod-005',
-    slug: 'rrl-limited-indigo-field-jacket',
-    name: 'Indigo-Dyed Field Jacket',
-    description:
-      'Hand-dyed indigo cotton canvas field jacket. Small batch of 150 pieces worldwide. Brass hardware.',
-    brand: rrl,
+    name: 'Denim Jacket',
+    description: 'A classic denim jacket with a slightly boxy fit.',
+    price: 99000,
     category: 'outerwear',
-    origin: 'USA',
-    imageUrls: [
-      'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&q=80',
-      'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=800&q=80',
+    brand: brandB,
+    images: [
+      {
+        id: 'img-005',
+        url: 'https://images.unsplash.com/photo-1601333144130-8cbb312386b6?w=800&q=80',
+        sortOrder: 0,
+        isPrimary: true,
+      },
     ],
-    priceKrw: 780000,
-    priceUsd: 595,
-    priceJpy: 89200,
-    fabric: { type: 'Cotton canvas', weightOz: 10, weave: 'Plain weave' },
-    era: '1940s military',
-    sizes: [
-      { label: 'S', stock: 5 },
-      { label: 'M', stock: 8 },
-      { label: 'L', stock: 6 },
-      { label: 'XL', stock: 3 },
+    variants: [
+      { id: 'v-005-s', size: 'S', color: 'Indigo', sku: 'DJ-S-I', stockQuantity: 7 },
+      { id: 'v-005-m', size: 'M', color: 'Indigo', sku: 'DJ-M-I', stockQuantity: 10 },
+      { id: 'v-005-l', size: 'L', color: 'Indigo', sku: 'DJ-L-I', stockQuantity: 5 },
     ],
-    dropId: 'drop-rrl-limited',
-    createdAt: '2024-09-10T00:00:00Z',
-    updatedAt: '2024-09-10T00:00:00Z',
+    status: 'ACTIVE',
+    createdAt: '2025-01-15T00:00:00Z',
   },
   {
     id: 'prod-006',
-    slug: 'rrl-roughout-chinos',
-    name: 'Roughout Chino Trousers',
-    description:
-      'Slim-cut chinos in 10oz roughout cotton. Inspired by 1950s Ivy League campus wear.',
-    brand: rrl,
-    category: 'pants',
-    origin: 'USA',
-    imageUrls: ['https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=800&q=80'],
-    priceKrw: 345000,
-    priceUsd: 264,
-    priceJpy: 39600,
-    fabric: { type: 'Roughout cotton', weightOz: 10, weave: 'Twill' },
-    era: '1950s workwear',
-    sizes: [
-      { label: '30x32', stock: 4 },
-      { label: '32x32', stock: 6 },
-      { label: '34x32', stock: 5 },
-      { label: '36x32', stock: 2 },
+    name: 'Linen Blend Shorts',
+    description: 'Breathable linen-cotton shorts for warm weather.',
+    price: 39000,
+    category: 'bottoms',
+    brand: brandC,
+    images: [
+      {
+        id: 'img-006',
+        url: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&q=80',
+        sortOrder: 0,
+        isPrimary: true,
+      },
     ],
-    createdAt: '2024-06-01T00:00:00Z',
-    updatedAt: '2024-06-01T00:00:00Z',
+    variants: [
+      { id: 'v-006-s', size: 'S', color: 'Beige', sku: 'SHT-S-B', stockQuantity: 12 },
+      { id: 'v-006-m', size: 'M', color: 'Beige', sku: 'SHT-M-B', stockQuantity: 14 },
+      { id: 'v-006-l', size: 'L', color: 'Beige', sku: 'SHT-L-B', stockQuantity: 8 },
+    ],
+    status: 'ACTIVE',
+    createdAt: '2025-01-18T00:00:00Z',
   },
   {
     id: 'prod-007',
-    slug: 'outstanding-military-anorak',
-    name: 'Mountain Anorak',
-    nameKo: '마운틴 아노락',
-    description:
-      'Pullover anorak cut from 8oz waxed canvas. Korean outdoor interpretation of WWII military parkas.',
-    brand: outstanding,
-    category: 'outerwear',
-    origin: 'Korea',
-    imageUrls: ['https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&q=80'],
-    priceKrw: 165000,
-    priceUsd: 126,
-    priceJpy: 18900,
-    fabric: { type: 'Waxed canvas', weightOz: 8, weave: 'Plain weave' },
-    era: '1940s military',
-    sizes: [
-      { label: '1', stock: 4 },
-      { label: '2', stock: 7 },
-      { label: '3', stock: 5 },
-      { label: '4', stock: 2 },
+    name: 'Canvas Sneakers',
+    description: 'Low-profile canvas sneakers with a rubber sole.',
+    price: 59000,
+    category: 'shoes',
+    brand: brandA,
+    images: [
+      {
+        id: 'img-007',
+        url: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80',
+        sortOrder: 0,
+        isPrimary: true,
+      },
     ],
-    createdAt: '2024-09-05T00:00:00Z',
-    updatedAt: '2024-09-05T00:00:00Z',
+    variants: [
+      { id: 'v-007-260', size: '260', color: 'White', sku: 'SNK-260-W', stockQuantity: 4 },
+      { id: 'v-007-265', size: '265', color: 'White', sku: 'SNK-265-W', stockQuantity: 6 },
+      { id: 'v-007-270', size: '270', color: 'White', sku: 'SNK-270-W', stockQuantity: 3 },
+    ],
+    status: 'ACTIVE',
+    createdAt: '2025-01-20T00:00:00Z',
   },
   {
     id: 'prod-008',
-    slug: 'warehouse-lot-800xx-wide-jeans',
-    name: 'Lot 800XX Wide Jeans',
-    nameJa: 'ロット800XXワイドジーンズ',
-    description:
-      '1947 cut reproduction denim in 13.5oz pre-shrunk selvedge. Full-cut leg, high rise.',
-    brand: warehouse,
-    category: 'denim',
-    origin: 'Japan',
-    imageUrls: ['https://images.unsplash.com/photo-1555689502-c4b22d76c56f?w=800&q=80'],
-    priceKrw: 298000,
-    priceUsd: 228,
-    priceJpy: 34100,
-    fabric: { type: 'Selvedge denim', weightOz: 13.5, weave: 'Right-hand twill' },
-    era: '1940s military',
-    sizes: [
-      { label: '28', stock: 2 },
-      { label: '30', stock: 5 },
-      { label: '32', stock: 6 },
-      { label: '34', stock: 3 },
+    name: 'Knit Beanie',
+    description: 'A warm ribbed knit beanie. One size fits most.',
+    price: 19000,
+    category: 'accessories',
+    brand: brandC,
+    images: [
+      {
+        id: 'img-008',
+        url: 'https://images.unsplash.com/photo-1512327536842-5aa37d1ba3e3?w=800&q=80',
+        sortOrder: 0,
+        isPrimary: true,
+      },
     ],
-    dropId: 'drop-fw2024-warehouse',
-    createdAt: '2024-09-08T00:00:00Z',
-    updatedAt: '2024-09-08T00:00:00Z',
+    variants: [{ id: 'v-008-os', size: 'OS', color: 'Navy', sku: 'BNE-OS-N', stockQuantity: 30 }],
+    status: 'ACTIVE',
+    createdAt: '2025-01-22T00:00:00Z',
   },
 ];
 
 export function getProductById(id: string): Product | undefined {
-  return mockProducts.find((p) => p.id === id || p.slug === id);
+  return mockProducts.find((p) => p.id === id);
 }
 
-export function getProductsByBrand(brandSlug: string): Product[] {
-  return mockProducts.filter((p) => p.brand.slug === brandSlug);
+export function getFeaturedProducts(limit = 8): Product[] {
+  return mockProducts.slice(0, limit);
 }
 
-export function getProductsByDrop(dropId: string): Product[] {
-  return mockProducts.filter((p) => p.dropId === dropId);
+export function getProductsByCategory(category: string): Product[] {
+  return mockProducts.filter((p) => p.category === category);
 }
 
 export function getRelatedProducts(product: Product, limit = 4): Product[] {

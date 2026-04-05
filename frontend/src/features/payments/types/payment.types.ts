@@ -1,9 +1,7 @@
 export interface ProcessPaymentRequest {
   orderId: number;
   amount: number;
-  currency: string;
-  idempotencyKey: string;
-  paymentMethod: string;
+  paymentMethod: 'CARD' | 'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT';
 }
 
 export interface RefundRequest {

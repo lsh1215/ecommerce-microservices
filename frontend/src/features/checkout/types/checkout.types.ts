@@ -1,12 +1,14 @@
-export interface ShippingAddress {
-  name: string;
+export interface CheckoutShippingAddress {
+  recipientName: string;
   phone: string;
-  address: string;
-  addressDetail: string;
   zipCode: string;
+  address1: string;
+  address2?: string;
 }
 
+export type CheckoutPaymentMethod = 'CARD' | 'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT';
+
 export interface CheckoutState {
-  shippingAddress: ShippingAddress | null;
-  paymentMethod: string | null;
+  shippingAddress: CheckoutShippingAddress | null;
+  paymentMethod: CheckoutPaymentMethod | null;
 }

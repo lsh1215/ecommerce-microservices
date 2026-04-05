@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/features/auth/store/auth-store';
 import { AuthAPI } from '@/features/auth/api/auth-api';
+import { cn } from '@/lib/utils';
 
 type AuthTab = 'login' | 'register';
 
@@ -31,6 +32,12 @@ const registerSchema = z
 type LoginFormData = z.infer<typeof loginSchema>;
 type RegisterFormData = z.infer<typeof registerSchema>;
 
+const inputClass = (hasError: boolean) =>
+  cn(
+    'w-full rounded-md border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary',
+    hasError ? 'border-destructive' : 'border-border',
+  );
+
 function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,13 +48,8 @@ function AuthForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loginForm = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  const registerForm = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema),
-  });
+  const loginForm = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
+  const registerForm = useForm<RegisterFormData>({ resolver: zodResolver(registerSchema) });
 
   const handleLogin = async (data: LoginFormData) => {
     setIsSubmitting(true);
@@ -58,12 +60,7 @@ function AuthForm() {
         setError(res.error?.message ?? 'Invalid credentials');
         return;
       }
-      setAuth({
-        id: res.data.id,
-        publicId: res.data.publicId,
-        name: res.data.name,
-        email: res.data.email,
-      });
+      setAuth({ id: res.data.id, name: res.data.name, email: res.data.email });
       router.push(redirect);
     } catch {
       setError('An unexpected error occurred. Please try again.');
@@ -82,27 +79,16 @@ function AuthForm() {
         name: data.name,
       });
       if (!registerRes.success) {
-        const code = registerRes.error?.code;
-        if (code === '409' || registerRes.error?.message?.toLowerCase().includes('duplicate')) {
-          setError('An account with this email already exists.');
-        } else {
-          setError(registerRes.error?.message ?? 'Registration failed');
-        }
+        setError(registerRes.error?.message ?? 'Registration failed');
         return;
       }
-
       const loginRes = await AuthAPI.login({ email: data.email, password: data.password });
       if (!loginRes.success || !loginRes.data) {
-        setError('Account created but login failed. Please try logging in.');
+        setError('Account created. Please log in.');
         setTab('login');
         return;
       }
-      setAuth({
-        id: loginRes.data.id,
-        publicId: loginRes.data.publicId,
-        name: loginRes.data.name,
-        email: loginRes.data.email,
-      });
+      setAuth({ id: loginRes.data.id, name: loginRes.data.name, email: loginRes.data.email });
       router.push(redirect);
     } catch {
       setError('An unexpected error occurred. Please try again.');
@@ -111,58 +97,41 @@ function AuthForm() {
     }
   };
 
-  const inputClass = (hasError: boolean) =>
-    `w-full border px-3 py-2.5 text-sm text-[#1a1a1a] placeholder:text-[#a39e93] focus:outline-none ${
-      hasError ? 'border-red-400 focus:border-red-500' : 'border-[#e8e4df] focus:border-[#1a1a1a]'
-    }`;
-
   return (
-    <div className="w-full max-w-md">
-      {/* Tab toggle */}
-      <div className="flex border-b border-[#e8e4df]">
-        <button
-          type="button"
-          onClick={() => {
-            setTab('login');
-            setError(null);
-          }}
-          className={`flex-1 py-3 text-sm font-semibold uppercase tracking-widest transition-colors ${
-            tab === 'login'
-              ? 'border-b-2 border-[#1a1a1a] text-[#1a1a1a]'
-              : 'text-[#6b6560] hover:text-[#1a1a1a]'
-          }`}
-        >
-          Login
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setTab('register');
-            setError(null);
-          }}
-          className={`flex-1 py-3 text-sm font-semibold uppercase tracking-widest transition-colors ${
-            tab === 'register'
-              ? 'border-b-2 border-[#1a1a1a] text-[#1a1a1a]'
-              : 'text-[#6b6560] hover:text-[#1a1a1a]'
-          }`}
-        >
-          Register
-        </button>
+    <div className="w-full max-w-md rounded-xl border border-border bg-background p-8 shadow-sm">
+      <div className="flex border-b border-border">
+        {(['login', 'register'] as AuthTab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => {
+              setTab(t);
+              setError(null);
+            }}
+            className={cn(
+              'flex-1 py-3 text-sm font-semibold capitalize transition-colors',
+              tab === t
+                ? 'border-b-2 border-foreground text-foreground'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {t === 'login' ? 'Login' : 'Register'}
+          </button>
+        ))}
       </div>
 
       {error && (
-        <div className="mt-4 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {/* Login form */}
       {tab === 'login' && (
         <form onSubmit={loginForm.handleSubmit(handleLogin)} className="mt-6 space-y-4">
           <div>
             <label
               htmlFor="login-email"
-              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Email
             </label>
@@ -174,7 +143,7 @@ function AuthForm() {
               placeholder="you@example.com"
             />
             {loginForm.formState.errors.email && (
-              <p className="mt-1 text-xs text-red-500">
+              <p className="mt-1 text-xs text-destructive">
                 {loginForm.formState.errors.email.message}
               </p>
             )}
@@ -183,7 +152,7 @@ function AuthForm() {
           <div>
             <label
               htmlFor="login-password"
-              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Password
             </label>
@@ -195,7 +164,7 @@ function AuthForm() {
               placeholder="Min. 6 characters"
             />
             {loginForm.formState.errors.password && (
-              <p className="mt-1 text-xs text-red-500">
+              <p className="mt-1 text-xs text-destructive">
                 {loginForm.formState.errors.password.message}
               </p>
             )}
@@ -204,12 +173,11 @@ function AuthForm() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex w-full items-center justify-center gap-2 bg-[#c4633e] px-6 py-3 text-sm font-semibold uppercase tracking-widest text-white transition-colors hover:bg-[#a84f2e] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
             {isSubmitting ? (
               <>
-                <Loader2 size={16} className="animate-spin" />
-                Logging in...
+                <Loader2 size={16} className="animate-spin" /> Logging in...
               </>
             ) : (
               'Login'
@@ -218,13 +186,12 @@ function AuthForm() {
         </form>
       )}
 
-      {/* Register form */}
       {tab === 'register' && (
         <form onSubmit={registerForm.handleSubmit(handleRegister)} className="mt-6 space-y-4">
           <div>
             <label
               htmlFor="register-name"
-              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Name
             </label>
@@ -236,7 +203,7 @@ function AuthForm() {
               placeholder="Your name"
             />
             {registerForm.formState.errors.name && (
-              <p className="mt-1 text-xs text-red-500">
+              <p className="mt-1 text-xs text-destructive">
                 {registerForm.formState.errors.name.message}
               </p>
             )}
@@ -245,7 +212,7 @@ function AuthForm() {
           <div>
             <label
               htmlFor="register-email"
-              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Email
             </label>
@@ -257,7 +224,7 @@ function AuthForm() {
               placeholder="you@example.com"
             />
             {registerForm.formState.errors.email && (
-              <p className="mt-1 text-xs text-red-500">
+              <p className="mt-1 text-xs text-destructive">
                 {registerForm.formState.errors.email.message}
               </p>
             )}
@@ -266,7 +233,7 @@ function AuthForm() {
           <div>
             <label
               htmlFor="register-password"
-              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Password
             </label>
@@ -278,7 +245,7 @@ function AuthForm() {
               placeholder="Min. 6 characters"
             />
             {registerForm.formState.errors.password && (
-              <p className="mt-1 text-xs text-red-500">
+              <p className="mt-1 text-xs text-destructive">
                 {registerForm.formState.errors.password.message}
               </p>
             )}
@@ -287,7 +254,7 @@ function AuthForm() {
           <div>
             <label
               htmlFor="register-confirm"
-              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-[#6b6560]"
+              className="mb-1 block text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
               Confirm Password
             </label>
@@ -299,7 +266,7 @@ function AuthForm() {
               placeholder="Re-enter password"
             />
             {registerForm.formState.errors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">
+              <p className="mt-1 text-xs text-destructive">
                 {registerForm.formState.errors.confirmPassword.message}
               </p>
             )}
@@ -308,12 +275,11 @@ function AuthForm() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="flex w-full items-center justify-center gap-2 bg-[#c4633e] px-6 py-3 text-sm font-semibold uppercase tracking-widest text-white transition-colors hover:bg-[#a84f2e] disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
           >
             {isSubmitting ? (
               <>
-                <Loader2 size={16} className="animate-spin" />
-                Creating account...
+                <Loader2 size={16} className="animate-spin" /> Creating account...
               </>
             ) : (
               'Create Account'
@@ -329,10 +295,10 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md rounded-xl border border-border p-8">
           <div className="animate-pulse space-y-4">
-            <div className="h-10 bg-[#e8e4df]" />
-            <div className="h-48 bg-[#e8e4df]" />
+            <div className="h-10 rounded bg-muted" />
+            <div className="h-48 rounded bg-muted" />
           </div>
         </div>
       }

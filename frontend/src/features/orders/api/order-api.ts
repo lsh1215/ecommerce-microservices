@@ -1,21 +1,21 @@
-import { apiClient } from '@/lib/api-client';
+import { orderClient } from '@/lib/api-client';
 import type { PageResponse } from '@/types';
 import type { OrderResponse } from '@/types/api-responses';
 import type { CreateOrderRequest, OrderListParams } from '../types/order.types';
 
 export const OrderAPI = {
-  list: (params: OrderListParams) => {
+  myOrders: (params: OrderListParams) => {
     const query = new URLSearchParams({
       customerId: String(params.customerId),
       ...(params.page != null && { page: String(params.page) }),
       ...(params.size != null && { size: String(params.size) }),
     });
-    return apiClient.get<PageResponse<OrderResponse>>(`/api/orders?${query}`);
+    return orderClient.get<PageResponse<OrderResponse>>(`/api/orders/my?${query}`);
   },
 
-  detail: (publicId: string) => apiClient.get<OrderResponse>(`/api/orders/${publicId}`),
+  detail: (id: string | number) => orderClient.get<OrderResponse>(`/api/orders/${id}`),
 
-  create: (request: CreateOrderRequest) => apiClient.post<OrderResponse>('/api/orders', request),
+  create: (request: CreateOrderRequest) => orderClient.post<OrderResponse>('/api/orders', request),
 
-  cancel: (publicId: string) => apiClient.post<OrderResponse>(`/api/orders/${publicId}/cancel`, {}),
+  cancel: (id: string | number) => orderClient.post<OrderResponse>(`/api/orders/${id}/cancel`),
 };

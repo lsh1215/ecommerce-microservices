@@ -4,69 +4,49 @@ import { useState } from 'react';
 import { ShoppingBag, Check } from 'lucide-react';
 import { useCartStore } from '@/features/cart/store/cart-store';
 import { useToastStore } from '@/stores/toast-store';
-import type { Product } from '@/types';
+import type { Product, ProductVariant } from '@/types';
 
 interface AddToCartButtonProps {
   product: Product;
-  selectedSize: string | null;
-  isDropAnnounced?: boolean;
-  dropOpensAt?: string;
+  selectedVariant: ProductVariant | null;
+  quantity?: number;
 }
 
-export function AddToCartButton({
-  product,
-  selectedSize,
-  isDropAnnounced,
-  dropOpensAt,
-}: AddToCartButtonProps) {
+export function AddToCartButton({ product, selectedVariant, quantity = 1 }: AddToCartButtonProps) {
   const [added, setAdded] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
   const addToast = useToastStore((s) => s.addToast);
 
-  const sizeData = selectedSize ? product.sizes.find((s) => s.label === selectedSize) : null;
-
-  const isSoldOut = sizeData ? sizeData.stock === 0 : false;
+  const isSoldOut = selectedVariant ? selectedVariant.stockQuantity === 0 : false;
+  const primaryImage = product.images.find((img) => img.isPrimary) ?? product.images[0];
 
   const handleAdd = () => {
-    if (!selectedSize || isSoldOut || isDropAnnounced) return;
+    if (!selectedVariant || isSoldOut) return;
 
     addItem({
       productId: product.id,
-      variantId: sizeData?.id,
+      variantId: selectedVariant.id,
       productName: product.name,
       brandName: product.brand.name,
-      size: selectedSize,
-      priceKrw: product.priceKrw,
-      priceUsd: product.priceUsd,
-      priceJpy: product.priceJpy,
-      imageUrl: product.imageUrls[0] ?? '',
-      quantity: 1,
-      dropId: product.dropId,
+      size: selectedVariant.size,
+      color: selectedVariant.color,
+      price: selectedVariant.price ?? product.price,
+      imageUrl: primaryImage?.url ?? '',
+      quantity,
+      stockAvailable: selectedVariant.stockQuantity,
     });
 
-    addToast('success', `${product.name} (${selectedSize}) added to cart`);
+    addToast('success', `${product.name} (${selectedVariant.size}) added to cart`);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
-  if (isDropAnnounced && dropOpensAt) {
+  if (!selectedVariant) {
     return (
       <button
         type="button"
         disabled
-        className="flex w-full items-center justify-center gap-2 bg-[#e8e4df] px-6 py-4 text-sm font-semibold uppercase tracking-widest text-[#6b6560]"
-      >
-        Drop Opens Soon
-      </button>
-    );
-  }
-
-  if (!selectedSize) {
-    return (
-      <button
-        type="button"
-        disabled
-        className="flex w-full items-center justify-center gap-2 bg-[#e8e4df] px-6 py-4 text-sm font-semibold uppercase tracking-widest text-[#6b6560]"
+        className="flex w-full items-center justify-center gap-2 rounded-md bg-muted px-6 py-3 text-sm font-semibold text-muted-foreground"
       >
         Select a Size
       </button>
@@ -78,7 +58,7 @@ export function AddToCartButton({
       <button
         type="button"
         disabled
-        className="flex w-full items-center justify-center gap-2 bg-[#e8e4df] px-6 py-4 text-sm font-semibold uppercase tracking-widest text-[#6b6560]"
+        className="flex w-full items-center justify-center gap-2 rounded-md bg-muted px-6 py-3 text-sm font-semibold text-muted-foreground"
       >
         Sold Out
       </button>
@@ -89,8 +69,10 @@ export function AddToCartButton({
     <button
       type="button"
       onClick={handleAdd}
-      className={`flex w-full items-center justify-center gap-2 px-6 py-4 text-sm font-semibold uppercase tracking-widest transition-colors ${
-        added ? 'bg-[#1a1a1a] text-white' : 'bg-[#c4633e] text-white hover:bg-[#a84f2e]'
+      className={`flex w-full items-center justify-center gap-2 rounded-md px-6 py-3 text-sm font-semibold transition-colors ${
+        added
+          ? 'bg-foreground text-background'
+          : 'bg-primary text-primary-foreground hover:bg-primary/90'
       }`}
     >
       {added ? (

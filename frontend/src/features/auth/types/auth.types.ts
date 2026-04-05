@@ -7,11 +7,16 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+  phone?: string;
+}
+
+export interface UpdateProfileRequest {
+  name?: string;
+  phone?: string;
 }
 
 export interface AuthUser {
   id: number;
-  publicId: string;
   name: string;
   email: string;
 }

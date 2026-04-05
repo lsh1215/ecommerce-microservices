@@ -1,11 +1,18 @@
-import { apiClient } from '@/lib/api-client';
-import type { LoginResponse, CustomerResponse } from '@/types/api-responses';
-import type { LoginRequest, RegisterRequest } from '../types/auth.types';
+import { customerClient } from '@/lib/api-client';
+import type { CustomerResponse, LoginResponse } from '@/types/api-responses';
+import type { LoginRequest, RegisterRequest, UpdateProfileRequest } from '../types/auth.types';
 
 export const AuthAPI = {
-  register: (req: RegisterRequest) => apiClient.post<CustomerResponse>('/api/customers', req),
+  register: (req: RegisterRequest) =>
+    customerClient.post<CustomerResponse>('/api/customers/register', req),
 
-  login: (req: LoginRequest) => apiClient.post<LoginResponse>('/api/customers/login', req),
+  login: (req: LoginRequest) => customerClient.post<LoginResponse>('/api/customers/login', req),
 
-  getProfile: (publicId: string) => apiClient.get<CustomerResponse>(`/api/customers/${publicId}`),
+  getProfile: (customerId: string | number) =>
+    customerClient.get<CustomerResponse>(`/api/customers/${customerId}`),
+
+  updateProfile: (customerId: string | number, req: UpdateProfileRequest) =>
+    customerClient.put<CustomerResponse>(`/api/customers/${customerId}`, req),
 };
+
+export const CustomerAPI = AuthAPI;

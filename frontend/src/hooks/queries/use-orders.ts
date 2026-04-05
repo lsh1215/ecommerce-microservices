@@ -3,11 +3,11 @@ import { OrderAPI } from '@/features/orders/api/order-api';
 import { mapOrderResponse } from '@/lib/mappers';
 import type { OrderListParams } from '@/features/orders/types/order.types';
 
-export function useOrders(params: OrderListParams) {
+export function useMyOrders(params: OrderListParams) {
   return useQuery({
     queryKey: ['orders', params],
     queryFn: async () => {
-      const res = await OrderAPI.list(params);
+      const res = await OrderAPI.myOrders(params);
       if (!res.success || !res.data) {
         throw new Error(res.error?.message ?? 'Failed to fetch orders');
       }
@@ -19,12 +19,12 @@ export function useOrders(params: OrderListParams) {
   });
 }
 
-export function useOrder(publicId: string | undefined) {
+export function useOrder(id: string | undefined) {
   return useQuery({
-    queryKey: ['order', publicId],
-    enabled: !!publicId,
+    queryKey: ['order', id],
+    enabled: !!id,
     queryFn: async () => {
-      const res = await OrderAPI.detail(publicId!);
+      const res = await OrderAPI.detail(id!);
       if (!res.success || !res.data) {
         throw new Error(res.error?.message ?? 'Failed to fetch order');
       }

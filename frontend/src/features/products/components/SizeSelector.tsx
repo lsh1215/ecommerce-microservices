@@ -1,54 +1,65 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { ProductSize } from '@/types';
+import type { ProductVariant } from '@/types';
 
 interface SizeSelectorProps {
-  sizes: ProductSize[];
-  onSizeChange: (size: string | null) => void;
+  variants: ProductVariant[];
+  onVariantChange: (variant: ProductVariant | null) => void;
 }
 
-export function SizeSelector({ sizes, onSizeChange }: SizeSelectorProps) {
-  const [selected, setSelected] = useState<string | null>(null);
+export function SizeSelector({ variants, onVariantChange }: SizeSelectorProps) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const uniqueSizes = variants.reduce<ProductVariant[]>((acc, v) => {
+    if (!acc.find((u) => u.size === v.size)) acc.push(v);
+    return acc;
+  }, []);
 
   useEffect(() => {
-    onSizeChange(selected);
-  }, [selected, onSizeChange]);
+    const found = variants.find((v) => v.id === selectedId) ?? null;
+    onVariantChange(found);
+  }, [selectedId, variants, onVariantChange]);
 
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[#6b6560]">Size</p>
-        {selected && (
-          <p className="text-xs text-[#6b6560]">
-            {sizes.find((s) => s.label === selected)?.stock === 0
-              ? 'Sold Out'
-              : sizes.find((s) => s.label === selected)!.stock <= 3
-                ? `Only ${sizes.find((s) => s.label === selected)!.stock} left`
-                : 'In Stock'}
-          </p>
-        )}
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Size</p>
+        {selectedId &&
+          (() => {
+            const selected = variants.find((v) => v.id === selectedId);
+            if (!selected) return null;
+            return (
+              <p className="text-xs text-muted-foreground">
+                {selected.stockQuantity === 0
+                  ? 'Sold Out'
+                  : selected.stockQuantity <= 3
+                    ? `Only ${selected.stockQuantity} left`
+                    : 'In Stock'}
+              </p>
+            );
+          })()}
       </div>
       <div className="flex flex-wrap gap-2">
-        {sizes.map((size) => {
-          const isSoldOut = size.stock === 0;
-          const isSelected = selected === size.label;
+        {uniqueSizes.map((variant) => {
+          const isSoldOut = variant.stockQuantity === 0;
+          const isSelected = selectedId === variant.id;
 
           return (
             <button
-              key={size.label}
+              key={variant.id}
               type="button"
               disabled={isSoldOut}
-              onClick={() => setSelected(isSelected ? null : size.label)}
-              className={`min-w-[44px] px-3 py-2.5 text-sm font-medium transition-colors ${
+              onClick={() => setSelectedId(isSelected ? null : variant.id)}
+              className={`min-w-[44px] rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 isSoldOut
-                  ? 'cursor-not-allowed border border-[#e8e4df] text-[#a39e93] line-through'
+                  ? 'cursor-not-allowed border border-border text-muted-foreground line-through'
                   : isSelected
-                    ? 'border border-[#1a1a1a] bg-[#1a1a1a] text-white'
-                    : 'border border-[#e8e4df] text-[#1a1a1a] hover:border-[#1a1a1a]'
+                    ? 'border border-foreground bg-foreground text-background'
+                    : 'border border-border text-foreground hover:border-foreground'
               }`}
             >
-              {size.label}
+              {variant.size}
             </button>
           );
         })}

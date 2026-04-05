@@ -1,13 +1,14 @@
-import { apiClient } from '@/lib/api-client';
+import { paymentClient } from '@/lib/api-client';
 import type { PaymentResponse } from '@/types/api-responses';
 import type { ProcessPaymentRequest, RefundRequest } from '../types/payment.types';
 
 export const PaymentAPI = {
   process: (request: ProcessPaymentRequest) =>
-    apiClient.post<PaymentResponse>('/api/payments', request),
+    paymentClient.post<PaymentResponse>('/api/payments/process', request),
 
-  detail: (publicId: string) => apiClient.get<PaymentResponse>(`/api/payments/${publicId}`),
+  getByOrderId: (orderId: string | number) =>
+    paymentClient.get<PaymentResponse>(`/api/payments/order/${orderId}`),
 
-  refund: (publicId: string, request: RefundRequest) =>
-    apiClient.post<PaymentResponse>(`/api/payments/${publicId}/refund`, request),
+  refund: (paymentId: string | number, request: RefundRequest) =>
+    paymentClient.post<PaymentResponse>(`/api/payments/${paymentId}/refund`, request),
 };
