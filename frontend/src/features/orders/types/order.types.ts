@@ -3,12 +3,19 @@ export interface CreateOrderItem {
   quantity: number;
 }
 
+export interface CreateOrderShippingAddress {
+  recipientName: string;
+  phone: string;
+  zipCode: string;
+  address1: string;
+  address2?: string;
+}
+
 export interface CreateOrderRequest {
   customerId: number;
-  shippingAddress: string;
-  idempotencyKey: string;
-  currency: string;
+  shippingAddress: CreateOrderShippingAddress;
   items: CreateOrderItem[];
+  memo?: string;
 }
 
 export interface OrderListParams {

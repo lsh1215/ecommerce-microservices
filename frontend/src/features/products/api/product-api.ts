@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import type { PageResponse } from '@/types';
-import type { ProductResponse, ProductDetailResponse } from '@/types/api-responses';
+import type { ProductResponse } from '@/types/api-responses';
 import type { ProductListParams } from '../types/product.types';
 
 export const ProductAPI = {
@@ -9,10 +9,10 @@ export const ProductAPI = {
     return apiClient.get<PageResponse<ProductResponse>>(`/api/products${query}`);
   },
 
-  detail: (publicId: string) => apiClient.get<ProductDetailResponse>(`/api/products/${publicId}`),
+  detail: (id: string) => apiClient.get<ProductResponse>(`/api/products/${id}`),
 
   search: (q: string, page = 0, size = 20) =>
     apiClient.get<PageResponse<ProductResponse>>(
-      `/api/products/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`,
+      `/api/products?q=${encodeURIComponent(q)}&page=${page}&size=${size}`,
     ),
 };

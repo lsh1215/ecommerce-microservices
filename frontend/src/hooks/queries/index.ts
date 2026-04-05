@@ -1,4 +1,3 @@
 export { useProducts, useProduct, useProductSearch } from './use-products';
-export { useBrands, useBrand } from './use-brands';
-export { useDrops, useDrop } from './use-drops';
+export { useBrands } from './use-brands';
 export { useOrders, useOrder } from './use-orders';

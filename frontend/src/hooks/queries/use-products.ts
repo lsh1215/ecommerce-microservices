@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { ProductAPI } from '@/features/products/api/product-api';
-import { InventoryAPI } from '@/features/inventory/api/inventory-api';
-import { mapProductResponse, mapProductDetailResponse } from '@/lib/mappers';
+import { mapProductResponse } from '@/lib/mappers';
 import type { ProductListParams } from '@/features/products/types/product.types';
 
 export function useProducts(params?: ProductListParams) {
@@ -20,28 +19,16 @@ export function useProducts(params?: ProductListParams) {
   });
 }
 
-export function useProduct(publicId: string | undefined) {
+export function useProduct(id: string | undefined) {
   return useQuery({
-    queryKey: ['product', publicId],
-    enabled: !!publicId,
+    queryKey: ['product', id],
+    enabled: !!id,
     queryFn: async () => {
-      const res = await ProductAPI.detail(publicId!);
+      const res = await ProductAPI.detail(id!);
       if (!res.success || !res.data) {
         throw new Error(res.error?.message ?? 'Failed to fetch product');
       }
-
-      const detail = res.data;
-      const inventories = await Promise.all(
-        (detail.variants ?? []).map(async (v) => {
-          const invRes = await InventoryAPI.getByVariantId(v.id);
-          return invRes.success && invRes.data ? invRes.data : null;
-        }),
-      );
-
-      return mapProductDetailResponse(
-        detail,
-        inventories.filter((inv) => inv !== null),
-      );
+      return mapProductResponse(res.data);
     },
   });
 }
