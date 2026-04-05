@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, Package, Settings } from 'lucide-react';
+import { User, Package } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const ACCOUNT_NAV = [
-  { href: '/profile', label: 'Profile', icon: User },
-  { href: '/orders', label: 'Orders', icon: Package },
-  { href: '#', label: 'Settings', icon: Settings, disabled: true },
+  { href: '/account/profile', label: 'Profile', icon: User },
+  { href: '/account/orders', label: 'Orders', icon: Package },
 ];
 
 export function AccountSidebar() {
@@ -15,33 +15,24 @@ export function AccountSidebar() {
 
   return (
     <aside className="hidden w-48 shrink-0 md:block">
-      <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">Account</p>
+      <p className="mb-6 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Account
+      </p>
       <nav className="flex flex-col gap-1" aria-label="Account navigation">
         {ACCOUNT_NAV.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname.startsWith(item.href) && !item.disabled;
-
-          if (item.disabled) {
-            return (
-              <span
-                key={item.label}
-                className="flex items-center gap-2.5 px-3 py-2 text-sm text-[#a39e93] cursor-not-allowed"
-              >
-                <Icon size={16} strokeWidth={1.5} />
-                {item.label}
-              </span>
-            );
-          }
+          const isActive = pathname.startsWith(item.href);
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
+              className={cn(
+                'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors',
                 isActive
-                  ? 'bg-[#f3f0eb] font-medium text-[#c4633e]'
-                  : 'text-[#1a1a1a] hover:bg-[#f3f0eb] hover:text-[#c4633e]'
-              }`}
+                  ? 'bg-primary-light font-medium text-primary'
+                  : 'text-foreground hover:bg-muted hover:text-primary',
+              )}
             >
               <Icon size={16} strokeWidth={1.5} />
               {item.label}

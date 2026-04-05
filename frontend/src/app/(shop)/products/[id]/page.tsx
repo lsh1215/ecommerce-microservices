@@ -5,277 +5,128 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { use } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { CurrencyPrice } from '@/components/shared/CurrencyPrice';
+import { PriceDisplay } from '@/components/shared/PriceDisplay';
 import { ProductCard } from '@/components/shared/ProductCard';
-import { MobileImageCarousel } from '@/components/shared/MobileImageCarousel';
-import { Skeleton } from '@/components/shared/Skeleton';
 import { SizeSelector } from '@/features/products/components/SizeSelector';
 import { AddToCartButton } from '@/features/products/components/AddToCartButton';
-import { useProduct } from '@/hooks/queries/use-products';
-import { useProducts } from '@/hooks/queries/use-products';
-import type { Measurements } from '@/types';
-
-const ORIGIN_FLAGS: Record<string, string> = {
-  Korea: '\uD83C\uDDF0\uD83C\uDDF7',
-  Japan: '\uD83C\uDDEF\uD83C\uDDF5',
-  USA: '\uD83C\uDDFA\uD83C\uDDF8',
-};
-
-const MEASUREMENT_LABELS: Record<keyof Measurements, string> = {
-  chest: 'Chest',
-  shoulder: 'Shoulder',
-  sleeve: 'Sleeve',
-  length: 'Length',
-  waist: 'Waist',
-  inseam: 'Inseam',
-  thigh: 'Thigh',
-  hem: 'Hem',
-};
+import { getProductById, getRelatedProducts } from '@/mocks/products';
+import type { ProductVariant } from '@/types';
 
 interface ProductDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-function ProductDetailSkeleton() {
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
-      <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
-        <div>
-          <Skeleton className="aspect-[3/4] w-full" />
-        </div>
-        <div className="flex flex-col gap-6">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-8 w-64" />
-          <Skeleton className="h-6 w-24" />
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { id } = use(params);
-  const { data: product, isLoading, error } = useProduct(id);
 
-  const { data: relatedData } = useProducts(
-    product ? { category: product.category.toUpperCase(), size: '4', page: '0' } : undefined,
-  );
+  const product = getProductById(id);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
 
-  const related = (relatedData?.content ?? []).filter((p) => p.id !== id).slice(0, 4);
-
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [activeImage, setActiveImage] = useState(0);
-  const [measurementsOpen, setMeasurementsOpen] = useState(false);
-
-  const handleSizeChange = useCallback((size: string | null) => {
-    setSelectedSize(size);
+  const handleVariantChange = useCallback((variant: ProductVariant | null) => {
+    setSelectedVariant(variant);
   }, []);
 
-  if (isLoading) return <ProductDetailSkeleton />;
-  if (error || !product) return notFound();
+  if (!product) return notFound();
 
-  const hasMeasurements = product.sizes.some((s) => s.measurements);
-  const measurementKeys = hasMeasurements
-    ? (Object.keys(
-        product.sizes.find((s) => s.measurements)?.measurements ?? {},
-      ) as (keyof Measurements)[])
-    : [];
+  const relatedProducts = getRelatedProducts(product, 4);
+  const sortedImages = [...product.images].sort((a, b) => a.sortOrder - b.sortOrder);
+  const activeImage = sortedImages[activeImageIdx];
 
   return (
     <div>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-6">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
-          {/* Image gallery */}
-          <div>
-            {/* Mobile: swipe carousel */}
-            <div className="md:hidden">
-              <MobileImageCarousel images={product.imageUrls} alt={product.name} />
-            </div>
+        <nav className="mb-6 text-sm text-muted-foreground">
+          <Link href="/" className="hover:text-foreground">
+            Home
+          </Link>
+          <span className="mx-2">/</span>
+          <Link href="/products" className="hover:text-foreground">
+            Products
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-foreground">{product.name}</span>
+        </nav>
 
-            {/* Desktop: main image + thumbnails */}
-            <div className="hidden flex-col gap-4 md:flex">
-              <div className="relative aspect-[3/4] overflow-hidden bg-[#e8e4df]">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
+              {activeImage ? (
                 <Image
-                  src={product.imageUrls[activeImage] ?? product.imageUrls[0] ?? ''}
+                  src={activeImage.url}
                   alt={product.name}
                   fill
                   priority
                   className="object-cover"
-                  sizes="50vw"
+                  sizes="(max-width: 768px) 100vw, 50vw"
                 />
-              </div>
-              {product.imageUrls.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto">
-                  {product.imageUrls.map((url, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setActiveImage(i)}
-                      className={`relative h-20 w-20 shrink-0 overflow-hidden bg-[#e8e4df] ${
-                        activeImage === i
-                          ? 'ring-2 ring-[#1a1a1a] ring-offset-1'
-                          : 'opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      <Image
-                        src={url}
-                        alt={`${product.name} view ${i + 1}`}
-                        fill
-                        className="object-cover"
-                        sizes="80px"
-                      />
-                    </button>
-                  ))}
-                </div>
+              ) : (
+                <div className="h-full w-full bg-muted" />
               )}
             </div>
+
+            {sortedImages.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {sortedImages.map((img, i) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => setActiveImageIdx(i)}
+                    className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-md bg-muted transition-opacity ${
+                      activeImageIdx === i
+                        ? 'ring-2 ring-primary ring-offset-1'
+                        : 'opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <Image
+                      src={img.url}
+                      alt={`${product.name} view ${i + 1}`}
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Product info */}
           <div className="flex flex-col gap-6">
-            {/* Brand + origin */}
             <div>
               <Link
-                href={`/products?brand=${product.brand.slug}`}
-                className="text-xs font-semibold uppercase tracking-widest text-[#6b6560] hover:text-[#c4633e]"
+                href={`/products?brandId=${product.brand.id}`}
+                className="text-xs font-semibold uppercase tracking-widest text-muted-foreground hover:text-primary"
               >
                 {product.brand.name}
               </Link>
-              <h1 className="font-heading mt-2 text-2xl font-bold text-[#1a1a1a] md:text-3xl">
-                {product.name}
-              </h1>
-              {product.nameKo && <p className="mt-1 text-sm text-[#6b6560]">{product.nameKo}</p>}
-              {product.nameJa && <p className="mt-1 text-sm text-[#6b6560]">{product.nameJa}</p>}
-              <div className="mt-3 flex items-center gap-3">
-                <p className="text-xl font-semibold text-[#1a1a1a]">
-                  <CurrencyPrice
-                    priceKrw={product.priceKrw}
-                    priceUsd={product.priceUsd}
-                    priceJpy={product.priceJpy}
-                  />
-                </p>
-                <span className="text-sm text-[#6b6560]">
-                  {ORIGIN_FLAGS[product.origin]} {product.origin}
-                </span>
-              </div>
-            </div>
-
-            {/* Description */}
-            <p className="text-sm leading-relaxed text-[#6b6560]">{product.description}</p>
-
-            {/* Fabric details */}
-            <div className="border-t border-[#e8e4df] pt-5">
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
-                Fabric Details
+              <h1 className="mt-2 text-2xl font-bold text-foreground md:text-3xl">{product.name}</h1>
+              <p className="mt-3 text-xl font-semibold text-foreground">
+                <PriceDisplay amount={selectedVariant?.price ?? product.price} />
               </p>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-[#6b6560]">Type</span>
-                  <p className="font-medium text-[#1a1a1a]">{product.fabric.type}</p>
-                </div>
-                <div>
-                  <span className="text-[#6b6560]">Weight</span>
-                  <p className="font-medium text-[#1a1a1a]">{product.fabric.weightOz}oz</p>
-                </div>
-                <div>
-                  <span className="text-[#6b6560]">Weave</span>
-                  <p className="font-medium text-[#1a1a1a]">{product.fabric.weave}</p>
-                </div>
-                <div>
-                  <span className="text-[#6b6560]">Era</span>
-                  <p className="font-medium text-[#1a1a1a]">{product.era}</p>
-                </div>
-              </div>
             </div>
 
-            {/* Size selector */}
-            <div className="border-t border-[#e8e4df] pt-5">
-              <SizeSelector sizes={product.sizes} onSizeChange={handleSizeChange} />
+            <p className="text-sm leading-relaxed text-muted-foreground">{product.description}</p>
+
+            <div className="border-t border-border pt-5">
+              <SizeSelector variants={product.variants} onVariantChange={handleVariantChange} />
             </div>
 
-            {/* Measurements table */}
-            {hasMeasurements && (
-              <div className="border-t border-[#e8e4df] pt-4">
-                <button
-                  type="button"
-                  onClick={() => setMeasurementsOpen(!measurementsOpen)}
-                  className="flex w-full items-center justify-between py-1"
-                >
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[#6b6560]">
-                    Size Measurements (cm)
-                  </span>
-                  {measurementsOpen ? (
-                    <ChevronUp size={16} className="text-[#6b6560]" />
-                  ) : (
-                    <ChevronDown size={16} className="text-[#6b6560]" />
-                  )}
-                </button>
-                {measurementsOpen && (
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-[#e8e4df]">
-                          <th className="pb-2 pr-4 text-left text-xs font-semibold text-[#6b6560]">
-                            Size
-                          </th>
-                          {measurementKeys.map((key) => (
-                            <th
-                              key={key}
-                              className="pb-2 pr-4 text-left text-xs font-semibold text-[#6b6560]"
-                            >
-                              {MEASUREMENT_LABELS[key]}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {product.sizes
-                          .filter((s) => s.measurements)
-                          .map((size) => (
-                            <tr
-                              key={size.label}
-                              className={`border-b border-[#e8e4df] ${
-                                selectedSize === size.label ? 'bg-[#f3f0eb]' : ''
-                              }`}
-                            >
-                              <td className="py-2 pr-4 font-medium text-[#1a1a1a]">{size.label}</td>
-                              {measurementKeys.map((key) => (
-                                <td key={key} className="py-2 pr-4 text-[#1a1a1a]">
-                                  {size.measurements?.[key] ?? '-'}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Add to cart (desktop) */}
             <div className="hidden md:block">
-              <AddToCartButton
-                product={product}
-                selectedSize={selectedSize}
-                isDropAnnounced={false}
-              />
+              <AddToCartButton product={product} selectedVariant={selectedVariant} />
+            </div>
+
+            <div className="rounded-lg bg-surface p-4 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">Shipping & Returns</p>
+              <p className="mt-1">Free shipping on orders over ₩50,000. Returns accepted within 14 days.</p>
             </div>
           </div>
         </div>
 
-        {/* Related products */}
-        {related.length > 0 && (
-          <section className="mt-16 border-t border-[#e8e4df] pt-12">
-            <h2 className="font-heading mb-6 text-xl font-bold text-[#1a1a1a]">
-              You May Also Like
-            </h2>
+        {relatedProducts.length > 0 && (
+          <section className="mt-16 border-t border-border pt-12">
+            <h2 className="mb-6 text-xl font-bold text-foreground">You May Also Like</h2>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {related.map((p) => (
+              {relatedProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
@@ -283,25 +134,16 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         )}
       </div>
 
-      {/* Mobile sticky Add to Cart bar */}
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e8e4df] bg-[#faf9f6] p-3 md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background p-3 md:hidden">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-[#1a1a1a]">{product.name}</p>
-            <p className="text-sm font-semibold text-[#1a1a1a]">
-              <CurrencyPrice
-                priceKrw={product.priceKrw}
-                priceUsd={product.priceUsd}
-                priceJpy={product.priceJpy}
-              />
+            <p className="truncate text-sm font-medium text-foreground">{product.name}</p>
+            <p className="text-sm font-semibold text-foreground">
+              <PriceDisplay amount={selectedVariant?.price ?? product.price} />
             </p>
           </div>
           <div className="w-48">
-            <AddToCartButton
-              product={product}
-              selectedSize={selectedSize}
-              isDropAnnounced={false}
-            />
+            <AddToCartButton product={product} selectedVariant={selectedVariant} />
           </div>
         </div>
       </div>

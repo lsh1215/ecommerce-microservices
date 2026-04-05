@@ -1,36 +1,34 @@
 import Link from 'next/link';
-import { Instagram, Youtube } from 'lucide-react';
+import { Instagram, Twitter } from 'lucide-react';
 
 const SHOP_LINKS = [
-  { href: '/drops', label: 'Drops' },
   { href: '/products', label: 'All Products' },
-  { href: '/brands', label: 'Brands' },
-  { href: '/size-guide', label: 'Size Guide' },
+  { href: '/products?category=tops', label: 'Tops' },
+  { href: '/products?category=bottoms', label: 'Bottoms' },
+  { href: '/products?category=outerwear', label: 'Outerwear' },
 ];
 
-const INFO_LINKS = [
+const SUPPORT_LINKS = [
   { href: '/info/shipping', label: 'Shipping & Returns' },
-  { href: '/info/sizing', label: 'How to Measure' },
-  { href: '/about', label: 'About FOUNDRY' },
+  { href: '/info/faq', label: 'FAQ' },
+  { href: '/info/contact', label: 'Contact Us' },
 ];
 
 const ACCOUNT_LINKS = [
   { href: '/auth', label: 'Login / Register' },
-  { href: '/profile', label: 'My Profile' },
-  { href: '/orders', label: 'Order History' },
+  { href: '/account/orders', label: 'Order History' },
+  { href: '/account/profile', label: 'My Profile' },
 ];
 
 export function Footer() {
   return (
-    <footer className="border-t border-[#e8e4df] bg-[#1a1a1a] text-[#faf9f6]">
-      <div className="mx-auto max-w-7xl px-4 py-16 md:px-6">
+    <footer className="border-t border-border bg-foreground text-background">
+      <div className="mx-auto max-w-7xl px-4 py-12 md:px-6">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-          {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <p className="font-heading text-2xl font-bold">FOUNDRY</p>
-            <p className="mt-3 text-sm leading-relaxed text-[#a39e93]">
-              Curated heritage menswear from Korea, Japan, and the American frontier. Timed drops.
-              No restocks.
+            <p className="text-xl font-bold">Shop</p>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              Quality products at great prices. Free shipping on orders over ₩50,000.
             </p>
             <div className="mt-6 flex items-center gap-4">
               <a
@@ -38,25 +36,24 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
-                className="text-[#a39e93] transition-colors hover:text-[#faf9f6]"
+                className="text-muted-foreground transition-colors hover:text-background"
               >
                 <Instagram size={18} strokeWidth={1.5} />
               </a>
               <a
-                href="https://youtube.com"
+                href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="YouTube"
-                className="text-[#a39e93] transition-colors hover:text-[#faf9f6]"
+                aria-label="Twitter"
+                className="text-muted-foreground transition-colors hover:text-background"
               >
-                <Youtube size={18} strokeWidth={1.5} />
+                <Twitter size={18} strokeWidth={1.5} />
               </a>
             </div>
           </div>
 
-          {/* Shop */}
           <div>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Shop
             </p>
             <ul className="flex flex-col gap-2.5">
@@ -64,7 +61,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[#a39e93] transition-colors hover:text-[#faf9f6]"
+                    className="text-sm text-muted-foreground transition-colors hover:text-background"
                   >
                     {link.label}
                   </Link>
@@ -73,17 +70,16 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Info */}
           <div>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
-              Information
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Support
             </p>
             <ul className="flex flex-col gap-2.5">
-              {INFO_LINKS.map((link) => (
+              {SUPPORT_LINKS.map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[#a39e93] transition-colors hover:text-[#faf9f6]"
+                    className="text-sm text-muted-foreground transition-colors hover:text-background"
                   >
                     {link.label}
                   </Link>
@@ -92,9 +88,8 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Account */}
           <div>
-            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Account
             </p>
             <ul className="flex flex-col gap-2.5">
@@ -102,7 +97,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-[#a39e93] transition-colors hover:text-[#faf9f6]"
+                    className="text-sm text-muted-foreground transition-colors hover:text-background"
                   >
                     {link.label}
                   </Link>
@@ -112,11 +107,11 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-16 flex flex-col items-start justify-between gap-4 border-t border-[#333] pt-8 md:flex-row md:items-center">
-          <p className="text-xs text-[#6b6560]">
-            &copy; {new Date().getFullYear()} FOUNDRY. Heritage wear. Worldwide shipping.
+        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-muted pt-8 md:flex-row md:items-center">
+          <p className="text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} Shop. All rights reserved.
           </p>
-          <p className="text-xs text-[#6b6560]">KRW / USD / JPY</p>
+          <p className="text-xs text-muted-foreground">Prices in KRW</p>
         </div>
       </div>
     </footer>

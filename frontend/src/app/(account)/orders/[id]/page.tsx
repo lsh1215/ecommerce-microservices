@@ -2,14 +2,13 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { useAuthStore } from '@/features/auth/store/auth-store';
 import { useFromStore } from '@/hooks/use-from-store';
-import { useOrder } from '@/hooks/queries/use-orders';
-import { CurrencyPrice } from '@/components/shared/CurrencyPrice';
+import { PriceDisplay } from '@/components/shared/PriceDisplay';
 import { Skeleton } from '@/components/shared/Skeleton';
 import { OrderCancelButton } from './OrderCancelButton';
+import { getOrderById } from '@/mocks/orders';
 import type { OrderStatus } from '@/types';
 
 interface OrderDetailPageProps {
@@ -19,87 +18,34 @@ interface OrderDetailPageProps {
 const STATUS_CONFIG: Record<OrderStatus, { label: string; classes: string }> = {
   PENDING: { label: 'Pending', classes: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
   CONFIRMED: { label: 'Confirmed', classes: 'bg-blue-50 text-blue-700 border border-blue-200' },
-  SHIPPED: { label: 'Shipped', classes: 'bg-purple-50 text-purple-700 border border-purple-200' },
+  PAID: { label: 'Paid', classes: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  SHIPPING: { label: 'Shipping', classes: 'bg-purple-50 text-purple-700 border border-purple-200' },
   DELIVERED: { label: 'Delivered', classes: 'bg-green-50 text-green-700 border border-green-200' },
   CANCELLED: { label: 'Cancelled', classes: 'bg-gray-100 text-gray-500 border border-gray-200' },
 };
 
-const STATUS_TIMELINE: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
-
-function OrderDetailSkeleton() {
-  return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-32" />
-        </div>
-        <Skeleton className="h-6 w-24" />
-      </div>
-      <div className="space-y-4">
-        <Skeleton className="h-4 w-24" />
-        <div className="flex gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-10" />
-          ))}
-        </div>
-      </div>
-      <div className="space-y-3">
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    </div>
-  );
-}
+const STATUS_TIMELINE: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPING', 'DELIVERED'];
 
 export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const { id } = use(params);
   const user = useFromStore(useAuthStore, (s) => s.user);
-  const { data: order, isLoading, isError, error } = useOrder(id);
 
   if (user === undefined) {
-    return <OrderDetailSkeleton />;
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
   }
 
   if (user === null) {
-    redirect('/auth?redirect=/orders');
+    redirect('/auth?redirect=/account/orders');
   }
 
-  if (isLoading) {
-    return <OrderDetailSkeleton />;
-  }
-
-  if (isError) {
-    return (
-      <div>
-        <Link
-          href="/orders"
-          className="mb-4 inline-block text-xs font-medium text-[#c4633e] underline underline-offset-4"
-        >
-          &larr; All Orders
-        </Link>
-        <div className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error instanceof Error ? error.message : 'Failed to load order details'}
-        </div>
-      </div>
-    );
-  }
-
-  if (!order) {
-    return (
-      <div>
-        <Link
-          href="/orders"
-          className="mb-4 inline-block text-xs font-medium text-[#c4633e] underline underline-offset-4"
-        >
-          &larr; All Orders
-        </Link>
-        <p className="mt-4 text-sm text-[#6b6560]">Order not found.</p>
-      </div>
-    );
-  }
+  const order = getOrderById(id);
+  if (!order) return notFound();
 
   const statusCfg = STATUS_CONFIG[order.status];
   const isCancelled = order.status === 'CANCELLED';
@@ -108,21 +54,18 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link
-            href="/orders"
-            className="mb-2 inline-block text-xs font-medium text-[#c4633e] underline underline-offset-4"
+            href="/account/orders"
+            className="mb-2 inline-block text-xs font-medium text-primary underline underline-offset-4"
           >
             &larr; All Orders
           </Link>
-          <h1 className="font-heading text-2xl font-bold text-[#1a1a1a] md:text-3xl">
-            Order {order.id}
-          </h1>
-          <p className="mt-1 text-sm text-[#6b6560]">
+          <h1 className="text-2xl font-bold text-foreground md:text-3xl">{order.orderNumber}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Placed{' '}
-            {new Date(order.createdAt).toLocaleDateString('en-US', {
+            {new Date(order.createdAt).toLocaleDateString('ko-KR', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',
@@ -130,19 +73,18 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           </p>
         </div>
         <span
-          className={`inline-flex px-3 py-1 text-xs font-medium uppercase tracking-wide ${statusCfg.classes}`}
+          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${statusCfg.classes}`}
         >
           {statusCfg.label}
         </span>
       </div>
 
-      {/* Status Timeline */}
       {!isCancelled && (
         <section className="mb-10">
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Order Status
           </h2>
-          <div className="flex items-center gap-0">
+          <div className="flex items-center">
             {STATUS_TIMELINE.map((step, idx) => {
               const isCompleted = idx <= currentStepIdx;
               const isCurrent = idx === currentStepIdx;
@@ -152,17 +94,17 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 <div key={step} className="flex flex-1 items-center">
                   <div className="flex flex-col items-center gap-1.5">
                     <div
-                      className={`flex h-8 w-8 items-center justify-center text-xs font-bold ${
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${
                         isCompleted
-                          ? 'bg-[#1a1a1a] text-white'
-                          : 'border border-[#e8e4df] text-[#a39e93]'
-                      } ${isCurrent ? 'ring-2 ring-[#c4633e] ring-offset-2' : ''}`}
+                          ? 'bg-primary text-primary-foreground'
+                          : 'border border-border text-muted-foreground'
+                      } ${isCurrent ? 'ring-2 ring-primary ring-offset-2' : ''}`}
                     >
                       {idx + 1}
                     </div>
                     <p
                       className={`text-xs ${
-                        isCompleted ? 'font-medium text-[#1a1a1a]' : 'text-[#a39e93]'
+                        isCompleted ? 'font-medium text-foreground' : 'text-muted-foreground'
                       }`}
                     >
                       {cfg.label}
@@ -171,7 +113,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   {idx < STATUS_TIMELINE.length - 1 && (
                     <div
                       className={`mx-1 h-0.5 flex-1 ${
-                        idx < currentStepIdx ? 'bg-[#1a1a1a]' : 'bg-[#e8e4df]'
+                        idx < currentStepIdx ? 'bg-primary' : 'bg-border'
                       }`}
                     />
                   )}
@@ -182,59 +124,25 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
         </section>
       )}
 
-      {isCancelled && (
-        <section className="mb-10 border border-gray-200 bg-gray-50 p-5">
-          <p className="text-sm font-medium text-gray-600">
-            This order was cancelled on{' '}
-            {new Date(order.updatedAt).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
-            .
-          </p>
-        </section>
-      )}
-
-      {/* Items */}
       <section className="mb-10">
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
+        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Items
         </h2>
-        <div className="divide-y divide-[#e8e4df] border border-[#e8e4df]">
-          {order.items.map((item) => (
-            <div key={`${item.productId}-${item.size}`} className="flex gap-4 p-4">
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden bg-[#e8e4df]">
-                {item.imageUrl ? (
-                  <Image
-                    src={item.imageUrl}
-                    alt={item.productName}
-                    fill
-                    className="object-cover"
-                    sizes="80px"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-[#a39e93]">
-                    No img
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-1 flex-col justify-center gap-1">
-                <p className="text-xs font-medium uppercase tracking-wider text-[#6b6560]">
+        <div className="divide-y divide-border rounded-lg border border-border">
+          {order.items.map((item, idx) => (
+            <div key={`${item.productId}-${idx}`} className="flex gap-4 p-4">
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {item.brandName}
                 </p>
-                <p className="text-sm font-medium text-[#1a1a1a]">{item.productName}</p>
-                <p className="text-xs text-[#6b6560]">
-                  Size: {item.size} · Qty: {item.quantity}
+                <p className="text-sm font-medium text-foreground">{item.productName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {item.size} / {item.color} · Qty: {item.quantity}
                 </p>
               </div>
               <div className="flex items-center">
-                <p className="text-sm font-semibold text-[#1a1a1a]">
-                  <CurrencyPrice
-                    priceKrw={item.priceKrw * item.quantity}
-                    priceUsd={item.priceUsd * item.quantity}
-                    priceJpy={item.priceJpy * item.quantity}
-                  />
+                <p className="text-sm font-semibold text-foreground">
+                  <PriceDisplay amount={item.totalPrice} />
                 </p>
               </div>
             </div>
@@ -243,57 +151,40 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       </section>
 
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        {/* Shipping */}
         <section>
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Shipping Address
           </h2>
-          <div className="border border-[#e8e4df] p-5">
-            <p className="text-sm font-medium text-[#1a1a1a]">{order.shippingAddress.name}</p>
-            <p className="mt-1 text-sm text-[#6b6560]">{order.shippingAddress.phone}</p>
-            <p className="mt-2 text-sm text-[#6b6560]">{order.shippingAddress.address}</p>
-            <p className="text-sm text-[#6b6560]">
-              {order.shippingAddress.city}, {order.shippingAddress.country}{' '}
-              {order.shippingAddress.postalCode}
+          <div className="rounded-lg border border-border p-5">
+            <p className="text-sm font-medium text-foreground">{order.shippingAddress.recipientName}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{order.shippingAddress.phone}</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              ({order.shippingAddress.zipCode}) {order.shippingAddress.address1}
+              {order.shippingAddress.address2 && `, ${order.shippingAddress.address2}`}
             </p>
           </div>
         </section>
 
-        {/* Payment Summary */}
         <section>
-          <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-[#6b6560]">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Payment Summary
           </h2>
-          <div className="border border-[#e8e4df] p-5">
+          <div className="rounded-lg border border-border p-5">
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-sm">
-                <span className="text-[#6b6560]">Subtotal</span>
-                <span className="text-[#1a1a1a]">
-                  <CurrencyPrice
-                    priceKrw={order.subtotalKrw}
-                    priceUsd={order.subtotalUsd}
-                    priceJpy={order.subtotalJpy}
-                  />
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="text-foreground">
+                  <PriceDisplay amount={order.totalAmount} />
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-[#6b6560]">Estimated Duty</span>
-                <span className="text-[#1a1a1a]">
-                  <CurrencyPrice
-                    priceKrw={order.dutyKrw}
-                    priceUsd={order.dutyUsd}
-                    priceJpy={order.dutyJpy}
-                  />
-                </span>
+                <span className="text-muted-foreground">Shipping</span>
+                <span className="text-foreground">Free</span>
               </div>
-              <div className="mt-2 flex justify-between border-t border-[#e8e4df] pt-3 text-sm font-semibold">
-                <span className="text-[#1a1a1a]">Total</span>
-                <span className="text-[#1a1a1a]">
-                  <CurrencyPrice
-                    priceKrw={order.totalKrw}
-                    priceUsd={order.totalUsd}
-                    priceJpy={order.totalJpy}
-                  />
+              <div className="mt-2 flex justify-between border-t border-border pt-3 text-sm font-semibold">
+                <span className="text-foreground">Total</span>
+                <span className="text-foreground">
+                  <PriceDisplay amount={order.totalAmount} />
                 </span>
               </div>
             </div>
@@ -301,7 +192,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
         </section>
       </div>
 
-      {/* Cancel action */}
       {canCancel && (
         <div className="mt-10">
           <OrderCancelButton orderId={order.id} />
