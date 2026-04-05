@@ -10,9 +10,8 @@ import org.springframework.http.HttpStatus;
 public enum PaymentErrorCode implements ErrorCodeBase {
 
     PAYMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "PAYMENT_001", "Payment not found"),
-    INVALID_PAYMENT_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "PAYMENT_002", "Invalid payment status transition"),
-    PAYMENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "PAYMENT_003", "Payment already exists for this order"),
-    REFUND_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "PAYMENT_004", "Refund not allowed");
+    INVALID_PAYMENT_STATUS(HttpStatus.BAD_REQUEST, "PAYMENT_002", "Invalid payment status transition"),
+    DUPLICATE_PAYMENT(HttpStatus.CONFLICT, "PAYMENT_003", "Payment already exists for this order");
 
     private final HttpStatus status;
     private final String code;
