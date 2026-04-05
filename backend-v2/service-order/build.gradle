@@ -15,4 +15,6 @@ dependencies {
     testImplementation 'org.testcontainers:mysql'
     testImplementation 'org.testcontainers:kafka'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
+
+    testRuntimeOnly 'com.h2database:h2'
 }
