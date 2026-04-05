@@ -1,212 +1,185 @@
-# E-Commerce Order Platform
+# E-Commerce Microservices Platform
 
 [English](README.md) | [한국어](README-ko.md) | [中文](README-zh.md)
 
-**모놀리스에서 마이크로서비스로의 전환 과정**을 직접 경험하기 위한 백엔드 중심 이커머스 플랫폼입니다. 단일 Spring Boot 애플리케이션에서 시작하여, 부하 테스트 → 비동기 메시징 → 서비스 분리 → 관측성 확보까지, 매 단계마다 측정 가능한 데이터를 기반으로 발전시킵니다.
+이커머스 도메인(Product, Order, Payment, Customer)을 위한 Spring Boot 기반 마이크로서비스 플랫폼입니다. 도메인 주도 설계(DDD)를 중심으로 Kafka 기반 이벤트 드리븐 통신과 RestClient 기반 동기 호출을 조합하여 구성했으며, 로컬은 Docker Compose, 운영은 Kubernetes로 배포할 수 있도록 패키징되어 있습니다.
 
 ![Java](https://img.shields.io/badge/Java_21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot_3-6DB33F?style=flat-square&logo=spring-boot&logoColor=white)
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL_8-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Kafka](https://img.shields.io/badge/Kafka_KRaft-231F20?style=flat-square&logo=apache-kafka&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
-![k6](https://img.shields.io/badge/k6-7D64FF?style=flat-square&logo=k6&logoColor=white)
-
-## 목차
-
-- [개요](#개요)
-- [시스템 아키텍처](#시스템-아키텍처)
-- [기술 스택](#기술-스택)
-- [도메인 모델](#도메인-모델)
-- [주요 설계 결정](#주요-설계-결정)
-- [시작하기](#시작하기)
-- [프로젝트 구조](#프로젝트-구조)
-- [라이선스](#라이선스)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
+![Gradle](https://img.shields.io/badge/Gradle-02303A?style=flat-square&logo=gradle&logoColor=white)
 
 ## 개요
 
-핵심 원칙: **데이터가 필요성을 증명하기 전까지 복잡성을 도입하지 않는다.**
+본 프로젝트는 이커머스 백엔드를 서로 협력하는 마이크로서비스 집합으로 구현합니다. 각 서비스는 자체 데이터베이스를 소유하며, 조회·재고 예약 등은 동기 REST 호출로, 주문·결제 오케스트레이션은 Kafka 비동기 이벤트로 통신합니다. 서비스 경계, 이벤트 흐름, 배포 토폴로지를 명확하게 파악할 수 있도록 불필요한 추상화는 의도적으로 배제했습니다.
 
-1. Order, Payment, Product, Search 도메인을 포함하는 모놀리스 구축
-2. 부하 테스트로 한계점 확인 — p50/p95/p99 기준 지표 측정
-3. 각 기술(Kafka, MSA, Elasticsearch, Circuit Breaker)은 측정된 병목을 해결하기 위해서만 도입
+## 핵심 아키텍처
 
-현재는 **Phase 1 모놀리스** — 모든 도메인이 하나의 MySQL 데이터베이스를 공유하는 단일 Spring Boot 애플리케이션입니다.
+다음과 같은 아키텍처 패턴을 사용합니다:
 
-## 시스템 아키텍처
-
-> 모든 도메인을 하나의 REST API로 서빙하는 단일 Spring Boot 애플리케이션.
-
-<!-- 실제 아키텍처 다이어그램으로 교체 예정 -->
-```
-┌────────────────────────────────────────────────────┐
-│                  Spring Boot (:8080)                │
-├────────────────────────────────────────────────────┤
-│                                                    │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐      │
-│  │   Order   │  │  Payment  │  │  Product  │      │
-│  │ Controller│  │ Controller│  │ Controller│      │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘      │
-│        ▼              ▼              ▼             │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐      │
-│  │   Order   │  │  Payment  │  │  Product  │      │
-│  │  Service  │─→│  Service  │  │  Service  │      │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘      │
-│        │              │              │             │
-│        ▼              ▼              ▼             │
-│  ┌─────────────────────────────────────────┐       │
-│  │           Spring Data JPA               │       │
-│  └──────────────────┬──────────────────────┘       │
-│                     │                              │
-└─────────────────────┼──────────────────────────────┘
-                      ▼
-               ┌─────────────┐
-               │    MySQL    │
-               └─────────────┘
-```
-
-### ERD
-
-<!-- 실제 ERD 캡처로 교체 예정 -->
-_도메인 구현 후 추가 예정._
-
-### API 엔드포인트
-
-<!-- 실제 API 문서 캡처로 교체 예정 -->
-_REST API 구현 후 추가 예정._
+- **마이크로서비스 아키텍처**: Bounded Context 단위로 독립 서비스 구성, 각자 DB 소유
+- **도메인 주도 설계**: Bounded Context별 Aggregate, Value Object, Domain Event 중심의 풍부한 도메인 모델
+- **이벤트 드리븐 아키텍처**: Kafka 기반 서비스 간 비동기 오케스트레이션
+- **동기 서비스 간 호출**: Spring `RestClient`로 타임아웃과 에러 처리를 갖춘 조회/재고 예약 통신
+- **Database-per-Service**: 서비스별로 분리된 MySQL 스키마, 공유 테이블 없음
+- **서비스별 계층 아키텍처**: `api` → `application` → `domain` → `infra` 패키지 분리
+- **Shared Kernel (`common` 모듈)**: `BaseEntity`, `ApiResponse`, `PageResponse`, `GlobalExceptionHandler`, `BusinessException`, `DomainEvent`, `KafkaTopics`, 공통 Spring 설정
 
 ## 기술 스택
 
-### 백엔드
+**언어 & 프레임워크**
 
-| 분류 | 기술 | 용도 |
-|------|-----|------|
-| 언어 | Java 21 | Virtual threads 지원 LTS |
-| 프레임워크 | Spring Boot 3.x | 애플리케이션 프레임워크 |
-| ORM | Spring Data JPA / Hibernate | 데이터베이스 접근 |
-| 보안 | Spring Security + JWT | 인증 및 인가 |
-| 검증 | Jakarta Bean Validation | 요청 데이터 검증 |
+- Java 21 (LTS, Virtual Thread 지원)
+- Spring Boot 3.x
+- Spring Data JPA / Hibernate
+- QueryDSL 5.1 (타입 안전 쿼리)
+- Spring Kafka
+- jBCrypt (비밀번호 해싱)
 
-### 데이터
+**데이터 & 메시징**
 
-| 분류 | 기술 | 용도 |
-|------|-----|------|
-| 데이터베이스 | MySQL | 주 관계형 데이터 저장소 |
-| 검색 | MySQL LIKE / Full-text | 상품 검색 (ES 도입 전 기준선) |
+- MySQL 8.0 (트랜잭션 데이터, 서비스별 DB)
+- Apache Kafka KRaft 모드 (이벤트 스트리밍, ZooKeeper 미사용)
 
-### 인프라 & 도구
+**API & 문서화**
 
-| 분류 | 기술 | 용도 |
-|------|-----|------|
-| 컨테이너 | Docker + Docker Compose | 로컬 개발 환경 |
-| 빌드 | Gradle | 빌드 관리 |
-| 부하 테스트 | k6 | 스트레스/스파이크 테스트 |
-| 테스트 | JUnit 5 + Testcontainers | 단위, 슬라이스, 통합 테스트 |
+- Spring Web (REST 컨트롤러)
+- springdoc-openapi (서비스별 Swagger UI)
+- Jakarta Bean Validation (요청 검증)
 
-## 도메인 모델
+**빌드 & 배포**
 
-### 도메인
+- Gradle 멀티 모듈
+- Docker & Docker Compose (로컬 개발)
+- Kubernetes (namespace, ConfigMap, Secrets, StatefulSet, Deployment, Ingress)
+- GitHub Actions (CI)
 
-| 도메인 | 책임 | 주요 엔티티 |
-|--------|-----|------------|
-| **Order** | 주문 생성, 상태 관리, 주문 이력 | `Order`, `OrderItem`, `OrderStatus` |
-| **Payment** | 동기 결제 처리, 환불 | `Payment`, `PaymentStatus` |
-| **Product** | 상품 카탈로그, 재고 관리 | `Product`, `Category`, `Inventory` |
-| **Search** | 키워드 상품 검색, 필터링 | Product 도메인에 위임 (DB 쿼리) |
+**테스트**
 
-### 도메인 간 통신 (모놀리스)
+- JUnit 5
+- Spring Boot Test slice
+- Testcontainers (MySQL, Kafka)
 
-모놀리스 단계에서는 모든 통신이 동일 JVM 내 **동기 메서드 호출**로 이루어집니다:
+## 마이크로서비스
+
+| 서비스 | 포트 | 책임 | 핵심 Aggregate |
+|---|---|---|---|
+| **service-product** | 8081 | 상품 카탈로그, 브랜드, 재고 | `Product`, `ProductVariant`, `ProductImage`, `Brand` |
+| **service-order** | 8082 | 주문 생성, 상태 관리, 취소 | `Order`, `OrderItem`, `ShippingAddress` |
+| **service-payment** | 8083 | 결제 처리, 환불 | `Payment` |
+| **service-customer** | 8084 | 고객 프로필, 배송지 | `Customer`, `CustomerAddress` |
+
+각 서비스는 `/api/{resource}` 경로로 API를 노출하며, OpenAPI 스펙은 `/swagger-ui.html`에서 확인할 수 있습니다.
+
+## 도메인 문서
+
+DDD 설계 문서는 [`docs/domain/`](docs/domain/)에 있습니다:
+
+- [Ubiquitous Language](docs/domain/01-ubiquitous-language.md)
+- [Bounded Context Map](docs/domain/02-bounded-context-map.md)
+- [Use Cases](docs/domain/03-use-cases.md)
+- [Aggregate Design](docs/domain/04-aggregate-design.md)
+
+## Kafka 이벤트
+
+서비스들은 `common/KafkaTopics.java`에 정의된 도메인 이벤트를 통해 비동기로 통신합니다:
+
+| 토픽 | Producer | Consumer | 용도 |
+|---|---|---|---|
+| `order.created` | Order | Payment | 결제 처리 트리거 |
+| `order.cancelled` | Order | Payment | 이미 결제 완료된 경우 환불 트리거 |
+| `payment.completed` | Payment | Order | 주문 상태를 PAID로 전이 |
+| `payment.failed` | Payment | Order | 주문 취소 |
+| `product.stock-reserved` | Product | (audit / 추후) | 재고 예약 감사 로그 |
+| `product.stock-released` | Product | (audit / 추후) | 재고 해제 감사 로그 |
+| `customer.registered` | Customer | (notification / 추후) | 신규 고객 가입 알림 |
+
+## 프로젝트 구조
 
 ```
-OrderService.placeOrder()
-  → ProductService.reserveInventory()
-  → PaymentService.processPayment()
-  → Order 상태 업데이트
+ecommerce-microservices/
+├── backend-v2/              # Gradle 멀티 모듈 백엔드
+│   ├── common/              # Shared Kernel (BaseEntity, ApiResponse, 공통 설정, KafkaTopics)
+│   ├── service-product/     # Product 서비스 (8081)
+│   ├── service-order/       # Order 서비스 (8082)
+│   ├── service-payment/     # Payment 서비스 (8083)
+│   ├── service-customer/    # Customer 서비스 (8084)
+│   ├── build.gradle         # 루트 빌드 + 의존성 관리
+│   └── settings.gradle
+├── infra/                   # Docker Compose 파일, 인프라 설정
+├── k8s/                     # Kubernetes 매니페스트
+│   ├── namespace.yml
+│   ├── base/                # MySQL StatefulSet, Kafka Deployment, ConfigMap, Secrets
+│   ├── services/            # 서비스별 Deployment + Service 매니페스트
+│   └── ingress/             # nginx IngressRoute
+├── scripts/                 # 헬퍼 스크립트 (k8s-deploy.sh, k8s-teardown.sh 등)
+└── frontend/                # Next.js 16 스토어프론트 (별도 트랙)
 ```
 
-이 동기 결합은 의도적입니다 — Phase 3에서 Kafka 도입을 정당화하는 **측정된 병목 지점**이 됩니다.
-
-### 패키지 구조
-
-```
-com.ecommerce/
-├── order/
-│   ├── controller/        # OrderController
-│   ├── service/           # OrderService
-│   ├── repository/        # OrderRepository
-│   ├── entity/            # Order, OrderItem, OrderStatus
-│   └── dto/               # OrderRequest, OrderResponse
-├── payment/
-│   ├── controller/        # PaymentController
-│   ├── service/           # PaymentService
-│   ├── repository/        # PaymentRepository
-│   ├── entity/            # Payment, PaymentStatus
-│   └── dto/               # PaymentRequest, PaymentResponse
-├── product/
-│   ├── controller/        # ProductController
-│   ├── service/           # ProductService
-│   ├── repository/        # ProductRepository
-│   ├── entity/            # Product, Category
-│   └── dto/               # ProductRequest, ProductResponse
-└── common/
-    ├── config/            # Spring 설정
-    ├── exception/         # 글로벌 예외 처리
-    └── dto/               # 공용 DTO (PageResponse, ErrorResponse)
-```
-
-## 주요 설계 결정
-
-| 결정 사항 | 선택 | 근거 |
-|----------|------|------|
-| 아키텍처 | 모놀리스 우선 | 분산 복잡성 도입 전 기준선 확보 |
-| 데이터베이스 | 단일 MySQL 공유 | 부하 시 락 경합을 측정하기 위한 의도적 결합 |
-| 검색 | MySQL LIKE 쿼리 | Elasticsearch 도입 전 기준선; 규모 확대 시 성능 저하 측정 |
-| 테스트 | 레이어별 TDD | Unit (도메인) → Slice (@WebMvcTest, @DataJpaTest) → Integration (Testcontainers) |
-
-## 시작하기
+## 설치 및 구성
 
 ### 사전 요구사항
 
 - Java 21+
 - Docker & Docker Compose
 - Gradle 8.x (wrapper 포함)
+- (선택) `kubectl` + 로컬 Kubernetes 클러스터 (k3s, minikube, kind, Docker Desktop)
 
-### 설치 및 실행
+### 빠른 시작 (Docker Compose)
 
 ```bash
-git clone https://github.com/<your-username>/ecommerce-microservices.git
+# 1. 저장소 클론
+git clone https://github.com/lsh1215/ecommerce-microservices.git
 cd ecommerce-microservices
 
-# MySQL 시작
-docker compose up -d mysql
+# 2. 로컬 MySQL + Kafka 기동
+docker compose -f infra/docker-compose.yml up -d
 
-# 빌드 및 실행
-./gradlew bootRun
+# 3. 백엔드 빌드
+cd backend-v2
+./gradlew build -x test
+
+# 4. 각 서비스 실행 (별도 터미널 또는 IDE 사용)
+./gradlew :service-product:bootRun
+./gradlew :service-order:bootRun
+./gradlew :service-payment:bootRun
+./gradlew :service-customer:bootRun
 ```
+
+각 서비스는 기본적으로 `local` 프로파일로 실행되어 `localhost:3306` (MySQL), `localhost:9092` (Kafka)에 연결됩니다.
 
 ### 동작 확인
 
 ```bash
 # 헬스 체크
-curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health   # product
+curl http://localhost:8082/actuator/health   # order
+curl http://localhost:8083/actuator/health   # payment
+curl http://localhost:8084/actuator/health   # customer
 
-# API 예시
-curl http://localhost:8080/api/v1/products
+# Swagger UI
+open http://localhost:8081/swagger-ui.html
 ```
 
-## 프로젝트 구조
+### Kubernetes 배포
 
+```bash
+# namespace, 공통 인프라, 서비스, 인그레스 적용
+./scripts/k8s-deploy.sh
+
+# 제거
+./scripts/k8s-teardown.sh
 ```
-ecommerce-microservices/
-├── backend/               # Spring Boot 모놀리스
-├── frontend/              # 프론트엔드 (추후 결정)
-├── docs/
-│   ├── adr/               # Architecture Decision Records
-│   └── performance/       # 부하 테스트 결과 및 분석
-├── infra/                 # Docker Compose, 인프라 설정
-├── k6/                    # 부하 테스트 스크립트
-└── scripts/               # 유틸리티 스크립트
-```
+
+매니페스트는 `k8s` 프로파일을 사용하며, 클러스터 내부 DNS로 MySQL/Kafka를 해석하고 CORS와 `ddl-auto` 설정을 운영 수준으로 강화합니다.
+
+## 기여
+
+기여, 이슈, 기능 요청을 환영합니다. 큰 변경을 제안하실 경우 먼저 이슈를 열어 논의해 주세요.
 
 ## 라이선스
 
-이 프로젝트는 [MIT 라이선스](LICENSE)에 따라 배포됩니다.
+본 프로젝트는 [MIT License](LICENSE)로 배포됩니다.
