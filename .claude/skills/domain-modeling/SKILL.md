@@ -28,7 +28,6 @@ triggers:
 # Domain-Driven Design Patterns
 
 > Reference: Eric Evans, "Domain-Driven Design: Tackling Complexity in the Heart of Software"
-> Project-specific details: see `reference/foundry-domain.md`
 
 ## Foundational Principles
 
@@ -211,7 +210,3 @@ When doing domain design work, produce these artifacts (see `docs/domain/`):
 5. **Business Requirements Conversation** — Domain expert ↔ developer dialogue
 6. **Aggregate Design** — Boundaries, invariants, ID references, concurrency
 
-## Reference
-
-For FOUNDRY project-specific domain details, see:
-- `reference/foundry-domain.md` — Aggregate boundaries, context map, events, VOs specific to this project
