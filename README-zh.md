@@ -1,6 +1,6 @@
 # E-Commerce Microservices Platform
 
-[English](README.md) | [한국어](README-ko.md) | [中文](README-zh.md)
+[한국어](README.md) | [English](README-en.md) | [中文](README-zh.md)
 
 基于 Spring Boot 的电商微服务平台，覆盖 Product、Order、Payment、Customer 四个领域。系统以领域驱动设计（DDD）为核心，通过 Kafka 事件驱动通信与 RestClient 同步调用相结合进行服务间交互，支持本地 Docker Compose 与生产 Kubernetes 部署。
 

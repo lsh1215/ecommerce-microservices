@@ -1,8 +1,8 @@
 # E-Commerce Microservices Platform
 
-[English](README.md) | [한국어](README-ko.md) | [中文](README-zh.md)
+[한국어](README.md) | [English](README-en.md) | [中文](README-zh.md)
 
-A Spring Boot-based microservices platform for an e-commerce domain (Product, Order, Payment, Customer). The system is built around Domain-Driven Design, event-driven communication via Kafka, and synchronous inter-service calls via RestClient, and is packaged for both local Docker Compose and Kubernetes deployment.
+이커머스 도메인(Product, Order, Payment, Customer)을 위한 Spring Boot 기반 마이크로서비스 플랫폼입니다. 도메인 주도 설계(DDD)를 중심으로 Kafka 기반 이벤트 드리븐 통신과 RestClient 기반 동기 호출을 조합하여 구성했으며, 로컬은 Docker Compose, 운영은 Kubernetes로 배포할 수 있도록 패키징되어 있습니다.
 
 ![Java](https://img.shields.io/badge/Java_21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring_Boot_3-6DB33F?style=flat-square&logo=spring-boot&logoColor=white)
@@ -12,153 +12,153 @@ A Spring Boot-based microservices platform for an e-commerce domain (Product, Or
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
 ![Gradle](https://img.shields.io/badge/Gradle-02303A?style=flat-square&logo=gradle&logoColor=white)
 
-## Overview
+## 개요
 
-This project implements an e-commerce backend as a set of cooperating microservices. Each service owns its own database and communicates with peers through a mix of synchronous REST calls (for read-side lookups and stock reservations) and asynchronous Kafka events (for order/payment orchestration). The codebase is deliberately kept free of over-engineered abstractions so the boundaries between services, the event flow, and the deployment topology remain easy to reason about.
+본 프로젝트는 이커머스 백엔드를 서로 협력하는 마이크로서비스 집합으로 구현합니다. 각 서비스는 자체 데이터베이스를 소유하며, 조회·재고 예약 등은 동기 REST 호출로, 주문·결제 오케스트레이션은 Kafka 비동기 이벤트로 통신합니다. 서비스 경계, 이벤트 흐름, 배포 토폴로지를 명확하게 파악할 수 있도록 불필요한 추상화는 의도적으로 배제했습니다.
 
-## System Architecture
+## 시스템 아키텍처
 
 ![System Architecture](docs/domain/diagrams/system-architecture.png)
 
-## Core Architecture
+## 핵심 아키텍처
 
-The system employs several architectural patterns:
+다음과 같은 아키텍처 패턴을 사용합니다:
 
-- **Microservices Architecture**: Independent services per bounded context, each with its own database
-- **Domain-Driven Design**: Rich domain models, aggregates, value objects, and domain events per bounded context
-- **Event-Driven Architecture**: Asynchronous communication via Kafka for cross-service orchestration
-- **Synchronous Inter-Service Calls**: Spring `RestClient` with configurable timeouts and error handling for read-side lookups and stock operations
-- **Database-per-Service**: Each service owns a dedicated MySQL schema; no shared tables
-- **Layered Architecture per Service**: `api` → `application` → `domain` → `infra` package separation
-- **Shared Kernel (`common` module)**: `BaseEntity`, `ApiResponse`, `PageResponse`, `GlobalExceptionHandler`, `BusinessException`, `DomainEvent`, `KafkaTopics`, and cross-cutting Spring configs
+- **마이크로서비스 아키텍처**: Bounded Context 단위로 독립 서비스 구성, 각자 DB 소유
+- **도메인 주도 설계**: Bounded Context별 Aggregate, Value Object, Domain Event 중심의 풍부한 도메인 모델
+- **이벤트 드리븐 아키텍처**: Kafka 기반 서비스 간 비동기 오케스트레이션
+- **동기 서비스 간 호출**: Spring `RestClient`로 타임아웃과 에러 처리를 갖춘 조회/재고 예약 통신
+- **Database-per-Service**: 서비스별로 분리된 MySQL 스키마, 공유 테이블 없음
+- **서비스별 계층 아키텍처**: `api` → `application` → `domain` → `infra` 패키지 분리
+- **Shared Kernel (`common` 모듈)**: `BaseEntity`, `ApiResponse`, `PageResponse`, `GlobalExceptionHandler`, `BusinessException`, `DomainEvent`, `KafkaTopics`, 공통 Spring 설정
 
-## Technology Stack
+## 기술 스택
 
-**Languages & Frameworks**
+**언어 & 프레임워크**
 
-- Java 21 (LTS, virtual threads support)
+- Java 21 (LTS, Virtual Thread 지원)
 - Spring Boot 3.x
 - Spring Data JPA / Hibernate
-- QueryDSL 5.1 (type-safe queries)
+- QueryDSL 5.1 (타입 안전 쿼리)
 - Spring Kafka
-- jBCrypt (password hashing)
+- jBCrypt (비밀번호 해싱)
 
-**Data & Messaging**
+**데이터 & 메시징**
 
-- MySQL 8.0 (transactional data, database-per-service)
-- Apache Kafka in KRaft mode (event streaming, no ZooKeeper)
+- MySQL 8.0 (트랜잭션 데이터, 서비스별 DB)
+- Apache Kafka KRaft 모드 (이벤트 스트리밍, ZooKeeper 미사용)
 
-**API & Documentation**
+**API & 문서화**
 
-- Spring Web (REST controllers)
-- springdoc-openapi (Swagger UI per service)
-- Jakarta Bean Validation (request validation)
+- Spring Web (REST 컨트롤러)
+- springdoc-openapi (서비스별 Swagger UI)
+- Jakarta Bean Validation (요청 검증)
 
-**Build & Deployment**
+**빌드 & 배포**
 
-- Gradle multi-module
-- Docker & Docker Compose (local development)
+- Gradle 멀티 모듈
+- Docker & Docker Compose (로컬 개발)
 - Kubernetes (namespace, ConfigMap, Secrets, StatefulSet, Deployment, Ingress)
 - GitHub Actions (CI)
 
-**Testing**
+**테스트**
 
 - JUnit 5
-- Spring Boot Test slices
+- Spring Boot Test slice
 - Testcontainers (MySQL, Kafka)
 
-## Microservices
+## 마이크로서비스
 
-| Service | Port | Responsibility | Key Aggregates |
+| 서비스 | 포트 | 책임 | 핵심 Aggregate |
 |---|---|---|---|
-| **service-product** | 8081 | Product catalog, brand, stock | `Product`, `ProductVariant`, `ProductImage`, `Brand` |
-| **service-order** | 8082 | Order creation, lifecycle, cancellation | `Order`, `OrderItem`, `ShippingAddress` |
-| **service-payment** | 8083 | Payment processing and refunds | `Payment` |
-| **service-customer** | 8084 | Customer profile and addresses | `Customer`, `CustomerAddress` |
+| **service-product** | 8081 | 상품 카탈로그, 브랜드, 재고 | `Product`, `ProductVariant`, `ProductImage`, `Brand` |
+| **service-order** | 8082 | 주문 생성, 상태 관리, 취소 | `Order`, `OrderItem`, `ShippingAddress` |
+| **service-payment** | 8083 | 결제 처리, 환불 | `Payment` |
+| **service-customer** | 8084 | 고객 프로필, 배송지 | `Customer`, `CustomerAddress` |
 
-Each service exposes its API under `/api/{resource}` and its OpenAPI spec at `/swagger-ui.html`.
+각 서비스는 `/api/{resource}` 경로로 API를 노출하며, OpenAPI 스펙은 `/swagger-ui.html`에서 확인할 수 있습니다.
 
-## Domain Documentation
+## 도메인 문서
 
-Domain-driven design artifacts live in [`docs/domain/`](docs/domain/):
+DDD 설계 문서는 [`docs/domain/`](docs/domain/)에 있습니다:
 
 - [Ubiquitous Language](docs/domain/01-ubiquitous-language.md)
 - [Bounded Context Map](docs/domain/02-bounded-context-map.md)
 - [Use Cases](docs/domain/03-use-cases.md)
 - [Aggregate Design](docs/domain/04-aggregate-design.md)
 
-## Kafka Events
+## Kafka 이벤트
 
-Services communicate asynchronously through domain events defined in `common/KafkaTopics.java`:
+서비스들은 `common/KafkaTopics.java`에 정의된 도메인 이벤트를 통해 비동기로 통신합니다:
 
-| Topic | Producer | Consumer(s) | Purpose |
+| 토픽 | Producer | Consumer | 용도 |
 |---|---|---|---|
-| `order.created` | Order | Payment | Trigger payment processing |
-| `order.cancelled` | Order | Payment | Trigger refund if already paid |
-| `payment.completed` | Payment | Order | Mark order as paid |
-| `payment.failed` | Payment | Order | Cancel order |
-| `product.stock-reserved` | Product | (audit / future) | Stock reservation audit trail |
-| `product.stock-released` | Product | (audit / future) | Stock release audit trail |
-| `customer.registered` | Customer | (notification / future) | New customer signup |
+| `order.created` | Order | Payment | 결제 처리 트리거 |
+| `order.cancelled` | Order | Payment | 이미 결제 완료된 경우 환불 트리거 |
+| `payment.completed` | Payment | Order | 주문 상태를 PAID로 전이 |
+| `payment.failed` | Payment | Order | 주문 취소 |
+| `product.stock-reserved` | Product | (audit / 추후) | 재고 예약 감사 로그 |
+| `product.stock-released` | Product | (audit / 추후) | 재고 해제 감사 로그 |
+| `customer.registered` | Customer | (notification / 추후) | 신규 고객 가입 알림 |
 
-## Project Structure
+## 프로젝트 구조
 
 ```
 ecommerce-microservices/
-├── backend-v2/              # Gradle multi-module backend
-│   ├── common/              # Shared kernel (BaseEntity, ApiResponse, configs, KafkaTopics)
-│   ├── service-product/     # Product service (8081)
-│   ├── service-order/       # Order service (8082)
-│   ├── service-payment/     # Payment service (8083)
-│   ├── service-customer/    # Customer service (8084)
-│   ├── build.gradle         # Root build with dependency management
+├── backend-v2/              # Gradle 멀티 모듈 백엔드
+│   ├── common/              # Shared Kernel (BaseEntity, ApiResponse, 공통 설정, KafkaTopics)
+│   ├── service-product/     # Product 서비스 (8081)
+│   ├── service-order/       # Order 서비스 (8082)
+│   ├── service-payment/     # Payment 서비스 (8083)
+│   ├── service-customer/    # Customer 서비스 (8084)
+│   ├── build.gradle         # 루트 빌드 + 의존성 관리
 │   └── settings.gradle
-├── infra/                   # Docker Compose files and infra config
-├── k8s/                     # Kubernetes manifests
+├── infra/                   # Docker Compose 파일, 인프라 설정
+├── k8s/                     # Kubernetes 매니페스트
 │   ├── namespace.yml
-│   ├── base/                # MySQL StatefulSet, Kafka deployment, ConfigMap, Secrets
-│   ├── services/            # Per-service Deployment + Service manifests
+│   ├── base/                # MySQL StatefulSet, Kafka Deployment, ConfigMap, Secrets
+│   ├── services/            # 서비스별 Deployment + Service 매니페스트
 │   └── ingress/             # nginx IngressRoute
-├── scripts/                 # Helper scripts (k8s-deploy.sh, k8s-teardown.sh, etc.)
-└── frontend/                # Next.js 16 storefront (separate track)
+├── scripts/                 # 헬퍼 스크립트 (k8s-deploy.sh, k8s-teardown.sh 등)
+└── frontend/                # Next.js 16 스토어프론트 (별도 트랙)
 ```
 
-## Setup & Configuration
+## 설치 및 구성
 
-### Prerequisites
+### 사전 요구사항
 
 - Java 21+
 - Docker & Docker Compose
-- Gradle 8.x (wrapper included)
-- (Optional) `kubectl` + a local Kubernetes cluster (k3s, minikube, kind, or Docker Desktop)
+- Gradle 8.x (wrapper 포함)
+- (선택) `kubectl` + 로컬 Kubernetes 클러스터 (k3s, minikube, kind, Docker Desktop)
 
-### Quick Start (Docker Compose)
+### 빠른 시작 (Docker Compose)
 
 ```bash
-# 1. Clone the repository
+# 1. 저장소 클론
 git clone https://github.com/lsh1215/ecommerce-microservices.git
 cd ecommerce-microservices
 
-# 2. Start MySQL + Kafka locally
+# 2. 로컬 MySQL + Kafka 기동
 docker compose -f infra/docker-compose.yml up -d
 
-# 3. Build the backend
+# 3. 백엔드 빌드
 cd backend-v2
 ./gradlew build -x test
 
-# 4. Run each service (separate terminals, or use your IDE)
+# 4. 각 서비스 실행 (별도 터미널 또는 IDE 사용)
 ./gradlew :service-product:bootRun
 ./gradlew :service-order:bootRun
 ./gradlew :service-payment:bootRun
 ./gradlew :service-customer:bootRun
 ```
 
-Each service activates the `local` profile by default, connecting to `localhost:3306` (MySQL) and `localhost:9092` (Kafka).
+각 서비스는 기본적으로 `local` 프로파일로 실행되어 `localhost:3306` (MySQL), `localhost:9092` (Kafka)에 연결됩니다.
 
-### Verify
+### 동작 확인
 
 ```bash
-# Health checks
+# 헬스 체크
 curl http://localhost:8081/actuator/health   # product
 curl http://localhost:8082/actuator/health   # order
 curl http://localhost:8083/actuator/health   # payment
@@ -168,22 +168,22 @@ curl http://localhost:8084/actuator/health   # customer
 open http://localhost:8081/swagger-ui.html
 ```
 
-### Kubernetes Deployment
+### Kubernetes 배포
 
 ```bash
-# Apply namespace, base infra, services, and ingress
+# namespace, 공통 인프라, 서비스, 인그레스 적용
 ./scripts/k8s-deploy.sh
 
-# Tear down
+# 제거
 ./scripts/k8s-teardown.sh
 ```
 
-Manifests use the `k8s` profile, which resolves MySQL/Kafka through in-cluster service DNS and tightens CORS and `ddl-auto`.
+매니페스트는 `k8s` 프로파일을 사용하며, 클러스터 내부 DNS로 MySQL/Kafka를 해석하고 CORS와 `ddl-auto` 설정을 운영 수준으로 강화합니다.
 
-## Contributing
+## 기여
 
-Contributions, issues, and feature requests are welcome. Please open an issue to discuss significant changes before submitting a pull request.
+기여, 이슈, 기능 요청을 환영합니다. 큰 변경을 제안하실 경우 먼저 이슈를 열어 논의해 주세요.
 
-## License
+## 라이선스
 
-This project is released under the [MIT License](LICENSE).
+본 프로젝트는 [MIT License](LICENSE)로 배포됩니다.
