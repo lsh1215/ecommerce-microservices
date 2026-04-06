@@ -16,6 +16,10 @@ A Spring Boot-based microservices platform for an e-commerce domain (Product, Or
 
 This project implements an e-commerce backend as a set of cooperating microservices. Each service owns its own database and communicates with peers through a mix of synchronous REST calls (for read-side lookups and stock reservations) and asynchronous Kafka events (for order/payment orchestration). The codebase is deliberately kept free of over-engineered abstractions so the boundaries between services, the event flow, and the deployment topology remain easy to reason about.
 
+## System Architecture
+
+![System Architecture](docs/domain/diagrams/system-architecture.png)
+
 ## Core Architecture
 
 The system employs several architectural patterns:
