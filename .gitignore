@@ -1,3 +1,6 @@
+# === Study Notes (local only) ===
+study-notes/
+
 # === Java / Spring Boot ===
 *.class
 *.jar
@@ -102,6 +105,9 @@ msa-kafka-es-project-guide.md
 docs/PRD.md
 docs/README-msa.md
 docs/subagent-candidates.md
+
+# === Pinpoint Agent (downloaded at runtime) ===
+pinpoint-agent/
 
 # === Misc ===
 *.bak
