@@ -1,5 +1,7 @@
 package com.ecommerce.product.application.service;
 
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.product.ProductErrorCode;
 import com.ecommerce.product.api.dto.request.CreateBrandRequest;
 import com.ecommerce.product.api.dto.request.UpdateBrandRequest;
 import com.ecommerce.product.domain.model.Brand;
@@ -18,19 +20,27 @@ public class BrandService {
 
     @Transactional
     public Brand createBrand(CreateBrandRequest request) {
-        throw new UnsupportedOperationException("implement me");
+        if (brandRepository.existsByName(request.name())) {
+            throw new BusinessException(ProductErrorCode.DUPLICATE_BRAND);
+        }
+        Brand brand = Brand.create(request.name(), request.description(),
+                request.logoUrl(), request.country());
+        return brandRepository.save(brand);
     }
 
     @Transactional
     public Brand updateBrand(Long id, UpdateBrandRequest request) {
-        throw new UnsupportedOperationException("implement me");
+        Brand brand = getBrand(id);
+        brand.update(request.description(), request.logoUrl(), request.country());
+        return brand;
     }
 
     public Brand getBrand(Long id) {
-        throw new UnsupportedOperationException("implement me");
+        return brandRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.BRAND_NOT_FOUND));
     }
 
     public List<Brand> getAllBrands() {
-        throw new UnsupportedOperationException("implement me");
+        return brandRepository.findAll();
     }
 }
