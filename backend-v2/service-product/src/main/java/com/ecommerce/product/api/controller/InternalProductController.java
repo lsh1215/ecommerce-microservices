@@ -3,10 +3,12 @@ package com.ecommerce.product.api.controller;
 import com.ecommerce.common.dto.ApiResponse;
 import com.ecommerce.product.api.dto.request.StockReserveRequest;
 import com.ecommerce.product.api.dto.response.ProductVariantResponse;
+import com.ecommerce.product.api.dto.response.VariantDetailResponse;
 import com.ecommerce.product.application.service.ProductService;
 import com.ecommerce.product.domain.model.ProductVariant;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,6 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class InternalProductController {
 
     private final ProductService productService;
+
+    @GetMapping("/variants/{variantId}")
+    public ApiResponse<VariantDetailResponse> getVariantDetail(@PathVariable Long variantId) {
+        return ApiResponse.ok(productService.getVariantDetail(variantId));
+    }
 
     @PostMapping("/variants/{variantId}/reserve-stock")
     public ApiResponse<ProductVariantResponse> reserveStock(
