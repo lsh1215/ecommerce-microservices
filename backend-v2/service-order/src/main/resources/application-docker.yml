@@ -1,0 +1,38 @@
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:mysql://mysql:3306/ecommerce_order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  kafka:
+    bootstrap-servers: kafka-1:9092,kafka-2:9092,kafka-3:9092
+    producer:
+      acks: all
+      retries: 3
+
+service:
+  product:
+    base-url: http://service-product:8081
+  customer:
+    base-url: http://service-customer:8084
+
+app:
+  services:
+    product:
+      url: http://service-product:8081
+    customer:
+      url: http://service-customer:8084
+    payment:
+      url: http://service-payment:8083
+  rest-client:
+    connect-timeout: 5000
+    read-timeout: 10000
+
+cors:
+  allowed-origins: https://${DOMAIN}
