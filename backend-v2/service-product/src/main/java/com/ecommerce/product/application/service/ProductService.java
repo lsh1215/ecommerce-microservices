@@ -6,8 +6,10 @@ import com.ecommerce.product.api.dto.request.CreateProductRequest;
 import com.ecommerce.product.api.dto.request.UpdateProductRequest;
 import com.ecommerce.product.api.dto.request.ProductSearchRequest;
 import com.ecommerce.product.api.dto.response.VariantDetailResponse;
+import com.ecommerce.product.domain.model.Brand;
 import com.ecommerce.product.domain.model.Product;
 import com.ecommerce.product.domain.model.ProductVariant;
+import com.ecommerce.product.domain.repository.BrandRepository;
 import com.ecommerce.product.domain.repository.ProductQueryRepository;
 import com.ecommerce.product.domain.repository.ProductRepository;
 import com.ecommerce.product.domain.repository.ProductVariantRepository;
@@ -25,28 +27,45 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final ProductVariantRepository productVariantRepository;
     private final ProductQueryRepository productQueryRepository;
+    private final BrandRepository brandRepository;
 
     @Transactional
     public Product createProduct(CreateProductRequest request) {
-        throw new UnsupportedOperationException("implement me");
+        Brand brand = brandRepository.findById(request.brandId())
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.BRAND_NOT_FOUND));
+        Product product = Product.create(brand, request.name(), request.description(),
+                request.price(), request.category());
+        return productRepository.save(product);
     }
 
     @Transactional
     public Product updateProduct(Long id, UpdateProductRequest request) {
-        throw new UnsupportedOperationException("implement me");
+        Product product = getProduct(id);
+        product.update(request.name(), request.description(), request.price(), request.category());
+        if (request.status() != null) {
+            switch (request.status()) {
+                case ACTIVE -> product.activate();
+                case INACTIVE -> product.deactivate();
+            }
+        }
+        return product;
     }
 
     public Product getProduct(Long id) {
-        throw new UnsupportedOperationException("implement me");
+        return productRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
     public Page<Product> searchProducts(ProductSearchRequest request, Pageable pageable) {
-        throw new UnsupportedOperationException("implement me");
+        return productQueryRepository.search(
+                request.keyword(), request.brandId(), request.category(),
+                request.minPrice(), request.maxPrice(), pageable);
     }
 
     @Transactional
     public void deleteProduct(Long id) {
-        throw new UnsupportedOperationException("implement me");
+        Product product = getProduct(id);
+        productRepository.delete(product);
     }
 
     public VariantDetailResponse getVariantDetail(Long variantId) {
