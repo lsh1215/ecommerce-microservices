@@ -16,5 +16,17 @@ service:
   customer:
     base-url: http://localhost:8084
 
+app:
+  services:
+    product:
+      url: http://localhost:8081
+    customer:
+      url: http://localhost:8084
+    payment:
+      url: http://localhost:8083
+  rest-client:
+    connect-timeout: 5000
+    read-timeout: 10000
+
 cors:
   allowed-origins: http://localhost:3000
