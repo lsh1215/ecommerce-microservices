@@ -17,13 +17,13 @@ import com.ecommerce.order.domain.repository.OrderRepository;
 import com.ecommerce.order.domain.repository.SagaInstanceRepository;
 import com.ecommerce.order.domain.service.CustomerDirectoryPort;
 import com.ecommerce.order.domain.service.ProductCatalogPort;
-import com.ecommerce.order.infra.kafka.producer.OrderEventProducer;
 import com.github.f4b6a3.ulid.UlidCreator;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +36,7 @@ public class OrderSagaOrchestrator {
     private final SagaInstanceRepository sagaRepository;
     private final ProductCatalogPort productCatalog;
     private final CustomerDirectoryPort customerDirectory;
-    private final OrderEventProducer eventProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * SAGA 시작: 주문 생성 -> 재고 예약(동기) -> 이벤트 발행(비동기 결제 트리거).
@@ -86,7 +86,7 @@ public class OrderSagaOrchestrator {
 
         // 5단계: 결제 요청 이벤트 발행 (비동기 - Kafka)
         // Payment 서비스가 다운이어도 Kafka에 메시지가 쌓여서 복구 시 처리됨
-        eventProducer.publishOrderCreated(new OrderCreatedEvent(
+        eventPublisher.publishEvent(new OrderCreatedEvent(
                 order.getId(), order.getOrderNumber(),
                 command.customerId(), order.getTotalAmount()));
 

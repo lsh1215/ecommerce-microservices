@@ -10,11 +10,11 @@ import com.ecommerce.payment.domain.model.Payment;
 import com.ecommerce.payment.domain.model.PaymentMethod;
 import com.ecommerce.payment.domain.model.PaymentStatus;
 import com.ecommerce.payment.domain.repository.PaymentRepository;
-import com.ecommerce.payment.infra.kafka.producer.PaymentEventProducer;
 import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +25,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentStubProcessor stubProcessor;
-    private final PaymentEventProducer eventProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 주어진 주문에 대한 결제를 처리한다.
@@ -104,11 +104,11 @@ public class PaymentService {
 
         if (result.success()) {
             payment.markCompleted(result.transactionId());
-            eventProducer.publishPaymentCompleted(new PaymentCompletedEvent(
+            eventPublisher.publishEvent(new PaymentCompletedEvent(
                     orderNumber, orderId, payment.getId(), result.transactionId(), amount));
         } else {
             payment.markFailed("stub rejection");
-            eventProducer.publishPaymentFailed(new PaymentFailedEvent(
+            eventPublisher.publishEvent(new PaymentFailedEvent(
                     orderNumber, orderId, "stub rejection"));
         }
     }
