@@ -38,19 +38,19 @@ public class OrderService {
     private final PaymentRequestPort paymentRequest;
 
     /**
-     * Create a new order with stock reservation and payment processing.
-     * Coordinates across Customer, Product, and Payment services in a single transaction.
-     * DELIBERATE FLAW: @Transactional wraps synchronous HTTP calls, causing long-held DB connections.
+     * 재고 예약 및 결제 처리를 포함한 신규 주문을 생성한다.
+     * Customer, Product, Payment 서비스를 단일 트랜잭션 내에서 동기 호출로 조율한다.
+     * 의도적 결함: @Transactional이 동기 HTTP 호출을 감싸고 있어 DB 커넥션을 오래 점유한다.
      */
     @Transactional
     public Order createOrder(CreateOrderCommand command) {
         List<StockReservation> reservations = new ArrayList<>();
 
         try {
-            // Step 1: Validate customer exists (sync HTTP to Customer service)
+            // 1단계: 고객 존재 여부 검증 (Customer 서비스로 동기 HTTP 호출)
             customerDirectory.ensureExists(command.customerId());
 
-            // Step 2: Build order aggregate with shipping address
+            // 2단계: 배송지를 포함한 주문 Aggregate 생성
             Order order = Order.create(
                     command.customerId(),
                     generateOrderNumber(),
@@ -58,7 +58,7 @@ public class OrderService {
                     command.memo()
             );
 
-            // Step 3: Reserve stock per item (sync HTTP to Product service per variant)
+            // 3단계: 항목별 재고 예약 (각 Variant에 대해 Product 서비스로 동기 HTTP 호출)
             for (OrderItemCommand item : command.items()) {
                 ProductSnapshotDto snapshot = productCatalog.fetchSnapshot(item.productVariantId());
                 productCatalog.reserveStock(item.productVariantId(), item.quantity());
@@ -77,12 +77,12 @@ public class OrderService {
 
             orderRepository.save(order);
 
-            // Step 4: Request payment (sync HTTP to Payment service)
+            // 4단계: 결제 요청 (Payment 서비스로 동기 HTTP 호출)
             PaymentResult paymentResult = paymentRequest.requestPayment(
                     order.getId(), order.getOrderNumber(), order.getTotalAmount()
             );
 
-            // Step 5: Confirm or cancel based on payment result
+            // 5단계: 결제 결과에 따라 주문 확정 또는 취소
             if (paymentResult.success()) {
                 order.markConfirmed();
             } else {
@@ -117,7 +117,7 @@ public class OrderService {
         return order;
     }
 
-    /** Transition order to PAID state (called by Payment service callback). */
+    /** 주문을 PAID 상태로 전이한다 (Payment 서비스 콜백 시 호출). */
     @Transactional
     public Order markPaid(Long id) {
         Order order = getOrder(id);
@@ -125,7 +125,7 @@ public class OrderService {
         return order;
     }
 
-    /** Transition order to CONFIRMED state (called after payment verification). */
+    /** 주문을 CONFIRMED 상태로 전이한다 (결제 검증 후 호출). */
     @Transactional
     public Order markConfirmed(Long id) {
         Order order = getOrder(id);
@@ -148,8 +148,8 @@ public class OrderService {
     }
 
     /**
-     * Best-effort stock compensation on failure.
-     * DELIBERATE FLAW: compensation can fail silently, leaving phantom reservations.
+     * 실패 시 재고 보상을 최선으로 시도한다.
+     * 의도적 결함: 보상 자체가 조용히 실패할 수 있어 유령 예약이 남을 수 있다.
      */
     private void releaseAllStock(List<StockReservation> reservations) {
         for (StockReservation reservation : reservations) {

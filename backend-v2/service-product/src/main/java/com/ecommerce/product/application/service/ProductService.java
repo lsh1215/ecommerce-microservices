@@ -29,8 +29,8 @@ public class ProductService {
     private final BrandRepository brandRepository;
 
     /**
-     * Create a new product under the specified brand.
-     * Validates brand existence before creation.
+     * 지정한 브랜드 하위에 신규 상품을 생성한다.
+     * 생성 전 브랜드 존재 여부를 검증한다.
      */
     @Transactional
     public Product createProduct(CreateProductCommand command) {
@@ -42,7 +42,7 @@ public class ProductService {
     }
 
     /**
-     * Update product details and optionally transition product status.
+     * 상품 정보를 수정하고, 필요 시 상품 상태를 전이한다.
      */
     @Transactional
     public Product updateProduct(Long id, UpdateProductCommand command) {
@@ -74,15 +74,15 @@ public class ProductService {
         productRepository.delete(product);
     }
 
-    /** Fetch variant with its parent product for internal service-to-service snapshot. */
+    /** 서비스 간 스냅샷 제공을 위해 부모 상품 정보를 포함한 Variant를 조회한다. */
     public ProductVariant getVariantDetail(Long variantId) {
         return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 
     /**
-     * Reserve stock for a variant using pessimistic locking.
-     * Called during order creation to prevent overselling.
+     * 비관적 락을 사용하여 Variant의 재고를 예약한다.
+     * 주문 생성 시 초과 판매 방지를 위해 호출된다.
      */
     @Transactional
     public ProductVariant reserveStock(Long variantId, int quantity) {
@@ -93,7 +93,7 @@ public class ProductService {
     }
 
     /**
-     * Release previously reserved stock (compensation on order failure).
+     * 이전에 예약된 재고를 해제한다 (주문 실패 시 보상 처리).
      */
     @Transactional
     public ProductVariant releaseStock(Long variantId, int quantity) {

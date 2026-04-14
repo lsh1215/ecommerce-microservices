@@ -29,7 +29,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
                     .uri("/api/internal/products/variants/{variantId}", variantId)
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        // 404 means variant does not exist
+                        // 404: Variant가 존재하지 않음
                     })
                     .toBodilessEntity();
             return true;

@@ -19,12 +19,12 @@ public class BrandService {
     private final BrandRepository brandRepository;
 
     /**
-     * Register a new heritage wear brand.
-     * Enforces unique brand name constraint at the application level.
+     * 새로운 헤리티지 웨어 브랜드를 등록한다.
+     * 애플리케이션 레벨에서 브랜드명 중복 제약을 강제한다.
      */
     @Transactional
     public Brand createBrand(CreateBrandCommand command) {
-        // Guard: prevent duplicate brand names
+        // 가드: 브랜드명 중복 방지
         if (brandRepository.existsByName(command.name())) {
             throw new BusinessException(ProductErrorCode.DUPLICATE_BRAND);
         }

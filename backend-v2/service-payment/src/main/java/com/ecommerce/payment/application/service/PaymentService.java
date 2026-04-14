@@ -19,17 +19,17 @@ public class PaymentService {
     private final PaymentStubProcessor stubProcessor;
 
     /**
-     * Process a payment for the given order.
-     * Creates a Payment in PENDING state, runs stub processor, transitions to COMPLETED or FAILED.
+     * 주어진 주문에 대한 결제를 처리한다.
+     * Payment를 PENDING 상태로 생성하고, 스텁 프로세서를 실행한 뒤 COMPLETED 또는 FAILED로 전이한다.
      */
     @Transactional
     public Payment process(ProcessPaymentCommand command) {
-        // Guard: prevent duplicate payment for the same order
+        // 가드: 동일 주문에 대한 중복 결제 방지
         if (paymentRepository.existsByOrderIdAndStatus(command.orderId(), PaymentStatus.COMPLETED)) {
             throw new BusinessException(PaymentErrorCode.DUPLICATE_PAYMENT);
         }
 
-        // Create payment in PENDING state
+        // PENDING 상태로 Payment 생성
         Payment payment = Payment.create(
                 command.orderId(),
                 command.orderNumber(),
@@ -38,10 +38,10 @@ public class PaymentService {
         );
         paymentRepository.save(payment);
 
-        // Attempt payment via stub processor (simulated gateway, 90% success rate)
+        // 스텁 프로세서를 통해 결제 시도 (가상 게이트웨이, 성공률 90%)
         PaymentStubProcessor.Result result = stubProcessor.attempt(command.amount());
 
-        // Transition status based on processor result
+        // 프로세서 결과에 따라 상태 전이
         if (result.success()) {
             payment.markCompleted(result.transactionId());
         } else {
@@ -52,8 +52,8 @@ public class PaymentService {
     }
 
     /**
-     * Refund a completed payment.
-     * Transitions payment to REFUNDED state regardless of the reason provided.
+     * 완료된 결제를 환불 처리한다.
+     * 제공된 사유와 관계없이 Payment를 REFUNDED 상태로 전이한다.
      */
     @Transactional
     public Payment refund(Long paymentId, RefundPaymentCommand command) {
