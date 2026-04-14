@@ -80,10 +80,10 @@ class ProductTest {
         Product product = Product.create(brand, "Shirt", "desc", BigDecimal.TEN, "shirts");
 
         ProductImage first = product.addImage("http://img.com/1.jpg", 0, true);
-        product.addImage("http://img.com/2.jpg", 1, true);
+        ProductImage second = product.addImage("http://img.com/2.jpg", 1, true);
 
         assertThat(first.isPrimary()).isFalse();
-        assertThat(product.getImages().get(1).isPrimary()).isTrue();
+        assertThat(second.isPrimary()).isTrue();
     }
 
     @Test

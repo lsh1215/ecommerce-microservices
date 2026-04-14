@@ -10,10 +10,11 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -43,10 +44,11 @@ public class Product extends BaseEntity {
     private String category;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductVariant> variants = new ArrayList<>();
+    private Set<ProductVariant> variants = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductImage> images = new ArrayList<>();
+    @OrderBy("sortOrder ASC")
+    private Set<ProductImage> images = new LinkedHashSet<>();
 
     public static Product create(Brand brand, String name, String description,
                                  BigDecimal price, String category) {

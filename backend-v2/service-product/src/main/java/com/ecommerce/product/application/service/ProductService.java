@@ -46,7 +46,7 @@ public class ProductService {
      */
     @Transactional
     public Product updateProduct(Long id, UpdateProductCommand command) {
-        Product product = getProduct(id);
+        Product product = findProduct(id);
         product.update(command.name(), command.description(), command.price(), command.category());
         if (command.status() != null) {
             switch (command.status()) {
@@ -62,6 +62,11 @@ public class ProductService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
+    private Product findProduct(Long id) {
+        return productRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
+    }
+
     public Page<Product> searchProducts(ProductSearchCommand command, Pageable pageable) {
         return productQueryRepository.search(
                 command.keyword(), command.brandId(), command.category(),
@@ -70,7 +75,7 @@ public class ProductService {
 
     @Transactional
     public void deleteProduct(Long id) {
-        Product product = getProduct(id);
+        Product product = findProduct(id);
         productRepository.delete(product);
     }
 
