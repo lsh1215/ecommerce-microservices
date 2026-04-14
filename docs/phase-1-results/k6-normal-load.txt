@@ -41,13 +41,13 @@ running (09.0s), 1/1 VUs, 8 complete and 0 interrupted iterations
 smoke   [  90% ] 1 VUs  09.0s/10s
 
 running (10.0s), 1/1 VUs, 9 complete and 0 interrupted iterations
-smoke   [ 100% ] 1 VUs  10s
+smoke   [ 100% ] 1 VUs  10.0s/10s
 
 
   █ THRESHOLDS 
 
     http_req_duration
-    ✓ 'p(95)<2000' p(95)=57.87ms
+    ✓ 'p(95)<2000' p(95)=36.49ms
 
     http_req_failed
     ✓ 'rate<0.1' rate=0.00%
@@ -55,7 +55,7 @@ smoke   [ 100% ] 1 VUs  10s
 
   █ TOTAL RESULTS 
 
-    checks_total.......: 30      2.803909/s
+    checks_total.......: 30      2.859173/s
     checks_succeeded...: 100.00% 30 out of 30
     checks_failed......: 0.00%   0 out of 30
 
@@ -64,23 +64,23 @@ smoke   [ 100% ] 1 VUs  10s
     ✓ order created
 
     HTTP
-    http_req_duration..............: avg=22.92ms min=5ms   med=16.55ms max=96.47ms p(90)=40.84ms p(95)=57.87ms p(99)=89.13ms
-      { expected_response:true }...: avg=22.92ms min=5ms   med=16.55ms max=96.47ms p(90)=40.84ms p(95)=57.87ms p(99)=89.13ms
+    http_req_duration..............: avg=15.87ms min=3.43ms med=10.29ms max=45.24ms p(90)=33.74ms p(95)=36.49ms p(99)=43.29ms
+      { expected_response:true }...: avg=15.87ms min=3.43ms med=10.29ms max=45.24ms p(90)=33.74ms p(95)=36.49ms p(99)=43.29ms
     http_req_failed................: 0.00%  0 out of 30
-    http_reqs......................: 30     2.803909/s
+    http_reqs......................: 30     2.859173/s
 
     EXECUTION
-    iteration_duration.............: avg=1.06s   min=1.04s med=1.06s   max=1.19s   p(90)=1.08s   p(95)=1.13s   p(99)=1.18s  
-    iterations.....................: 10     0.934636/s
+    iteration_duration.............: avg=1.04s   min=1.03s  med=1.04s   max=1.06s   p(90)=1.06s   p(95)=1.06s   p(99)=1.06s  
+    iterations.....................: 10     0.953058/s
     vus............................: 1      min=1       max=1
     vus_max........................: 1      min=1       max=1
 
     NETWORK
-    data_received..................: 38 kB  3.5 kB/s
-    data_sent......................: 6.0 kB 564 B/s
+    data_received..................: 38 kB  3.6 kB/s
+    data_sent......................: 6.0 kB 575 B/s
 
 
 
 
-running (10.7s), 0/1 VUs, 10 complete and 0 interrupted iterations
+running (10.5s), 0/1 VUs, 10 complete and 0 interrupted iterations
 smoke ✓ [ 100% ] 1 VUs  10s
