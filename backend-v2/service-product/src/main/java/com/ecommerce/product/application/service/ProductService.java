@@ -58,7 +58,7 @@ public class ProductService {
     }
 
     public Product getProduct(Long id) {
-        return productRepository.findById(id)
+        return productRepository.findWithVariantsAndImagesById(id)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
@@ -76,7 +76,7 @@ public class ProductService {
 
     /** 서비스 간 스냅샷 제공을 위해 부모 상품 정보를 포함한 Variant를 조회한다. */
     public ProductVariant getVariantDetail(Long variantId) {
-        return productVariantRepository.findById(variantId)
+        return productVariantRepository.findWithProductAndBrandById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 

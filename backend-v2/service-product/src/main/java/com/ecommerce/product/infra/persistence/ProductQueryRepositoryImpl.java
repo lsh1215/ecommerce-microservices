@@ -3,6 +3,7 @@ package com.ecommerce.product.infra.persistence;
 import com.ecommerce.product.domain.model.Product;
 import com.ecommerce.product.domain.model.QBrand;
 import com.ecommerce.product.domain.model.QProduct;
+import com.ecommerce.product.domain.model.QProductImage;
 import com.ecommerce.product.domain.repository.ProductQueryRepository;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQuery;
@@ -26,6 +27,7 @@ public class ProductQueryRepositoryImpl implements ProductQueryRepository {
                                 BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
         QProduct product = QProduct.product;
         QBrand brand = QBrand.brand;
+        QProductImage image = QProductImage.productImage;
 
         BooleanBuilder builder = new BooleanBuilder();
 
@@ -49,7 +51,9 @@ public class ProductQueryRepositoryImpl implements ProductQueryRepository {
         JPAQuery<Product> query = queryFactory
                 .selectFrom(product)
                 .leftJoin(product.brand, brand).fetchJoin()
-                .where(builder);
+                .leftJoin(product.images, image).fetchJoin()
+                .where(builder)
+                .distinct();
 
         long total = query.fetchCount();
 
