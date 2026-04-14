@@ -34,5 +34,5 @@ jobs:
           DB_USERNAME: dummy
           DB_PASSWORD: dummy
 
-      - name: Validate monitoring/docker-compose.observability.yml
-        run: docker compose -f monitoring/docker-compose.observability.yml config --quiet
+      - name: Validate monitoring/docker-compose.pinpoint.yml
+        run: docker compose -f monitoring/docker-compose.pinpoint.yml config --quiet
