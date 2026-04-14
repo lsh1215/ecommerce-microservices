@@ -38,7 +38,7 @@ public class PaymentService {
         );
         paymentRepository.save(payment);
 
-        // 스텁 프로세서를 통해 결제 시도 (가상 게이트웨이, 성공률 90%)
+        // 외부 PG사 연동을 가상으로 대체 (90% 성공, 10% 실패 시뮬레이션)
         PaymentStubProcessor.Result result = stubProcessor.attempt(command.amount());
 
         // 프로세서 결과에 따라 상태 전이
