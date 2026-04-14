@@ -3,10 +3,12 @@ package com.ecommerce.product.api.controller;
 import com.ecommerce.common.dto.ApiResponse;
 import com.ecommerce.common.dto.PageResponse;
 import com.ecommerce.product.api.dto.request.CreateProductRequest;
-import com.ecommerce.product.api.dto.request.ProductSearchRequest;
 import com.ecommerce.product.api.dto.request.UpdateProductRequest;
 import com.ecommerce.product.api.dto.response.ProductDetailResponse;
 import com.ecommerce.product.api.dto.response.ProductResponse;
+import com.ecommerce.product.application.dto.CreateProductCommand;
+import com.ecommerce.product.application.dto.ProductSearchCommand;
+import com.ecommerce.product.application.dto.UpdateProductCommand;
 import com.ecommerce.product.application.service.ProductService;
 import com.ecommerce.product.domain.model.Product;
 import jakarta.validation.Valid;
@@ -41,9 +43,9 @@ public class ProductController {
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             Pageable pageable) {
-        ProductSearchRequest request = new ProductSearchRequest(
+        ProductSearchCommand command = new ProductSearchCommand(
                 keyword, brandId, category, minPrice, maxPrice);
-        Page<Product> products = productService.searchProducts(request, pageable);
+        Page<Product> products = productService.searchProducts(command, pageable);
         Page<ProductResponse> responsePage = products.map(ProductResponse::from);
         return ApiResponse.ok(PageResponse.from(responsePage));
     }
@@ -58,7 +60,11 @@ public class ProductController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ProductDetailResponse> createProduct(
             @Valid @RequestBody CreateProductRequest request) {
-        Product product = productService.createProduct(request);
+        CreateProductCommand command = new CreateProductCommand(
+                request.name(), request.description(), request.price(),
+                request.brandId(), request.category()
+        );
+        Product product = productService.createProduct(command);
         return ApiResponse.created(ProductDetailResponse.from(product));
     }
 
@@ -66,7 +72,11 @@ public class ProductController {
     public ApiResponse<ProductDetailResponse> updateProduct(
             @PathVariable Long id,
             @Valid @RequestBody UpdateProductRequest request) {
-        Product product = productService.updateProduct(id, request);
+        UpdateProductCommand command = new UpdateProductCommand(
+                request.name(), request.description(), request.price(),
+                request.category(), request.status()
+        );
+        Product product = productService.updateProduct(id, command);
         return ApiResponse.ok(ProductDetailResponse.from(product));
     }
 

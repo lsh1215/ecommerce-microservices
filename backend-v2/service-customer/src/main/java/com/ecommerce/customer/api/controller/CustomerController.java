@@ -6,6 +6,9 @@ import com.ecommerce.customer.api.dto.request.RegisterCustomerRequest;
 import com.ecommerce.customer.api.dto.request.UpdateCustomerRequest;
 import com.ecommerce.customer.api.dto.response.CustomerResponse;
 import com.ecommerce.customer.api.dto.response.LoginResponse;
+import com.ecommerce.customer.application.dto.LoginCommand;
+import com.ecommerce.customer.application.dto.RegisterCustomerCommand;
+import com.ecommerce.customer.application.dto.UpdateCustomerCommand;
 import com.ecommerce.customer.application.service.CustomerService;
 import com.ecommerce.customer.domain.model.Customer;
 import jakarta.validation.Valid;
@@ -30,13 +33,17 @@ public class CustomerController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<CustomerResponse> register(@Valid @RequestBody RegisterCustomerRequest request) {
-        Customer customer = customerService.register(request);
+        RegisterCustomerCommand command = new RegisterCustomerCommand(
+                request.email(), request.password(), request.name(), request.phone()
+        );
+        Customer customer = customerService.register(command);
         return ApiResponse.created(CustomerResponse.from(customer));
     }
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        Customer customer = customerService.login(request);
+        LoginCommand command = new LoginCommand(request.email(), request.password());
+        Customer customer = customerService.login(command);
         return ApiResponse.ok(LoginResponse.from(customer));
     }
 
@@ -49,7 +56,8 @@ public class CustomerController {
     @PutMapping("/{id}")
     public ApiResponse<CustomerResponse> updateProfile(@PathVariable Long id,
                                                        @Valid @RequestBody UpdateCustomerRequest request) {
-        Customer customer = customerService.updateProfile(id, request);
+        UpdateCustomerCommand command = new UpdateCustomerCommand(request.name(), request.phone());
+        Customer customer = customerService.updateProfile(id, command);
         return ApiResponse.ok(CustomerResponse.from(customer));
     }
 }

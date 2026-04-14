@@ -4,6 +4,8 @@ import com.ecommerce.common.dto.ApiResponse;
 import com.ecommerce.customer.api.dto.request.CreateAddressRequest;
 import com.ecommerce.customer.api.dto.request.UpdateAddressRequest;
 import com.ecommerce.customer.api.dto.response.AddressResponse;
+import com.ecommerce.customer.application.dto.CreateAddressCommand;
+import com.ecommerce.customer.application.dto.UpdateAddressCommand;
 import com.ecommerce.customer.application.service.CustomerAddressService;
 import com.ecommerce.customer.domain.model.CustomerAddress;
 import jakarta.validation.Valid;
@@ -41,7 +43,11 @@ public class CustomerAddressController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AddressResponse> addAddress(@PathVariable Long customerId,
                                                    @Valid @RequestBody CreateAddressRequest request) {
-        CustomerAddress address = customerAddressService.addAddress(customerId, request);
+        CreateAddressCommand command = new CreateAddressCommand(
+                request.label(), request.recipientName(), request.phone(),
+                request.zipCode(), request.address1(), request.address2(), request.isDefault()
+        );
+        CustomerAddress address = customerAddressService.addAddress(customerId, command);
         return ApiResponse.created(AddressResponse.from(address));
     }
 
@@ -49,7 +55,11 @@ public class CustomerAddressController {
     public ApiResponse<AddressResponse> updateAddress(@PathVariable Long customerId,
                                                       @PathVariable Long addressId,
                                                       @Valid @RequestBody UpdateAddressRequest request) {
-        CustomerAddress address = customerAddressService.updateAddress(customerId, addressId, request);
+        UpdateAddressCommand command = new UpdateAddressCommand(
+                request.label(), request.recipientName(), request.phone(),
+                request.zipCode(), request.address1(), request.address2()
+        );
+        CustomerAddress address = customerAddressService.updateAddress(customerId, addressId, command);
         return ApiResponse.ok(AddressResponse.from(address));
     }
 

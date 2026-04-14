@@ -2,8 +2,8 @@ package com.ecommerce.customer.application.service;
 
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.customer.CustomerErrorCode;
-import com.ecommerce.customer.api.dto.request.CreateAddressRequest;
-import com.ecommerce.customer.api.dto.request.UpdateAddressRequest;
+import com.ecommerce.customer.application.dto.CreateAddressCommand;
+import com.ecommerce.customer.application.dto.UpdateAddressCommand;
 import com.ecommerce.customer.domain.model.Customer;
 import com.ecommerce.customer.domain.model.CustomerAddress;
 import com.ecommerce.customer.domain.repository.CustomerAddressRepository;
@@ -25,31 +25,36 @@ public class CustomerAddressService {
         return customerAddressRepository.findByCustomerId(customerId);
     }
 
+    /**
+     * Add a new shipping address for the customer.
+     * If marked as default, unmarks the current default address first.
+     */
     @Transactional
-    public CustomerAddress addAddress(Long customerId, CreateAddressRequest request) {
+    public CustomerAddress addAddress(Long customerId, CreateAddressCommand command) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new BusinessException(CustomerErrorCode.CUSTOMER_NOT_FOUND));
 
-        if (request.isDefault()) {
+        // Ensure only one default address per customer
+        if (command.isDefault()) {
             customerAddressRepository.findByCustomerIdAndIsDefaultTrue(customerId)
                     .ifPresent(CustomerAddress::unmarkDefault);
         }
 
         CustomerAddress address = CustomerAddress.create(
-                customer, request.label(), request.recipientName(),
-                request.phone(), request.zipCode(), request.address1(), request.address2(),
-                request.isDefault()
+                customer, command.label(), command.recipientName(),
+                command.phone(), command.zipCode(), command.address1(), command.address2(),
+                command.isDefault()
         );
         return customerAddressRepository.save(address);
     }
 
     @Transactional
-    public CustomerAddress updateAddress(Long customerId, Long addressId, UpdateAddressRequest request) {
+    public CustomerAddress updateAddress(Long customerId, Long addressId, UpdateAddressCommand command) {
         CustomerAddress address = customerAddressRepository.findById(addressId)
                 .filter(a -> a.getCustomer().getId().equals(customerId))
                 .orElseThrow(() -> new BusinessException(CustomerErrorCode.ADDRESS_NOT_FOUND));
-        address.update(request.label(), request.recipientName(), request.phone(),
-                request.zipCode(), request.address1(), request.address2());
+        address.update(command.label(), command.recipientName(), command.phone(),
+                command.zipCode(), command.address1(), command.address2());
         return address;
     }
 
@@ -61,6 +66,10 @@ public class CustomerAddressService {
         customerAddressRepository.delete(address);
     }
 
+    /**
+     * Set an address as the customer's default.
+     * Unmarks the previous default before marking the new one.
+     */
     @Transactional
     public void setDefault(Long customerId, Long addressId) {
         CustomerAddress address = customerAddressRepository.findById(addressId)

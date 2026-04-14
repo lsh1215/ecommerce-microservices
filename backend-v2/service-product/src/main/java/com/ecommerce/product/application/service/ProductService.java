@@ -2,10 +2,9 @@ package com.ecommerce.product.application.service;
 
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.product.ProductErrorCode;
-import com.ecommerce.product.api.dto.request.CreateProductRequest;
-import com.ecommerce.product.api.dto.request.UpdateProductRequest;
-import com.ecommerce.product.api.dto.request.ProductSearchRequest;
-import com.ecommerce.product.api.dto.response.VariantDetailResponse;
+import com.ecommerce.product.application.dto.CreateProductCommand;
+import com.ecommerce.product.application.dto.ProductSearchCommand;
+import com.ecommerce.product.application.dto.UpdateProductCommand;
 import com.ecommerce.product.domain.model.Brand;
 import com.ecommerce.product.domain.model.Product;
 import com.ecommerce.product.domain.model.ProductVariant;
@@ -29,21 +28,28 @@ public class ProductService {
     private final ProductQueryRepository productQueryRepository;
     private final BrandRepository brandRepository;
 
+    /**
+     * Create a new product under the specified brand.
+     * Validates brand existence before creation.
+     */
     @Transactional
-    public Product createProduct(CreateProductRequest request) {
-        Brand brand = brandRepository.findById(request.brandId())
+    public Product createProduct(CreateProductCommand command) {
+        Brand brand = brandRepository.findById(command.brandId())
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.BRAND_NOT_FOUND));
-        Product product = Product.create(brand, request.name(), request.description(),
-                request.price(), request.category());
+        Product product = Product.create(brand, command.name(), command.description(),
+                command.price(), command.category());
         return productRepository.save(product);
     }
 
+    /**
+     * Update product details and optionally transition product status.
+     */
     @Transactional
-    public Product updateProduct(Long id, UpdateProductRequest request) {
+    public Product updateProduct(Long id, UpdateProductCommand command) {
         Product product = getProduct(id);
-        product.update(request.name(), request.description(), request.price(), request.category());
-        if (request.status() != null) {
-            switch (request.status()) {
+        product.update(command.name(), command.description(), command.price(), command.category());
+        if (command.status() != null) {
+            switch (command.status()) {
                 case ACTIVE -> product.activate();
                 case INACTIVE -> product.deactivate();
             }
@@ -56,10 +62,10 @@ public class ProductService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
-    public Page<Product> searchProducts(ProductSearchRequest request, Pageable pageable) {
+    public Page<Product> searchProducts(ProductSearchCommand command, Pageable pageable) {
         return productQueryRepository.search(
-                request.keyword(), request.brandId(), request.category(),
-                request.minPrice(), request.maxPrice(), pageable);
+                command.keyword(), command.brandId(), command.category(),
+                command.minPrice(), command.maxPrice(), pageable);
     }
 
     @Transactional
@@ -68,21 +74,16 @@ public class ProductService {
         productRepository.delete(product);
     }
 
-    public VariantDetailResponse getVariantDetail(Long variantId) {
-        ProductVariant variant = productVariantRepository.findById(variantId)
+    /** Fetch variant with its parent product for internal service-to-service snapshot. */
+    public ProductVariant getVariantDetail(Long variantId) {
+        return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-        Product product = variant.getProduct();
-        return new VariantDetailResponse(
-                product.getId(),
-                variant.getId(),
-                product.getName(),
-                variant.getSize(),
-                variant.getColor(),
-                variant.effectivePrice(),
-                variant.getStockQuantity()
-        );
     }
 
+    /**
+     * Reserve stock for a variant using pessimistic locking.
+     * Called during order creation to prevent overselling.
+     */
     @Transactional
     public ProductVariant reserveStock(Long variantId, int quantity) {
         ProductVariant variant = productVariantRepository.findWithLockById(variantId)
@@ -91,6 +92,9 @@ public class ProductService {
         return variant;
     }
 
+    /**
+     * Release previously reserved stock (compensation on order failure).
+     */
     @Transactional
     public ProductVariant releaseStock(Long variantId, int quantity) {
         ProductVariant variant = productVariantRepository.findWithLockById(variantId)

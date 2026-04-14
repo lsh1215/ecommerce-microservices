@@ -5,6 +5,9 @@ import com.ecommerce.common.dto.PageResponse;
 import com.ecommerce.order.api.dto.request.CancelOrderRequest;
 import com.ecommerce.order.api.dto.request.CreateOrderRequest;
 import com.ecommerce.order.api.dto.response.OrderResponse;
+import com.ecommerce.order.application.dto.CreateOrderCommand;
+import com.ecommerce.order.application.dto.OrderItemCommand;
+import com.ecommerce.order.application.dto.ShippingAddressCommand;
 import com.ecommerce.order.application.service.OrderService;
 import com.ecommerce.order.domain.model.Order;
 import jakarta.validation.Valid;
@@ -31,7 +34,22 @@ public class OrderController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
-        Order order = orderService.createOrder(request);
+        CreateOrderCommand command = new CreateOrderCommand(
+                request.customerId(),
+                request.items().stream()
+                        .map(item -> new OrderItemCommand(
+                                item.productVariantId(), item.productId(), item.productName(),
+                                item.size(), item.color(), item.unitPrice(), item.quantity()))
+                        .toList(),
+                new ShippingAddressCommand(
+                        request.shippingAddress().recipientName(),
+                        request.shippingAddress().phone(),
+                        request.shippingAddress().zipCode(),
+                        request.shippingAddress().address1(),
+                        request.shippingAddress().address2()),
+                request.memo()
+        );
+        Order order = orderService.createOrder(command);
         return ApiResponse.created(OrderResponse.from(order));
     }
 

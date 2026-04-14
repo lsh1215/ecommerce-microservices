@@ -24,7 +24,8 @@ public class InternalProductController {
 
     @GetMapping("/variants/{variantId}")
     public ApiResponse<VariantDetailResponse> getVariantDetail(@PathVariable Long variantId) {
-        return ApiResponse.ok(productService.getVariantDetail(variantId));
+        ProductVariant variant = productService.getVariantDetail(variantId);
+        return ApiResponse.ok(VariantDetailResponse.from(variant));
     }
 
     @PostMapping("/variants/{variantId}/reserve-stock")

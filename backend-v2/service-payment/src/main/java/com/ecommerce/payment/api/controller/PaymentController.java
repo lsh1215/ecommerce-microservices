@@ -4,7 +4,10 @@ import com.ecommerce.common.dto.ApiResponse;
 import com.ecommerce.payment.api.dto.request.ProcessPaymentRequest;
 import com.ecommerce.payment.api.dto.request.RefundPaymentRequest;
 import com.ecommerce.payment.api.dto.response.PaymentResponse;
+import com.ecommerce.payment.application.dto.ProcessPaymentCommand;
+import com.ecommerce.payment.application.dto.RefundPaymentCommand;
 import com.ecommerce.payment.application.service.PaymentService;
+import com.ecommerce.payment.domain.model.Payment;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,19 +29,26 @@ public class PaymentController {
     @PostMapping("/process")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<PaymentResponse> processPayment(@Valid @RequestBody ProcessPaymentRequest request) {
-        return ApiResponse.created(paymentService.process(request));
+        ProcessPaymentCommand command = new ProcessPaymentCommand(
+                request.orderId(), request.orderNumber(), request.amount(), request.paymentMethod()
+        );
+        Payment payment = paymentService.process(command);
+        return ApiResponse.created(PaymentResponse.from(payment));
     }
 
     @PostMapping("/{id}/refund")
     public ApiResponse<PaymentResponse> refundPayment(
             @PathVariable Long id,
             @RequestBody(required = false) RefundPaymentRequest request) {
-        RefundPaymentRequest refundRequest = request != null ? request : new RefundPaymentRequest(null);
-        return ApiResponse.ok(paymentService.refund(id, refundRequest));
+        String reason = request != null ? request.reason() : null;
+        RefundPaymentCommand command = new RefundPaymentCommand(reason);
+        Payment payment = paymentService.refund(id, command);
+        return ApiResponse.ok(PaymentResponse.from(payment));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<PaymentResponse> getPayment(@PathVariable Long id) {
-        return ApiResponse.ok(paymentService.get(id));
+        Payment payment = paymentService.get(id);
+        return ApiResponse.ok(PaymentResponse.from(payment));
     }
 }

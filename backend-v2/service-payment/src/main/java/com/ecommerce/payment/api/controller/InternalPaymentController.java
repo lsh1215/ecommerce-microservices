@@ -3,6 +3,7 @@ package com.ecommerce.payment.api.controller;
 import com.ecommerce.common.dto.ApiResponse;
 import com.ecommerce.payment.api.dto.response.PaymentResponse;
 import com.ecommerce.payment.application.service.PaymentService;
+import com.ecommerce.payment.domain.model.Payment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +19,7 @@ public class InternalPaymentController {
 
     @GetMapping("/order/{orderId}")
     public ApiResponse<PaymentResponse> getPaymentByOrderId(@PathVariable Long orderId) {
-        return ApiResponse.ok(paymentService.getByOrderId(orderId));
+        Payment payment = paymentService.getByOrderId(orderId);
+        return ApiResponse.ok(PaymentResponse.from(payment));
     }
 }

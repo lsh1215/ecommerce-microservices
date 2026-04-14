@@ -4,7 +4,10 @@ import com.ecommerce.common.dto.ApiResponse;
 import com.ecommerce.product.api.dto.request.CreateBrandRequest;
 import com.ecommerce.product.api.dto.request.UpdateBrandRequest;
 import com.ecommerce.product.api.dto.response.BrandResponse;
+import com.ecommerce.product.application.dto.CreateBrandCommand;
+import com.ecommerce.product.application.dto.UpdateBrandCommand;
 import com.ecommerce.product.application.service.BrandService;
+import com.ecommerce.product.domain.model.Brand;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -35,20 +38,29 @@ public class BrandController {
 
     @GetMapping("/{id}")
     public ApiResponse<BrandResponse> getBrand(@PathVariable Long id) {
-        return ApiResponse.ok(BrandResponse.from(brandService.getBrand(id)));
+        Brand brand = brandService.getBrand(id);
+        return ApiResponse.ok(BrandResponse.from(brand));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<BrandResponse> createBrand(
             @Valid @RequestBody CreateBrandRequest request) {
-        return ApiResponse.created(BrandResponse.from(brandService.createBrand(request)));
+        CreateBrandCommand command = new CreateBrandCommand(
+                request.name(), request.description(), request.logoUrl(), request.country()
+        );
+        Brand brand = brandService.createBrand(command);
+        return ApiResponse.created(BrandResponse.from(brand));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<BrandResponse> updateBrand(
             @PathVariable Long id,
             @Valid @RequestBody UpdateBrandRequest request) {
-        return ApiResponse.ok(BrandResponse.from(brandService.updateBrand(id, request)));
+        UpdateBrandCommand command = new UpdateBrandCommand(
+                request.name(), request.description(), request.logoUrl(), request.country()
+        );
+        Brand brand = brandService.updateBrand(id, command);
+        return ApiResponse.ok(BrandResponse.from(brand));
     }
 }

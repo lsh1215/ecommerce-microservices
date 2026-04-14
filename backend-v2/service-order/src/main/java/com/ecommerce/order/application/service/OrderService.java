@@ -2,11 +2,11 @@ package com.ecommerce.order.application.service;
 
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.order.OrderErrorCode;
-import com.ecommerce.order.api.dto.request.CreateOrderRequest;
-import com.ecommerce.order.api.dto.request.OrderItemRequest;
-import com.ecommerce.order.api.dto.request.ShippingAddressRequest;
+import com.ecommerce.order.application.dto.CreateOrderCommand;
+import com.ecommerce.order.application.dto.OrderItemCommand;
 import com.ecommerce.order.application.dto.PaymentResult;
 import com.ecommerce.order.application.dto.ProductSnapshotDto;
+import com.ecommerce.order.application.dto.ShippingAddressCommand;
 import com.ecommerce.order.application.dto.StockReservation;
 import com.ecommerce.order.domain.model.Order;
 import com.ecommerce.order.domain.model.OrderItem;
@@ -37,22 +37,29 @@ public class OrderService {
     private final CustomerDirectoryPort customerDirectory;
     private final PaymentRequestPort paymentRequest;
 
-    // DELIBERATE FLAW: wraps HTTP calls in DB transaction
+    /**
+     * Create a new order with stock reservation and payment processing.
+     * Coordinates across Customer, Product, and Payment services in a single transaction.
+     * DELIBERATE FLAW: @Transactional wraps synchronous HTTP calls, causing long-held DB connections.
+     */
     @Transactional
-    public Order createOrder(CreateOrderRequest request) {
+    public Order createOrder(CreateOrderCommand command) {
         List<StockReservation> reservations = new ArrayList<>();
 
         try {
-            customerDirectory.ensureExists(request.customerId());
+            // Step 1: Validate customer exists (sync HTTP to Customer service)
+            customerDirectory.ensureExists(command.customerId());
 
+            // Step 2: Build order aggregate with shipping address
             Order order = Order.create(
-                    request.customerId(),
+                    command.customerId(),
                     generateOrderNumber(),
-                    mapShippingAddress(request.shippingAddress()),
-                    request.memo()
+                    mapShippingAddress(command.shippingAddress()),
+                    command.memo()
             );
 
-            for (OrderItemRequest item : request.items()) {
+            // Step 3: Reserve stock per item (sync HTTP to Product service per variant)
+            for (OrderItemCommand item : command.items()) {
                 ProductSnapshotDto snapshot = productCatalog.fetchSnapshot(item.productVariantId());
                 productCatalog.reserveStock(item.productVariantId(), item.quantity());
                 reservations.add(new StockReservation(item.productVariantId(), item.quantity()));
@@ -70,10 +77,12 @@ public class OrderService {
 
             orderRepository.save(order);
 
+            // Step 4: Request payment (sync HTTP to Payment service)
             PaymentResult paymentResult = paymentRequest.requestPayment(
                     order.getId(), order.getOrderNumber(), order.getTotalAmount()
             );
 
+            // Step 5: Confirm or cancel based on payment result
             if (paymentResult.success()) {
                 order.markConfirmed();
             } else {
@@ -108,6 +117,7 @@ public class OrderService {
         return order;
     }
 
+    /** Transition order to PAID state (called by Payment service callback). */
     @Transactional
     public Order markPaid(Long id) {
         Order order = getOrder(id);
@@ -115,6 +125,7 @@ public class OrderService {
         return order;
     }
 
+    /** Transition order to CONFIRMED state (called after payment verification). */
     @Transactional
     public Order markConfirmed(Long id) {
         Order order = getOrder(id);
@@ -126,7 +137,7 @@ public class OrderService {
         return UlidCreator.getMonotonicUlid().toString();
     }
 
-    private ShippingAddress mapShippingAddress(ShippingAddressRequest dto) {
+    private ShippingAddress mapShippingAddress(ShippingAddressCommand dto) {
         return new ShippingAddress(
                 dto.recipientName(),
                 dto.phone(),
@@ -136,7 +147,10 @@ public class OrderService {
         );
     }
 
-    // DELIBERATE FLAW: compensation can fail silently
+    /**
+     * Best-effort stock compensation on failure.
+     * DELIBERATE FLAW: compensation can fail silently, leaving phantom reservations.
+     */
     private void releaseAllStock(List<StockReservation> reservations) {
         for (StockReservation reservation : reservations) {
             try {

@@ -2,8 +2,8 @@ package com.ecommerce.product.application.service;
 
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.product.ProductErrorCode;
-import com.ecommerce.product.api.dto.request.CreateBrandRequest;
-import com.ecommerce.product.api.dto.request.UpdateBrandRequest;
+import com.ecommerce.product.application.dto.CreateBrandCommand;
+import com.ecommerce.product.application.dto.UpdateBrandCommand;
 import com.ecommerce.product.domain.model.Brand;
 import com.ecommerce.product.domain.repository.BrandRepository;
 import java.util.List;
@@ -18,20 +18,25 @@ public class BrandService {
 
     private final BrandRepository brandRepository;
 
+    /**
+     * Register a new heritage wear brand.
+     * Enforces unique brand name constraint at the application level.
+     */
     @Transactional
-    public Brand createBrand(CreateBrandRequest request) {
-        if (brandRepository.existsByName(request.name())) {
+    public Brand createBrand(CreateBrandCommand command) {
+        // Guard: prevent duplicate brand names
+        if (brandRepository.existsByName(command.name())) {
             throw new BusinessException(ProductErrorCode.DUPLICATE_BRAND);
         }
-        Brand brand = Brand.create(request.name(), request.description(),
-                request.logoUrl(), request.country());
+        Brand brand = Brand.create(command.name(), command.description(),
+                command.logoUrl(), command.country());
         return brandRepository.save(brand);
     }
 
     @Transactional
-    public Brand updateBrand(Long id, UpdateBrandRequest request) {
+    public Brand updateBrand(Long id, UpdateBrandCommand command) {
         Brand brand = getBrand(id);
-        brand.update(request.description(), request.logoUrl(), request.country());
+        brand.update(command.description(), command.logoUrl(), command.country());
         return brand;
     }
 
