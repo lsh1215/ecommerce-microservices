@@ -1,10 +1,12 @@
 package com.ecommerce.common.outbox;
 
+import jakarta.persistence.OptimisticLockException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,9 @@ public class OutboxPollingPublisher {
                 event.markPublished();
                 log.debug("Outbox event published: {} (aggregate={}/{})",
                     event.getEventType(), event.getAggregateType(), event.getAggregateId());
+            } catch (OptimisticLockException | ObjectOptimisticLockingFailureException e) {
+                log.info("이벤트 {} 이미 다른 인스턴스에서 발행됨, 건너뜀", event.getEventId());
+                continue;
             } catch (Exception e) {
                 event.incrementRetryCount();
                 if (event.getRetryCount() >= MAX_RETRIES) {

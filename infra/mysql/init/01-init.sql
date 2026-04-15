@@ -10,6 +10,25 @@ GRANT ALL PRIVILEGES ON ecommerce_customer.* TO 'sa'@'%';
 FLUSH PRIVILEGES;
 
 -- Outbox event table for transactional outbox pattern (each service DB)
+-- Processed event table for consumer-side idempotency (each service DB)
+USE ecommerce_order;
+CREATE TABLE IF NOT EXISTS processed_event (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    event_id VARCHAR(36) NOT NULL UNIQUE,
+    event_type VARCHAR(100) NOT NULL,
+    processed_at DATETIME(6) NOT NULL,
+    INDEX idx_processed_event_id (event_id)
+);
+
+USE ecommerce_payment;
+CREATE TABLE IF NOT EXISTS processed_event (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    event_id VARCHAR(36) NOT NULL UNIQUE,
+    event_type VARCHAR(100) NOT NULL,
+    processed_at DATETIME(6) NOT NULL,
+    INDEX idx_processed_event_id (event_id)
+);
+
 USE ecommerce_order;
 CREATE TABLE IF NOT EXISTS outbox_event (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
