@@ -106,6 +106,20 @@ docs/PRD.md
 docs/README-msa.md
 docs/subagent-candidates.md
 
+# === Phase Test Results (local only — portfolio/blog source material) ===
+docs/phase-0-baseline/
+docs/phase-1-results/
+docs/phase-2-results/
+docs/phase-3-results/
+docs/phase-4-results/
+docs/phase-5-results/
+docs/portfolio-screenshots/
+
+# === Frontend Local-Only (MSW, instrumentation, scripts) ===
+frontend/src/mocks/
+frontend/src/instrumentation.ts
+frontend/scripts/
+
 # === Pinpoint Agent (downloaded at runtime) ===
 pinpoint-agent/
 
