@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-PINPOINT_VERSION="3.0.1"
+PINPOINT_VERSION="3.0.5"
 AGENT_DIR="$(cd "$(dirname "$0")/.." && pwd)/pinpoint-agent"
 
 if [ -d "$AGENT_DIR" ]; then

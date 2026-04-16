@@ -1,7 +1,8 @@
 services:
   pinpoint-hbase:
-    image: pinpointdocker/pinpoint-hbase:3.0.1
+    image: pinpointdocker/pinpoint-hbase:3.0.5
     container_name: pinpoint-hbase
+    platform: linux/amd64
     ports:
       - "16010:16010"
       - "16030:16030"
@@ -11,8 +12,9 @@ services:
     restart: unless-stopped
 
   pinpoint-collector:
-    image: pinpointdocker/pinpoint-collector:3.0.1
+    image: pinpointdocker/pinpoint-collector:3.0.5
     container_name: pinpoint-collector
+    platform: linux/amd64
     ports:
       - "9991:9991/tcp"
       - "9992:9992/tcp"
@@ -21,20 +23,24 @@ services:
       - "9995:9995/udp"
       - "9996:9996/udp"
     environment:
-      COLLECTOR_HBASE_HOST: pinpoint-hbase
-      COLLECTOR_HBASE_PORT: 2181
+      # Spring Boot relaxed binding: dot-prop → SCREAMING_SNAKE_CASE env var
+      PINPOINT_ZOOKEEPER_ADDRESS: pinpoint-hbase
+      HBASE_HOST: pinpoint-hbase
+      HBASE_PORT: "2181"
     depends_on:
       - pinpoint-hbase
     restart: unless-stopped
 
   pinpoint-web:
-    image: pinpointdocker/pinpoint-web:3.0.1
+    image: pinpointdocker/pinpoint-web:3.0.5
     container_name: pinpoint-web
+    platform: linux/amd64
     ports:
-      - "8079:8079"
+      - "8079:8080"
     environment:
-      WEB_HBASE_HOST: pinpoint-hbase
-      WEB_HBASE_PORT: 2181
+      PINPOINT_ZOOKEEPER_ADDRESS: pinpoint-hbase
+      HBASE_HOST: pinpoint-hbase
+      HBASE_PORT: "2181"
     depends_on:
       - pinpoint-hbase
     restart: unless-stopped
