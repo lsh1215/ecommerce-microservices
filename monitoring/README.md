@@ -53,6 +53,20 @@ To remove stored trace data:
 docker compose -f monitoring/docker-compose.pinpoint.yml down -v
 ```
 
-## Existing Observability Stack
+## Notes
 
-The `docker-compose.observability.yml` file contains the Grafana/Prometheus/OTEL/Loki/Tempo stack. Both stacks can run independently.
+Pinpoint is the sole APM for this project. A Grafana/Prometheus stack was
+evaluated and removed in favor of Pinpoint's distributed tracing + service
+map capabilities, which better fit a portfolio-scale MSA where request-level
+visibility matters more than time-series dashboards.
+
+### Local Apple Silicon caveat
+
+The Pinpoint 3.0.x HBase image is amd64 only — it runs under Docker Desktop
+emulation on Apple Silicon. The provided compose pins `platform: linux/amd64`
+and sets the Zookeeper address via Spring relaxed-binding env vars. HBase
+initialization takes 60-120 seconds on first start due to the emulation
+overhead; wait for `hbase-create` table creation to complete in
+`docker logs pinpoint-hbase` before starting services with the agent.
+
+For production, consider running Pinpoint on a native amd64 host or VM.
