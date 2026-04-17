@@ -106,13 +106,9 @@ docs/PRD.md
 docs/README-msa.md
 docs/subagent-candidates.md
 
-# === Phase Test Results (local only — portfolio/blog source material) ===
-docs/phase-0-baseline/
-docs/phase-1-results/
-docs/phase-2-results/
-docs/phase-3-results/
-docs/phase-4-results/
-docs/phase-5-results/
+# === Phase Test Results — tracked for portfolio evidence reproducibility ===
+# (Re-runnable via scripts/phase*-*.sh; committed to main as canonical artifacts.)
+# Screenshots folder remains local-only.
 docs/portfolio-screenshots/
 
 # === Frontend Local-Only (MSW, instrumentation, scripts) ===

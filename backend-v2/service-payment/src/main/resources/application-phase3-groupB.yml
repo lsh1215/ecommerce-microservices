@@ -1,0 +1,7 @@
+server:
+  port: 8183
+
+spring:
+  kafka:
+    consumer:
+      group-id: payment-group-b
