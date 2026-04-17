@@ -1,0 +1,77 @@
+============================================================
+Phase 2 After-state — Transactional Outbox recovers lost events
+============================================================
+Worktree:        /Users/leesanghun/My_Project/ecommerce-microservices-worktrees/phase2
+Commit SHA:      eedeaa33a7a63f8837b11666023b6b2d3e92a5dc
+Run timestamp:   2026-04-17T19:27:37Z
+Services up:     Order / Product / Payment / Customer
+Mechanism:       OrderOutboxEventHandler writes to outbox_event in the same @Transactional as the order row.
+                 OutboxPollingPublisher runs @Scheduled(fixedDelay=500ms) and drains PENDING rows to Kafka.
+                 When Kafka is down, PollingPublisher retries (incrementing retry_count);
+                 when Kafka recovers, the PENDING rows drain and transition to PUBLISHED.
+                 Killing the Order process does NOT lose events — they survive in the outbox_event table on disk.
+------------------------------------------------------------
+
+[T-1] Let Payment consumer drain historical Kafka events (15s wait done before this block)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+tbl	n
+orders	0
+outbox_event	0
+payment	0
+
+[T0] Reset test data: truncate orders and payments for clean delta
+mysql: [Warning] Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+tbl	n
+orders	0
+outbox_event	0
+payment	0
+
+[T1] docker stop kafka
+ecommerce-kafka
+NAMES     STATUS
+
+[T2] With Kafka down, POST 3 orders
+  attempt[1]: {"success":true,"message":"Created","data":{"id":1,"customerId":1,"orderNumber":"01KPEEKHDSFK18CYX3HVHG3J2V","status":"PENDING","totalAmount":29900.0,
+  attempt[2]: {"success":true,"message":"Created","data":{"id":2,"customerId":1,"orderNumber":"01KPEEKHTY92F9XQW0FMA3A7ZV","status":"PENDING","totalAmount":29900.0,
+  attempt[3]: {"success":true,"message":"Created","data":{"id":3,"customerId":1,"orderNumber":"01KPEEKHWEH86SXSMRBR76FQDN","status":"PENDING","totalAmount":29900.0,
+
+[T3] Snapshot — orders persisted, outbox_event has rows (status=PENDING), payment = 0
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	order_number	status
+1	01KPEEKHDSFK18CYX3HVHG3J2V	PENDING
+2	01KPEEKHTY92F9XQW0FMA3A7ZV	PENDING
+3	01KPEEKHWEH86SXSMRBR76FQDN	PENDING
+event_id	event_type	status	retry_count
+01KPEEKHSD088GYSQRE2TGDQ5R	order.created	PENDING	0
+01KPEEKHVQK54518DMBK0HS62T	order.created	PENDING	0
+01KPEEKHX2680ZP6WF808QT4C4	order.created	PENDING	0
+payments
+0
+
+[T4] Kill Order service (simulate pod eviction) — outbox rows survive on disk
+  killed order service pid=65815
+
+[T5] Restart Kafka + Order service
+ecommerce-kafka
+  order pid: 66077
+  order back up at iter 4
+
+[T6] Wait 30s for Outbox poller to drain PENDING events to Kafka + Payment consumer
+
+[T7] Final snapshot — outbox rows should all be PUBLISHED; payment should have 3 new rows
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	order_number	status
+1	01KPEEKHDSFK18CYX3HVHG3J2V	PENDING
+2	01KPEEKHTY92F9XQW0FMA3A7ZV	PENDING
+3	01KPEEKHWEH86SXSMRBR76FQDN	PENDING
+event_id	event_type	status	retry_count
+01KPEEKHSD088GYSQRE2TGDQ5R	order.created	PUBLISHED	0
+01KPEEKHVQK54518DMBK0HS62T	order.created	PUBLISHED	0
+01KPEEKHX2680ZP6WF808QT4C4	order.created	PUBLISHED	0
+id	order_id	status
+1	1	COMPLETED
+2	2	COMPLETED
+3	3	COMPLETED
+
+VERDICT: outbox_event rows transitioned PENDING → PUBLISHED after Kafka recovery; payments created for all 3 test orders.

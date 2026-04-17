@@ -100,7 +100,7 @@ echo "  processed_event + payment cleared"
 # ---- build jar ----
 echo "[step 2] Building service-payment bootJar (skipping tests)"
 (cd "${REPO_ROOT}/backend-v2" && ./gradlew :service-payment:bootJar -x test -q)
-PAYMENT_JAR="$(ls "${REPO_ROOT}/backend-v2/service-payment/build/libs/"*.jar | head -n1)"
+PAYMENT_JAR="$(ls "${REPO_ROOT}/backend-v2/service-payment/build/libs/"service-payment-*.jar | grep -v '\-plain\.jar' | head -n1)"
 echo "  jar: ${PAYMENT_JAR}"
 
 # ---- start two instances ----
@@ -131,28 +131,25 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# ---- wait for both consumer groups Stable ----
-echo "[step 5] Waiting for consumer groups Stable"
-wait_group_stable() {
-  local group="$1"
-  local deadline=$((SECONDS + 90))
+# ---- wait for both Payment instances healthy ----
+echo "[step 5] Waiting for Payment instances to be healthy"
+wait_healthy() {
+  local port="$1"
+  local label="$2"
+  local deadline=$((SECONDS + 180))
   while (( SECONDS < deadline )); do
-    if docker exec ecommerce-kafka /opt/kafka/bin/kafka-consumer-groups.sh \
-        --bootstrap-server localhost:9092 --describe --group "${group}" 2>/dev/null \
-        | grep -q "Stable\|${group}.*[0-9]"; then
-      # Tolerate both "Stable" state and any assignment row.
-      # First join may not print "Stable" literally on some kafka versions.
-      echo "  ${group}: ready"
+    if curl -sfS "http://localhost:${port}/actuator/health" >/dev/null 2>&1; then
+      echo "  ${label} (:${port}): healthy"
       return 0
     fi
     sleep 2
   done
-  echo "  ${group}: timeout waiting for stable" >&2
+  echo "  ${label} (:${port}): timeout waiting for health" >&2
   return 1
 }
-wait_group_stable payment-group-a
-wait_group_stable payment-group-b
-sleep 5  # safety margin so both instances have attached their KafkaListeners
+wait_healthy 8083 "payment-group-a"
+wait_healthy 8183 "payment-group-b"
+sleep 10  # safety margin so both instances have attached their KafkaListeners and completed group rebalance
 
 # ---- post orders ----
 echo "[step 6] Posting ${ORDERS} orders to Order service :8082"
@@ -160,7 +157,7 @@ ORDER_IDS=()
 for i in $(seq 1 "${ORDERS}"); do
   RESP=$(curl -sS -X POST http://localhost:8082/api/orders \
     -H 'Content-Type: application/json' \
-    -d "{\"customerId\":1,\"items\":[{\"productVariantId\":1,\"quantity\":1}]}" \
+    -d '{"customerId":1,"items":[{"productVariantId":1,"productId":1,"productName":"Phase3 Test","size":"M","color":"Black","unitPrice":29900,"quantity":1}],"shippingAddress":{"recipientName":"Test","phone":"010-0000-0000","zipCode":"06234","address1":"Seoul","address2":"Test"}}' \
     || true)
   ORDER_ID=$(echo "${RESP}" | jq -r '.data.id // empty' 2>/dev/null || true)
   if [[ -z "${ORDER_ID}" ]]; then
