@@ -12,20 +12,31 @@ import com.ecommerce.payment.domain.model.PaymentStatus;
 import com.ecommerce.payment.domain.repository.PaymentRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentStubProcessor stubProcessor;
     private final ApplicationEventPublisher eventPublisher;
+    private final boolean businessGuardEnabled;
+
+    public PaymentService(
+            PaymentRepository paymentRepository,
+            PaymentStubProcessor stubProcessor,
+            ApplicationEventPublisher eventPublisher,
+            @Value("${application.business-idempotency-guard.enabled:true}") boolean businessGuardEnabled) {
+        this.paymentRepository = paymentRepository;
+        this.stubProcessor = stubProcessor;
+        this.eventPublisher = eventPublisher;
+        this.businessGuardEnabled = businessGuardEnabled;
+    }
 
     /**
      * 주어진 주문에 대한 결제를 처리한다.
@@ -90,10 +101,16 @@ public class PaymentService {
      */
     @Transactional
     public void processFromEvent(Long orderId, String orderNumber, BigDecimal amount) {
-        // 멱등성: 이미 처리된 주문이면 무시
-        if (paymentRepository.existsByOrderIdAndStatus(orderId, PaymentStatus.COMPLETED)) {
-            log.info("이미 완료된 결제 무시: orderId={}", orderId);
-            return;
+        // 비즈니스 멱등성 가드: 이미 완료된 결제가 있으면 중복 생성 방지.
+        // application.business-idempotency-guard.enabled=false 일 때 건너뛴다
+        // (Phase 3 Before evidence harness 전용 — 운영에서는 사용 금지).
+        if (businessGuardEnabled) {
+            if (paymentRepository.existsByOrderIdAndStatus(orderId, PaymentStatus.COMPLETED)) {
+                log.info("이미 완료된 결제 무시: orderId={}", orderId);
+                return;
+            }
+        } else {
+            log.warn("business idempotency guard disabled — proceeding without completed-payment check: orderId={}", orderId);
         }
 
         Payment payment = Payment.create(orderId, orderNumber, amount, PaymentMethod.CARD);
