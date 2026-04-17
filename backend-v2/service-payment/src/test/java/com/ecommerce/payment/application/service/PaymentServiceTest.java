@@ -15,11 +15,11 @@ import com.ecommerce.payment.domain.model.PaymentStatus;
 import com.ecommerce.payment.domain.repository.PaymentRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,8 +36,16 @@ class PaymentServiceTest {
     @Mock
     ApplicationEventPublisher eventPublisher;
 
-    @InjectMocks
     PaymentService paymentService;
+
+    @BeforeEach
+    void setUp() {
+        paymentService = new PaymentService(paymentRepository, stubProcessor, eventPublisher, true);
+    }
+
+    private PaymentService withGuard(boolean enabled) {
+        return new PaymentService(paymentRepository, stubProcessor, eventPublisher, enabled);
+    }
 
     // --- processFromEvent tests ---
 
@@ -141,5 +149,34 @@ class PaymentServiceTest {
 
         // When / Then — 예외 없이 조용히 종료됨
         assertThatCode(() -> paymentService.cancelFromEvent(1L)).doesNotThrowAnyException();
+    }
+
+    // --- business-idempotency-guard toggle tests ---
+
+    @Test
+    @DisplayName("businessGuard=false 일 때 existsByOrderIdAndStatus 체크 없이 항상 Payment를 생성한다")
+    void processFromEvent_guardDisabled_skipsCompletedCheckAndAlwaysProcesses() {
+        given(paymentRepository.save(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
+        given(stubProcessor.attempt(any())).willReturn(new PaymentStubProcessor.Result(true, "TXN-001"));
+
+        PaymentService disabled = withGuard(false);
+        disabled.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
+
+        verify(paymentRepository, never()).existsByOrderIdAndStatus(any(), any());
+        verify(paymentRepository).save(any(Payment.class));
+    }
+
+    @Test
+    @DisplayName("businessGuard=false 일 때 같은 orderId에 대해 processFromEvent를 두 번 호출하면 Payment가 두 번 저장된다")
+    void processFromEvent_guardDisabled_allowsDuplicatePaymentCreation() {
+        given(paymentRepository.save(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
+        given(stubProcessor.attempt(any())).willReturn(new PaymentStubProcessor.Result(true, "TXN-001"));
+
+        PaymentService disabled = withGuard(false);
+        disabled.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
+        disabled.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
+
+        verify(paymentRepository, never()).existsByOrderIdAndStatus(any(), any());
+        verify(paymentRepository, org.mockito.Mockito.times(2)).save(any(Payment.class));
     }
 }
