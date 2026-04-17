@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 
 import com.ecommerce.common.outbox.OutboxEvent;
 import com.ecommerce.common.outbox.OutboxEventRepository;
+import com.ecommerce.common.outbox.OutboxEventStatus;
 import com.ecommerce.common.outbox.OutboxPollingPublisher;
 import java.util.Collections;
 import java.util.List;
@@ -42,7 +43,7 @@ class OutboxPollingPublisherTest {
     void publishPendingEvents_singleEvent_publishesSuccessfullyAndMarksPublished() {
         // Given
         OutboxEvent event = OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001");
-        given(outboxRepository.findTop100ByPublishedAtIsNullOrderByCreatedAtAsc())
+        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event));
 
         @SuppressWarnings("unchecked")
@@ -54,6 +55,7 @@ class OutboxPollingPublisherTest {
         publisher.publishPendingEvents();
 
         // Then
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
         assertThat(event.isPublished()).isTrue();
         assertThat(event.getRetryCount()).isEqualTo(0);
     }
@@ -64,7 +66,7 @@ class OutboxPollingPublisherTest {
         // Given
         OutboxEvent event1 = OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001");
         OutboxEvent event2 = OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002");
-        given(outboxRepository.findTop100ByPublishedAtIsNullOrderByCreatedAtAsc())
+        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event1, event2));
 
         CompletableFuture<SendResult<String, String>> failedFuture = new CompletableFuture<>();
@@ -75,6 +77,7 @@ class OutboxPollingPublisherTest {
         publisher.publishPendingEvents();
 
         // Then
+        assertThat(event1.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
         assertThat(event1.isPublished()).isFalse();
         assertThat(event1.getRetryCount()).isEqualTo(1);
         verify(stringKafkaTemplate, times(1)).send(anyString(), anyString(), anyString());
@@ -88,7 +91,7 @@ class OutboxPollingPublisherTest {
         for (int i = 0; i < 4; i++) {
             event.incrementRetryCount();
         }
-        given(outboxRepository.findTop100ByPublishedAtIsNullOrderByCreatedAtAsc())
+        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event));
 
         CompletableFuture<SendResult<String, String>> failedFuture = new CompletableFuture<>();
@@ -100,7 +103,8 @@ class OutboxPollingPublisherTest {
 
         // Then
         assertThat(event.getRetryCount()).isEqualTo(5);
-        assertThat(event.isPublished()).isTrue();
+        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.FAILED);
+        assertThat(event.isPublished()).isFalse();
     }
 
     @Test
@@ -109,7 +113,7 @@ class OutboxPollingPublisherTest {
         // Given
         OutboxEvent event1 = OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001");
         OutboxEvent event2 = OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002");
-        given(outboxRepository.findTop100ByPublishedAtIsNullOrderByCreatedAtAsc())
+        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event1, event2));
 
         given(stringKafkaTemplate.send(eq("order.created"), eq("ORD-001"), anyString()))
@@ -125,7 +129,9 @@ class OutboxPollingPublisherTest {
         publisher.publishPendingEvents();
 
         // Then
+        assertThat(event1.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
         assertThat(event1.isPublished()).isFalse();
+        assertThat(event2.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
         assertThat(event2.isPublished()).isTrue();
     }
 
@@ -133,7 +139,7 @@ class OutboxPollingPublisherTest {
     @DisplayName("미발행 이벤트가 없으면 Kafka와 상호작용하지 않는다")
     void publishPendingEvents_emptyQueue_doesNotInteractWithKafka() {
         // Given
-        given(outboxRepository.findTop100ByPublishedAtIsNullOrderByCreatedAtAsc())
+        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(Collections.emptyList());
 
         // When

@@ -4,6 +4,8 @@ import com.ecommerce.common.entity.BaseEntity;
 import com.github.f4b6a3.ulid.UlidCreator;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
@@ -14,7 +16,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "outbox_event", indexes = {
-    @Index(name = "idx_outbox_unpublished", columnList = "publishedAt, createdAt")
+    @Index(name = "idx_outbox_status_created", columnList = "status, createdAt")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -38,6 +40,10 @@ public class OutboxEvent extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String partitionKey;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'PENDING'")
+    private OutboxEventStatus status;
+
     private LocalDateTime publishedAt;
 
     private int retryCount;
@@ -54,11 +60,13 @@ public class OutboxEvent extends BaseEntity {
         event.eventType = eventType;
         event.payload = payload;
         event.partitionKey = partitionKey;
+        event.status = OutboxEventStatus.PENDING;
         event.retryCount = 0;
         return event;
     }
 
     public void markPublished() {
+        this.status = OutboxEventStatus.PUBLISHED;
         this.publishedAt = LocalDateTime.now();
     }
 
@@ -67,10 +75,11 @@ public class OutboxEvent extends BaseEntity {
     }
 
     public void markFailed() {
+        this.status = OutboxEventStatus.FAILED;
         this.publishedAt = LocalDateTime.now();
     }
 
     public boolean isPublished() {
-        return publishedAt != null;
+        return status == OutboxEventStatus.PUBLISHED;
     }
 }
