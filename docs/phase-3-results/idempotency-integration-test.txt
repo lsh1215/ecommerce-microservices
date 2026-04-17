@@ -1,0 +1,154 @@
+========================================
+Phase 3 Idempotent Event Processing — Integration Test Evidence
+========================================
+Date: 2026-04-15 18:04:07 KST
+Environment: macOS local, MySQL 8.0 (Docker :3307), Kafka 3.8.1 (Docker :9092)
+Services: 4 Spring Boot apps (local profile, ./gradlew bootRun)
+========================================
+
+=== STEP 0: Pre-Test DB State ===
+
+$ mysql> SELECT COUNT(*) as total_payments FROM payment;
+total_payments
+291
+
+$ mysql> SELECT COUNT(*) as total_processed_events FROM processed_event;
+total_processed_events
+5
+
+=== STEP 1: Create Order → Verify Single Event Processing ===
+
+$ curl -X POST http://localhost:8082/api/orders ...
+{
+    "success": true,
+    "message": "Created",
+    "data": {
+        "id": 431,
+        "customerId": 15,
+        "orderNumber": "01KP864CCFHNBAWQEKXYHFS43X",
+        "status": "PENDING",
+        "totalAmount": 49900.0,
+        "shippingAddress": {
+            "recipientName": "\uba71\ub4f1\uc131\ud14c\uc2a4\ud2b8",
+            "phone": "010-9999-8888",
+            "zipCode": "54321",
+            "address1": "\uc11c\uc6b8\uc2dc \uc11c\ucd08\uad6c \ubc18\ud3ec\ub300\ub85c 45",
+            "address2": "\uba71\ub4f1\uc131\ud14c\uc2a4\ud2b8\ub3d9 101\ud638"
+        },
+        "memo": null,
+        "items": [
+            {
+                "id": 431,
+                "productId": 2,
+                "productVariantId": 4,
+                "productName": "Dri-FIT Training Shorts",
+                "size": "S",
+                "color": "Black",
+                "unitPrice": 49900.0,
+                "quantity": 1,
+                "totalPrice": 49900.0
+            }
+        ],
+        "createdAt": "2026-04-15T18:04:07.643452",
+        "updatedAt": "2026-04-15T18:04:07.643452"
+    }
+}
+
+NOTE: outbox_event.event_id (outbox 추적용)과 payload JSON 내 eventId (consumer 멱등성 키)는
+      별개의 ULID로 생성됨. Consumer는 payload의 eventId를 사용하므로 processed_event 조회 시
+      payload eventId로 검증해야 함.
+
+$ mysql> SELECT id, event_id, event_type, JSON_UNQUOTE(JSON_EXTRACT(payload, '$.eventId')) as payload_event_id FROM outbox_event ORDER BY id DESC LIMIT 1;
+id	event_id                        event_type      payload_event_id
+14	01KP864CFGAF8DZMJ0MA87QCQS	order.created	01KP864CFGAF8DZMJ0MA87QCQR
+
+Target payload eventId: 01KP864CFGAF8DZMJ0MA87QCQR (orderId: 431)
+
+$ mysql> SELECT id, order_id, amount, status FROM payment WHERE order_id = 431;
+id	order_id	amount	status
+292	431	49900.00	COMPLETED
+
+$ mysql> SELECT event_id, event_type, processed_at FROM processed_event WHERE event_id = '01KP864CFGAF8DZMJ0MA87QCQR';
+event_id                        event_type      processed_at
+01KP864CFGAF8DZMJ0MA87QCQR	order.created	2026-04-15 18:04:08.108492
+
+✅ Normal flow: 1 event → 1 payment → 1 processed_event record (payload eventId 기준)
+
+=== STEP 2: Inject 5 Duplicate Events via Kafka ===
+
+Target eventId (from payload): 01KP864CFGAF8DZMJ0MA87QCQR
+Target orderId: 431
+
+Pre-injection state:
+$ mysql> SELECT COUNT(*) as payments_for_order FROM payment WHERE order_id = 431;
+payments_for_order
+1
+
+Injecting same event 5 times into Kafka topic 'order.created'...
+
+  Injection 1/5:
+    → Sent to order.created topic
+  Injection 2/5:
+    → Sent to order.created topic
+  Injection 3/5:
+    → Sent to order.created topic
+  Injection 4/5:
+    → Sent to order.created topic
+  Injection 5/5:
+    → Sent to order.created topic
+
+Waiting 5 seconds for consumer processing...
+
+Post-injection state:
+
+$ mysql> SELECT COUNT(*) as payments_for_order FROM payment WHERE order_id = 431;
+payments_for_order
+1
+
+$ mysql> SELECT id, order_id, amount, status FROM payment WHERE order_id = 431;
+id	order_id	amount	status
+292	431	49900.00	COMPLETED
+
+$ mysql> SELECT event_id, event_type, processed_at FROM processed_event WHERE event_id = '01KP864CFGAF8DZMJ0MA87QCQR';
+event_id	event_type	processed_at
+01KP864CFGAF8DZMJ0MA87QCQR	order.created	2026-04-15 18:04:08.108492
+
+$ mysql> SELECT COUNT(*) as total_processed_events FROM processed_event;
+total_processed_events
+6
+
+✅ 5 duplicate events injected → Payment count unchanged (1) → processed_event record unchanged (1)
+   IdempotentEventHandler: existsByEventId() fast-path blocked all 5 duplicates
+
+=== STEP 3: Unit Test Results — IdempotentEventHandler + Consumers ===
+
+--- IdempotentEventHandlerTest ---
+$ ./gradlew :service-order:test --tests '*IdempotentEventHandlerTest'
+IdempotentEventHandlerTest > 이미 처리된 eventId면 processor를 실행하지 않고 false를 반환한다 PASSED
+IdempotentEventHandlerTest > 새 이벤트 처리 시 processor를 실행하고 ProcessedEvent를 저장한다 PASSED
+IdempotentEventHandlerTest > processor에서 예외 발생 시 ProcessedEvent를 저장하지 않고 예외를 전파한다 PASSED
+IdempotentEventHandlerTest > 동시에 같은 이벤트를 처리할 때 DataIntegrityViolationException이 발생해도 true를 반환한다 PASSED
+
+--- OrderEventConsumerTest ---
+$ ./gradlew :service-payment:test --tests '*OrderEventConsumerTest'
+OrderEventConsumerTest > 유효한 order.cancelled 메시지 수신 시 PaymentService.cancelFromEvent를 호출한다 PASSED
+OrderEventConsumerTest > 유효한 order.created 메시지 수신 시 PaymentService.processFromEvent를 호출한다 PASSED
+OrderEventConsumerTest > JSON 파싱 실패 시 RuntimeException을 던진다 PASSED
+OrderEventConsumerTest > 중복 order.created 이벤트는 PaymentService를 호출하지 않는다 PASSED
+
+--- PaymentEventConsumerTest ---
+$ ./gradlew :service-order:test --tests '*PaymentEventConsumerTest'
+PaymentEventConsumerTest > 유효한 payment.failed 메시지 수신 시 IdempotentEventHandler를 통해 orchestrator를 호출한다 PASSED
+PaymentEventConsumerTest > 중복 payment.completed 이벤트는 orchestrator를 호출하지 않는다 PASSED
+PaymentEventConsumerTest > 유효한 payment.completed 메시지 수신 시 IdempotentEventHandler를 통해 orchestrator를 호출한다 PASSED
+PaymentEventConsumerTest > JSON 파싱 실패 시 RuntimeException을 던진다 PASSED
+
+--- PaymentServiceTest ---
+$ ./gradlew :service-payment:test --tests '*PaymentServiceTest'
+PaymentServiceTest > PG 결제 실패 시 Payment를 FAILED로 저장하고 PaymentFailedEvent를 발행한다 PASSED
+PaymentServiceTest > COMPLETED 상태 결제가 있으면 REFUNDED로 전이한다 PASSED
+PaymentServiceTest > 이미 COMPLETED 결제가 존재하는 주문이면 처리를 건너뛴다 PASSED
+PaymentServiceTest > PG 결제 성공 시 Payment를 COMPLETED로 저장하고 PaymentCompletedEvent를 발행한다 PASSED
+PaymentServiceTest > 취소할 결제가 없으면 아무 작업도 하지 않는다 PASSED
+PaymentServiceTest > PENDING 상태 결제가 있으면 FAILED로 전이한다 PASSED
+
