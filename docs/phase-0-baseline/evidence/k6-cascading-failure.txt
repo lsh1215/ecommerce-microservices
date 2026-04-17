@@ -1,0 +1,247 @@
+============================================================
+Phase 0 Before-state — Cascading Failure (Payment DOWN)
+============================================================
+Worktree:        /Users/leesanghun/My_Project/ecommerce-microservices-worktrees/phase0
+Commit SHA:      274c26dc24ad1d8b32bba45e538c1e7b4a76a161
+Run timestamp:   2026-04-17T19:21:29Z
+Services up:     Order :8082, Product :8081, Customer :8084  (Payment :8083 intentionally DOWN)
+Stock:           variants 1-5 set to 100,000 so stock is not the failure mode
+k6 script:       k6/scripts/cascading-failure.js
+Expected:        order POST fails because Order→Payment sync RestClient has no downstream.
+Sample 5xx:      {"success":false,"message":"Payment service unavailable: I/O error on POST request for ..."}
+------------------------------------------------------------
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: k6/scripts/cascading-failure.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 20 max VUs, 1m30s max duration (incl. graceful stop):
+              * constant_load: 20 looping VUs for 1m0s (gracefulStop: 30s)
+
+
+running (0m01.0s), 20/20 VUs, 30 complete and 0 interrupted iterations
+constant_load   [   2% ] 20 VUs  0m01.0s/1m0s
+
+running (0m02.0s), 20/20 VUs, 90 complete and 0 interrupted iterations
+constant_load   [   3% ] 20 VUs  0m02.0s/1m0s
+
+running (0m03.0s), 20/20 VUs, 146 complete and 0 interrupted iterations
+constant_load   [   5% ] 20 VUs  0m03.0s/1m0s
+
+running (0m04.0s), 20/20 VUs, 205 complete and 0 interrupted iterations
+constant_load   [   7% ] 20 VUs  0m04.0s/1m0s
+
+running (0m05.0s), 20/20 VUs, 266 complete and 0 interrupted iterations
+constant_load   [   8% ] 20 VUs  0m05.0s/1m0s
+
+running (0m06.0s), 20/20 VUs, 318 complete and 0 interrupted iterations
+constant_load   [  10% ] 20 VUs  0m06.0s/1m0s
+
+running (0m07.0s), 20/20 VUs, 378 complete and 0 interrupted iterations
+constant_load   [  12% ] 20 VUs  0m07.0s/1m0s
+
+running (0m08.0s), 20/20 VUs, 434 complete and 0 interrupted iterations
+constant_load   [  13% ] 20 VUs  0m08.0s/1m0s
+
+running (0m09.0s), 20/20 VUs, 488 complete and 0 interrupted iterations
+constant_load   [  15% ] 20 VUs  0m09.0s/1m0s
+
+running (0m10.0s), 20/20 VUs, 550 complete and 0 interrupted iterations
+constant_load   [  17% ] 20 VUs  0m10.0s/1m0s
+
+running (0m11.0s), 20/20 VUs, 610 complete and 0 interrupted iterations
+constant_load   [  18% ] 20 VUs  0m11.0s/1m0s
+
+running (0m12.0s), 20/20 VUs, 670 complete and 0 interrupted iterations
+constant_load   [  20% ] 20 VUs  0m12.0s/1m0s
+
+running (0m13.0s), 20/20 VUs, 726 complete and 0 interrupted iterations
+constant_load   [  22% ] 20 VUs  0m13.0s/1m0s
+
+running (0m14.0s), 20/20 VUs, 786 complete and 0 interrupted iterations
+constant_load   [  23% ] 20 VUs  0m14.0s/1m0s
+
+running (0m15.0s), 20/20 VUs, 846 complete and 0 interrupted iterations
+constant_load   [  25% ] 20 VUs  0m15.0s/1m0s
+
+running (0m16.0s), 20/20 VUs, 903 complete and 0 interrupted iterations
+constant_load   [  27% ] 20 VUs  0m16.0s/1m0s
+
+running (0m17.0s), 20/20 VUs, 963 complete and 0 interrupted iterations
+constant_load   [  28% ] 20 VUs  0m17.0s/1m0s
+
+running (0m18.0s), 20/20 VUs, 1028 complete and 0 interrupted iterations
+constant_load   [  30% ] 20 VUs  0m18.0s/1m0s
+
+running (0m19.0s), 20/20 VUs, 1088 complete and 0 interrupted iterations
+constant_load   [  32% ] 20 VUs  0m19.0s/1m0s
+
+running (0m20.0s), 20/20 VUs, 1128 complete and 0 interrupted iterations
+constant_load   [  33% ] 20 VUs  0m20.0s/1m0s
+
+running (0m21.0s), 20/20 VUs, 1193 complete and 0 interrupted iterations
+constant_load   [  35% ] 20 VUs  0m21.0s/1m0s
+
+running (0m22.0s), 20/20 VUs, 1255 complete and 0 interrupted iterations
+constant_load   [  37% ] 20 VUs  0m22.0s/1m0s
+
+running (0m23.0s), 20/20 VUs, 1319 complete and 0 interrupted iterations
+constant_load   [  38% ] 20 VUs  0m23.0s/1m0s
+
+running (0m24.0s), 20/20 VUs, 1381 complete and 0 interrupted iterations
+constant_load   [  40% ] 20 VUs  0m24.0s/1m0s
+
+running (0m25.0s), 20/20 VUs, 1441 complete and 0 interrupted iterations
+constant_load   [  42% ] 20 VUs  0m25.0s/1m0s
+
+running (0m26.0s), 20/20 VUs, 1503 complete and 0 interrupted iterations
+constant_load   [  43% ] 20 VUs  0m26.0s/1m0s
+
+running (0m27.0s), 20/20 VUs, 1564 complete and 0 interrupted iterations
+constant_load   [  45% ] 20 VUs  0m27.0s/1m0s
+
+running (0m28.0s), 20/20 VUs, 1628 complete and 0 interrupted iterations
+constant_load   [  47% ] 20 VUs  0m28.0s/1m0s
+
+running (0m29.0s), 20/20 VUs, 1688 complete and 0 interrupted iterations
+constant_load   [  48% ] 20 VUs  0m29.0s/1m0s
+
+running (0m30.0s), 20/20 VUs, 1748 complete and 0 interrupted iterations
+constant_load   [  50% ] 20 VUs  0m30.0s/1m0s
+
+running (0m31.0s), 20/20 VUs, 1810 complete and 0 interrupted iterations
+constant_load   [  52% ] 20 VUs  0m31.0s/1m0s
+
+running (0m32.0s), 20/20 VUs, 1872 complete and 0 interrupted iterations
+constant_load   [  53% ] 20 VUs  0m32.0s/1m0s
+
+running (0m33.0s), 20/20 VUs, 1938 complete and 0 interrupted iterations
+constant_load   [  55% ] 20 VUs  0m33.0s/1m0s
+
+running (0m34.0s), 20/20 VUs, 2000 complete and 0 interrupted iterations
+constant_load   [  57% ] 20 VUs  0m34.0s/1m0s
+
+running (0m35.0s), 20/20 VUs, 2060 complete and 0 interrupted iterations
+constant_load   [  58% ] 20 VUs  0m35.0s/1m0s
+
+running (0m36.0s), 20/20 VUs, 2120 complete and 0 interrupted iterations
+constant_load   [  60% ] 20 VUs  0m36.0s/1m0s
+
+running (0m37.0s), 20/20 VUs, 2184 complete and 0 interrupted iterations
+constant_load   [  62% ] 20 VUs  0m37.0s/1m0s
+
+running (0m38.0s), 20/20 VUs, 2249 complete and 0 interrupted iterations
+constant_load   [  63% ] 20 VUs  0m38.0s/1m0s
+
+running (0m39.0s), 20/20 VUs, 2312 complete and 0 interrupted iterations
+constant_load   [  65% ] 20 VUs  0m39.0s/1m0s
+
+running (0m40.0s), 20/20 VUs, 2366 complete and 0 interrupted iterations
+constant_load   [  67% ] 20 VUs  0m40.0s/1m0s
+
+running (0m41.0s), 20/20 VUs, 2429 complete and 0 interrupted iterations
+constant_load   [  68% ] 20 VUs  0m41.0s/1m0s
+
+running (0m42.0s), 20/20 VUs, 2488 complete and 0 interrupted iterations
+constant_load   [  70% ] 20 VUs  0m42.0s/1m0s
+
+running (0m43.0s), 20/20 VUs, 2548 complete and 0 interrupted iterations
+constant_load   [  72% ] 20 VUs  0m43.0s/1m0s
+
+running (0m44.0s), 20/20 VUs, 2613 complete and 0 interrupted iterations
+constant_load   [  73% ] 20 VUs  0m44.0s/1m0s
+
+running (0m45.0s), 20/20 VUs, 2677 complete and 0 interrupted iterations
+constant_load   [  75% ] 20 VUs  0m45.0s/1m0s
+
+running (0m46.0s), 20/20 VUs, 2737 complete and 0 interrupted iterations
+constant_load   [  77% ] 20 VUs  0m46.0s/1m0s
+
+running (0m47.0s), 20/20 VUs, 2800 complete and 0 interrupted iterations
+constant_load   [  78% ] 20 VUs  0m47.0s/1m0s
+
+running (0m48.0s), 20/20 VUs, 2860 complete and 0 interrupted iterations
+constant_load   [  80% ] 20 VUs  0m48.0s/1m0s
+
+running (0m49.0s), 20/20 VUs, 2922 complete and 0 interrupted iterations
+constant_load   [  82% ] 20 VUs  0m49.0s/1m0s
+
+running (0m50.0s), 20/20 VUs, 2982 complete and 0 interrupted iterations
+constant_load   [  83% ] 20 VUs  0m50.0s/1m0s
+
+running (0m51.0s), 20/20 VUs, 3042 complete and 0 interrupted iterations
+constant_load   [  85% ] 20 VUs  0m51.0s/1m0s
+
+running (0m52.0s), 20/20 VUs, 3105 complete and 0 interrupted iterations
+constant_load   [  87% ] 20 VUs  0m52.0s/1m0s
+
+running (0m53.0s), 20/20 VUs, 3165 complete and 0 interrupted iterations
+constant_load   [  88% ] 20 VUs  0m53.0s/1m0s
+
+running (0m54.0s), 20/20 VUs, 3228 complete and 0 interrupted iterations
+constant_load   [  90% ] 20 VUs  0m54.0s/1m0s
+
+running (0m55.0s), 20/20 VUs, 3290 complete and 0 interrupted iterations
+constant_load   [  92% ] 20 VUs  0m55.0s/1m0s
+
+running (0m56.0s), 20/20 VUs, 3357 complete and 0 interrupted iterations
+constant_load   [  93% ] 20 VUs  0m56.0s/1m0s
+
+running (0m57.0s), 20/20 VUs, 3417 complete and 0 interrupted iterations
+constant_load   [  95% ] 20 VUs  0m57.0s/1m0s
+
+running (0m58.0s), 20/20 VUs, 3477 complete and 0 interrupted iterations
+constant_load   [  97% ] 20 VUs  0m58.0s/1m0s
+
+running (0m59.0s), 20/20 VUs, 3545 complete and 0 interrupted iterations
+constant_load   [  98% ] 20 VUs  0m59.0s/1m0s
+
+running (1m00.0s), 20/20 VUs, 3605 complete and 0 interrupted iterations
+constant_load   [ 100% ] 20 VUs  1m00.0s/1m0s
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✓ 'p(95)<5000' p(95)=70.09ms
+
+    http_req_failed
+    ✗ 'rate<0.5' rate=100.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 7250    120.266118/s
+    checks_succeeded...: 100.00% 7250 out of 7250
+    checks_failed......: 0.00%   0 out of 7250
+
+    ✓ responded (any status)
+    ✓ not timeout
+
+    HTTP
+    http_req_duration....: avg=31.5ms   min=11.01ms  med=23.24ms  max=359.96ms p(90)=49.34ms  p(95)=70.09ms 
+    http_req_failed......: 100.00% 3625 out of 3625
+    http_reqs............: 3625    60.133059/s
+
+    EXECUTION
+    iteration_duration...: avg=332.12ms min=311.28ms med=323.81ms max=662.01ms p(90)=350.31ms p(95)=370.95ms
+    iterations...........: 3625    60.133059/s
+    vus..................: 20      min=20           max=20
+    vus_max..............: 20      min=20           max=20
+
+    NETWORK
+    data_received........: 1.3 MB  21 kB/s
+    data_sent............: 1.5 MB  24 kB/s
+
+
+
+
+running (1m00.3s), 00/20 VUs, 3625 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 20 VUs  1m0s
+time="2026-04-18T04:22:29+09:00" level=error msg="thresholds on metrics 'http_req_failed' have been crossed"

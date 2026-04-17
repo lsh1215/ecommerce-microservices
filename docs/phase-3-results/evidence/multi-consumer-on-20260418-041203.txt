@@ -1,0 +1,74 @@
+============================================================
+Phase 3 multi-consumer duplicate-detection harness
+============================================================
+Run timestamp:   2026-04-17T19:12:03Z
+Repo:            /Users/leesanghun/My_Project/ecommerce-microservices
+Git HEAD:        4c5c142a5aa20bdfc5b4c865f1ec5d674efcf884
+Git status:      3 uncommitted changes
+Branch:          docs/portfolio-evidence-sync-runs
+--guards:        on
+Orders to post:  30
+Expectation:     exactly one payment per order (after-state)
+Toggles:         application.idempotency.enabled=true
+                 application.business-idempotency-guard.enabled=true
+------------------------------------------------------------
+docker compose ps:
+NAME              IMAGE                COMMAND                   SERVICE   CREATED      STATUS                PORTS
+ecommerce-kafka   apache/kafka:3.8.1   "/__cacert_entrypoin…"   kafka     3 days ago   Up 2 days (healthy)   0.0.0.0:9092->9092/tcp, [::]:9092->9092/tcp
+ecommerce-mysql   mysql:8.0            "docker-entrypoint.s…"   mysql     3 days ago   Up 3 days (healthy)   0.0.0.0:3307->3306/tcp, [::]:3307->3306/tcp
+------------------------------------------------------------
+[step 1] Resetting processed_event and payment tables
+mysql: [Warning] Using a password on the command line interface can be insecure.
+  processed_event + payment cleared
+[step 2] Building service-payment bootJar (skipping tests)
+  jar: /Users/leesanghun/My_Project/ecommerce-microservices/backend-v2/service-payment/build/libs/service-payment-0.0.1-SNAPSHOT.jar
+[step 3] Launching Payment instance A (profile phase3-groupA, port 8083)
+  PID_A=63903 -> /Users/leesanghun/My_Project/ecommerce-microservices/build/phase3-logs/pay-a.log
+[step 4] Launching Payment instance B (profile phase3-groupB, port 8183)
+  PID_B=63904 -> /Users/leesanghun/My_Project/ecommerce-microservices/build/phase3-logs/pay-b.log
+[step 5] Waiting for Payment instances to be healthy
+  payment-group-a (:8083): healthy
+  payment-group-b (:8183): healthy
+[step 6] Posting 30 orders to Order service :8082
+  [1/30] failed: {"success":false,"message":"items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [2/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, items[0].productId: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다"}
+  [3/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다"}
+  [4/30] failed: {"success":false,"message":"items[0].productId: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [5/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다"}
+  [6/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다"}
+  [7/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다"}
+  [8/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다"}
+  [9/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다"}
+  [10/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [11/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다"}
+  [12/30] failed: {"success":false,"message":"items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다"}
+  [13/30] failed: {"success":false,"message":"items[0].productId: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [14/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [15/30] failed: {"success":false,"message":"items[0].productId: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [16/30] failed: {"success":false,"message":"items[0].productId: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, shippingAddress: 널이어서는 안됩니다"}
+  [17/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다"}
+  [18/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다"}
+  [19/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다"}
+  [20/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, items[0].productId: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다"}
+  [21/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [22/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [23/30] failed: {"success":false,"message":"items[0].productId: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, shippingAddress: 널이어서는 안됩니다"}
+  [24/30] failed: {"success":false,"message":"items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다, shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다"}
+  [25/30] failed: {"success":false,"message":"items[0].productId: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [26/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [27/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [28/30] failed: {"success":false,"message":"shippingAddress: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productName: 공백일 수 없습니다"}
+  [29/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, shippingAddress: 널이어서는 안됩니다, items[0].unitPrice: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다"}
+  [30/30] failed: {"success":false,"message":"items[0].productName: 공백일 수 없습니다, items[0].unitPrice: 널이어서는 안됩니다, shippingAddress: 널이어서는 안됩니다, items[0].productId: 널이어서는 안됩니다"}
+  posted 0 orders
+[step 7] Waiting 15s for payments to settle
+[step 8] Querying payment duplicates per order_id
+mysql: [Warning] Using a password on the command line interface can be insecure.
+
+mysql: [Warning] Using a password on the command line interface can be insecure.
+total_payments	distinct_orders
+2401	2401
+------------------------------------------------------------
+VERDICT: 0 order(s) have >1 payment row
+PASS: no duplicates in after-state (--guards on) — idempotency + business guard effective
+[cleanup] Stopping Payment instances

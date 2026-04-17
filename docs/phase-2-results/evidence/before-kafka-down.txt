@@ -1,0 +1,74 @@
+============================================================
+Phase 1 Before-state — Kafka DOWN event loss (no Outbox, v2)
+============================================================
+Worktree:        /Users/leesanghun/My_Project/ecommerce-microservices-worktrees/phase1
+Commit SHA:      22b8d1f88152703654a44b8ef52e4ad2b06180e1
+Run timestamp:   2026-04-17T19:25:22Z
+Services up:     Order / Product / Payment / Customer (all 4)
+Mechanism:       OrderEventProducer uses kafkaTemplate.send(...).whenComplete() — fire-and-forget.
+                 Events live only in the Kafka producer client's in-memory buffer; if the producer
+                 process dies (or the broker stays down past buffer.memory + retry.timeout), the events vanish.
+                 To make the loss deterministic for this evidence:
+                   1. docker stop ecommerce-kafka (not pause) — breaks TCP connection
+                   2. restart service-order after posting — producer buffer flushed to /dev/null
+                 This mirrors the Phase 1 production failure mode precisely: any Order instance crash
+                 (OOM / pod evict) between the DB commit and the successful broker ack loses the event.
+------------------------------------------------------------
+
+[T0] Baseline truncate (orders / payment / saga_instance emptied after test reset)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+tbl	n
+orders	5
+payment	3862
+saga_instance	5
+
+[T1] docker stop kafka
+ecommerce-kafka
+NAMES     STATUS
+
+[T2] With Kafka down, POST 3 orders
+  attempt[1]: {"success":true,"message":"Created","data":{"id":6,"customerId":1,"orderNumber":"01KPEEFDMVYAE72WTZST05QGZX","status":"PENDING","totalAmount":29900.0,
+  attempt[2]: {"success":true,"message":"Created","data":{"id":7,"customerId":1,"orderNumber":"01KPEEFDQWB3N789VS2JCJ09RE","status":"PENDING","totalAmount":29900.0,
+  attempt[3]: {"success":true,"message":"Created","data":{"id":8,"customerId":1,"orderNumber":"01KPEEFDS2G1K2Q9S1YT4JR9GC","status":"PENDING","totalAmount":29900.0,
+
+[T3] Snapshot — orders persisted, payment empty
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	order_number	status
+1	01KPEEBZWCPAY80MGZ0ZA8EHWA	PENDING
+2	01KPEEC0DJ95TBNMNEAA0CY8KC	PENDING
+3	01KPEEC5QTVQCKS5Y3JNTPV5QE	PENDING
+4	01KPEEC5S136S46WFYMS0BEZ5W	PENDING
+5	01KPEEC5T6QZDJZQSVW3ZPSBFK	PENDING
+6	01KPEEFDMVYAE72WTZST05QGZX	PENDING
+7	01KPEEFDQWB3N789VS2JCJ09RE	PENDING
+8	01KPEEFDS2G1K2Q9S1YT4JR9GC	PENDING
+payments
+3862
+
+[T4] Kill Order service to flush producer buffer (simulate pod eviction)
+  killed order service pid=65377
+
+[T5] Restart Kafka + Order service
+ecommerce-kafka
+  order pid: 65724
+  order back up at iter 3
+
+[T6] Wait 30s for any delayed Kafka consumer processing of old events
+
+[T7] Final snapshot — payment count for the 3 test orders (status=PENDING) expected: 0 (events lost)
+mysql: [Warning] Using a password on the command line interface can be insecure.
+id	order_number	status
+1	01KPEEBZWCPAY80MGZ0ZA8EHWA	PENDING
+2	01KPEEC0DJ95TBNMNEAA0CY8KC	PENDING
+3	01KPEEC5QTVQCKS5Y3JNTPV5QE	PENDING
+4	01KPEEC5S136S46WFYMS0BEZ5W	PENDING
+5	01KPEEC5T6QZDJZQSVW3ZPSBFK	PENDING
+6	01KPEEFDMVYAE72WTZST05QGZX	PENDING
+7	01KPEEFDQWB3N789VS2JCJ09RE	PENDING
+8	01KPEEFDS2G1K2Q9S1YT4JR9GC	PENDING
+payments
+3862
+metric	value
+lost_orders	-3854
+
+VERDICT: orders committed to DB = N, payments produced for them = M. N - M = lost events.
