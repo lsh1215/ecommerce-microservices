@@ -107,11 +107,12 @@ docs/README-msa.md
 docs/subagent-candidates.md
 docs/TESTING_GUIDE.md
 docs/PINPOINT_RETROFIT.md
+docs/worktree-map.md
 
-# === Phase Test Results (local-only — portfolio/blog source material) ===
-# Reproduction scripts (scripts/phase*.sh, k6/) stay in the repo so anyone can
-# re-run, but the captured output + narrative READMEs are personal material
-# and kept on the author's machine only.
+# === Portfolio / Blog Source Material (local-only) ===
+# Phase-specific test records, reproduction harnesses, and APM helpers
+# exist only for the author's personal portfolio / blog capture work.
+# They are kept on the local machine only.
 docs/phase-0-baseline/
 docs/phase-1-results/
 docs/phase-2-results/
@@ -119,6 +120,10 @@ docs/phase-3-results/
 docs/phase-4-results/
 docs/phase-5-results/
 docs/portfolio-screenshots/
+scripts/phase3-multi-consumer-test.sh
+scripts/run-worktree-with-pinpoint.sh
+scripts/run-with-pinpoint.sh
+scripts/setup-pinpoint-agent.sh
 
 # === Frontend Local-Only (MSW, instrumentation, scripts) ===
 frontend/src/mocks/
