@@ -101,14 +101,23 @@ msa-kafka-es-project-guide.md
 .prompts/
 .ai/
 
-# === Project Internal Docs ===
+# === Project Internal Docs (local-only) ===
 docs/PRD.md
 docs/README-msa.md
 docs/subagent-candidates.md
+docs/TESTING_GUIDE.md
+docs/PINPOINT_RETROFIT.md
 
-# === Phase Test Results — tracked for portfolio evidence reproducibility ===
-# (Re-runnable via scripts/phase*-*.sh; committed to main as canonical artifacts.)
-# Screenshots folder remains local-only.
+# === Phase Test Results (local-only — portfolio/blog source material) ===
+# Reproduction scripts (scripts/phase*.sh, k6/) stay in the repo so anyone can
+# re-run, but the captured output + narrative READMEs are personal material
+# and kept on the author's machine only.
+docs/phase-0-baseline/
+docs/phase-1-results/
+docs/phase-2-results/
+docs/phase-3-results/
+docs/phase-4-results/
+docs/phase-5-results/
 docs/portfolio-screenshots/
 
 # === Frontend Local-Only (MSW, instrumentation, scripts) ===
