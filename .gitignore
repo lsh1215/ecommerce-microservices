@@ -130,3 +130,4 @@ pinpoint-agent/
 *.orig
 logs/
 tmp/
+.gstack/
