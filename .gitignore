@@ -121,7 +121,6 @@ frontend/src/instrumentation.ts
 frontend/scripts/
 
 # === Pinpoint Agent (downloaded at runtime) ===
-pinpoint-agent/
 
 # === Misc ===
 *.bak
