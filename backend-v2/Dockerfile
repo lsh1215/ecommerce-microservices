@@ -41,6 +41,17 @@ COPY --from=builder /app/${SERVICE_NAME}/build/libs/*.jar app.jar
 
 RUN java -Djarmode=layertools -jar app.jar extract
 
+# ── Stage 3b: fetch Pinpoint APM agent ────────────────────────────────────────
+# Cached independently from the build — invalidated only when PINPOINT_VERSION
+# changes. The agent is platform-independent JVM bytecode; the same tarball
+# works on both amd64 and arm64 at runtime.
+FROM alpine:3 AS pinpoint-agent
+ARG PINPOINT_VERSION=3.0.5
+RUN apk add --no-cache curl tar && \
+    mkdir /pinpoint-agent && \
+    curl -fSL "https://github.com/pinpoint-apm/pinpoint/releases/download/v${PINPOINT_VERSION}/pinpoint-agent-${PINPOINT_VERSION}.tar.gz" \
+      | tar -xz -C /pinpoint-agent --strip-components=1
+
 # ── Stage 4: runtime ──────────────────────────────────────────────────────────
 # Note: Using non-Alpine (glibc-based) JRE. The Alpine JRE variant excludes the
 # jdk.random module, which breaks RandomGeneratorFactory.getDefault() (L32X64MixRandom).
@@ -57,11 +68,15 @@ COPY --from=extractor /app/dependencies/ ./
 COPY --from=extractor /app/snapshot-dependencies/ ./
 COPY --from=extractor /app/application/ ./
 
-RUN chown -R app:app /app
+# Pinpoint agent. Inert unless PINPOINT_COLLECTOR_IP is set at runtime
+# (entrypoint.sh enforces the activation contract).
+COPY --from=pinpoint-agent /pinpoint-agent /app/pinpoint-agent
+COPY entrypoint.sh /app/entrypoint.sh
+
+RUN chmod +x /app/entrypoint.sh && chown -R app:app /app
 
 USER app
 
 EXPOSE 8080
 
-# JarLauncher is the correct entrypoint for exploded layered jars
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["/app/entrypoint.sh"]
