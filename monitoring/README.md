@@ -1,72 +1,37 @@
 # Monitoring
 
-## Pinpoint APM
+## Kafka UI
 
-Pinpoint provides distributed tracing, service map visualization, and request-level profiling for the MSA services.
+Web UI for inspecting Kafka topics, partitions, consumer groups, and messages
+during local development.
 
-### Prerequisites
-
-- Docker and Docker Compose
-
-### Start Pinpoint
+### Start
 
 ```bash
-docker compose -f monitoring/docker-compose.pinpoint.yml up -d
-```
+# Bring up MySQL + Kafka first
+./scripts/start.sh
 
-HBase initialization takes 30-60 seconds on first start. Wait before connecting services.
+# Then attach Kafka UI (joins the same compose network)
+docker compose -f monitoring/docker-compose.kafka-ui.yml up -d
+```
 
 ### Access
 
-| Component          | URL                    |
-|--------------------|------------------------|
-| Pinpoint Web UI    | http://localhost:8079  |
-| HBase Master UI    | http://localhost:16010 |
-| HBase Region UI    | http://localhost:16030 |
+http://localhost:8090
 
-### Run services with Pinpoint agent
-
-1. Download the agent (one-time):
-   ```bash
-   ./scripts/setup-pinpoint-agent.sh
-   ```
-
-2. Start a service with the agent attached:
-   ```bash
-   ./scripts/run-with-pinpoint.sh service-product
-   ./scripts/run-with-pinpoint.sh service-order
-   ./scripts/run-with-pinpoint.sh service-payment
-   ./scripts/run-with-pinpoint.sh service-customer
-   ```
-
-3. Open the Pinpoint Web UI and select the application from the dropdown.
-
-### Stop Pinpoint
+### Stop
 
 ```bash
-docker compose -f monitoring/docker-compose.pinpoint.yml down
+docker compose -f monitoring/docker-compose.kafka-ui.yml down
 ```
 
-To remove stored trace data:
+## Pinpoint APM
 
-```bash
-docker compose -f monitoring/docker-compose.pinpoint.yml down -v
-```
+For distributed tracing in the deployed k8s cluster, see `k8s/monitoring/`. The
+Pinpoint agent is baked into every service image and activated only when
+`PINPOINT_COLLECTOR_IP` is present in the environment — applied automatically
+when `k8s/monitoring/pinpoint-config.yml` is deployed alongside the rest of the
+stack.
 
-## Notes
-
-Pinpoint is the sole APM for this project. A Grafana/Prometheus stack was
-evaluated and removed in favor of Pinpoint's distributed tracing + service
-map capabilities, which better fit a portfolio-scale MSA where request-level
-visibility matters more than time-series dashboards.
-
-### Local Apple Silicon caveat
-
-The Pinpoint 3.0.x HBase image is amd64 only — it runs under Docker Desktop
-emulation on Apple Silicon. The provided compose pins `platform: linux/amd64`
-and sets the Zookeeper address via Spring relaxed-binding env vars. HBase
-initialization takes 60-120 seconds on first start due to the emulation
-overhead; wait for `hbase-create` table creation to complete in
-`docker logs pinpoint-hbase` before starting services with the agent.
-
-For production, consider running Pinpoint on a native amd64 host or VM.
+Pinpoint is not available for local development because the 3.x HBase image is
+amd64-only and Apple Silicon emulation makes local usage impractical.
