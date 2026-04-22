@@ -2,8 +2,8 @@ package com.ecommerce.payment.application.service;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.random.RandomGenerator;
-import java.util.random.RandomGeneratorFactory;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -14,7 +14,9 @@ public class PaymentStubProcessor {
     private final RandomGenerator rng;
 
     public PaymentStubProcessor() {
-        this.rng = RandomGeneratorFactory.getDefault().create();
+        // ThreadLocalRandom is in java.base; avoids the jdk.random module
+        // absent from minimal Temurin JRE images.
+        this.rng = ThreadLocalRandom.current();
     }
 
     public PaymentStubProcessor(RandomGenerator rng) {
