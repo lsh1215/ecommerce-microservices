@@ -42,9 +42,11 @@ COPY --from=builder /app/${SERVICE_NAME}/build/libs/*.jar app.jar
 RUN java -Djarmode=layertools -jar app.jar extract
 
 # ── Stage 4: runtime ──────────────────────────────────────────────────────────
-FROM eclipse-temurin:21-jre-alpine
+# Note: Using non-Alpine (glibc-based) JRE. The Alpine JRE variant excludes the
+# jdk.random module, which breaks RandomGeneratorFactory.getDefault() (L32X64MixRandom).
+FROM eclipse-temurin:21-jre
 
-RUN addgroup -S app && adduser -S app -G app
+RUN groupadd -r app && useradd -r -g app app
 
 WORKDIR /app
 
