@@ -28,6 +28,7 @@ spec:
       containers:
         - name: service-product
           image: ecommerce/service-product:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
           envFrom:
