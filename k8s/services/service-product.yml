@@ -36,11 +36,16 @@ spec:
                 name: ecommerce-config
             - secretRef:
                 name: ecommerce-secrets
+            - configMapRef:
+                name: pinpoint-config
+                optional: true
           env:
             - name: SERVER_PORT
               value: "8081"
             - name: DB_NAME
               value: "ecommerce_product"
+            - name: PINPOINT_APPLICATION_NAME
+              value: "service-product"
           resources:
             requests:
               memory: "256Mi"

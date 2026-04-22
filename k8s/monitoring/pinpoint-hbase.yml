@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pinpoint-hbase
+  namespace: monitoring
+  labels:
+    app: pinpoint-hbase
+spec:
+  clusterIP: None
+  selector:
+    app: pinpoint-hbase
+  ports:
+    - name: zookeeper
+      port: 2181
+      targetPort: 2181
+    - name: hbase-master
+      port: 16000
+      targetPort: 16000
+    - name: hbase-master-ui
+      port: 16010
+      targetPort: 16010
+    - name: hbase-region
+      port: 16020
+      targetPort: 16020
+    - name: hbase-region-ui
+      port: 16030
+      targetPort: 16030
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pinpoint-hbase
+  namespace: monitoring
+spec:
+  serviceName: pinpoint-hbase
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pinpoint-hbase
+  template:
+    metadata:
+      labels:
+        app: pinpoint-hbase
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: hbase
+          image: pinpointdocker/pinpoint-hbase:3.0.5
+          ports:
+            - containerPort: 2181
+              name: zookeeper
+            - containerPort: 16000
+              name: hbase-master
+            - containerPort: 16010
+              name: master-ui
+            - containerPort: 16020
+              name: hbase-region
+            - containerPort: 16030
+              name: region-ui
+          volumeMounts:
+            - name: hbase-data
+              mountPath: /home/pinpoint/hbase
+            - name: zk-data
+              mountPath: /home/pinpoint/zookeeper
+          resources:
+            requests:
+              memory: "768Mi"
+              cpu: "200m"
+            limits:
+              memory: "1536Mi"
+              cpu: "1000m"
+          readinessProbe:
+            tcpSocket:
+              port: 2181
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: 2181
+            initialDelaySeconds: 180
+            periodSeconds: 30
+            failureThreshold: 6
+  volumeClaimTemplates:
+    - metadata:
+        name: hbase-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 3Gi
+    - metadata:
+        name: zk-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
