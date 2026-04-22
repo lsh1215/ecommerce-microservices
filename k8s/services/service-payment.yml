@@ -28,6 +28,7 @@ spec:
       containers:
         - name: service-payment
           image: ecommerce/service-payment:latest
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8083
           envFrom:
