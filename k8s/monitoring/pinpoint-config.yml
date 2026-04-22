@@ -1,0 +1,17 @@
+# Activation switch for the Pinpoint APM agent.
+#
+# Services reference this ConfigMap via `envFrom ... optional: true` so the
+# same Deployment spec works whether or not this file is applied:
+#   - file applied   -> PINPOINT_COLLECTOR_IP present -> agent attaches
+#   - file absent    -> env unset                      -> agent stays inert
+#
+# Apply this only in environments where the monitoring/ stack is also
+# deployed (i.e. the GCE/k3s cluster). For local k3d runs, skip it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pinpoint-config
+  namespace: ecommerce
+data:
+  PINPOINT_COLLECTOR_IP: "pinpoint-collector.monitoring.svc.cluster.local"
+  PINPOINT_PROFILE: "release"
