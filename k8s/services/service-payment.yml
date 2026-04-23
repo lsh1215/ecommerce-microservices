@@ -22,6 +22,10 @@ spec:
       app: service-payment
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8083"
+        prometheus.io/path: "/actuator/prometheus"
       labels:
         app: service-payment
     spec:
