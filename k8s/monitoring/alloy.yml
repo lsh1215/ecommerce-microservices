@@ -1,0 +1,326 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy
+rules:
+  - apiGroups: [""]
+    resources: [nodes, nodes/metrics, nodes/proxy, services, endpoints, pods, namespaces]
+    verbs: [get, list, watch]
+  - apiGroups: [apps]
+    resources: [deployments, replicasets, statefulsets, daemonsets]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get, list, watch]
+  - nonResourceURLs: [/metrics]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy
+subjects:
+  - kind: ServiceAccount
+    name: alloy
+    namespace: monitoring
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: monitoring
+data:
+  config.alloy: |
+    // ── OTLP receiver (traces + metrics + logs from Spring Boot agents) ────
+    otelcol.receiver.otlp "default" {
+      grpc { endpoint = "0.0.0.0:4317" }
+      http { endpoint = "0.0.0.0:4318" }
+      output {
+        traces  = [otelcol.processor.batch.traces.input]
+        metrics = [otelcol.processor.batch.metrics.input]
+        logs    = [otelcol.processor.batch.logs.input]
+      }
+    }
+
+    otelcol.processor.batch "traces" {
+      output {
+        traces = [otelcol.exporter.otlp.tempo.input]
+      }
+    }
+    otelcol.processor.batch "metrics" {
+      output {
+        metrics = [otelcol.exporter.prometheus.otlp_metrics.input]
+      }
+    }
+    otelcol.processor.batch "logs" {
+      output {
+        logs = [otelcol.exporter.loki.otlp_logs.input]
+      }
+    }
+
+    otelcol.exporter.otlp "tempo" {
+      client {
+        endpoint = "tempo.monitoring.svc.cluster.local:4317"
+        tls { insecure = true }
+      }
+    }
+
+    otelcol.exporter.prometheus "otlp_metrics" {
+      forward_to = [prometheus.remote_write.local.receiver]
+    }
+
+    otelcol.exporter.loki "otlp_logs" {
+      forward_to = [loki.write.local.receiver]
+    }
+
+    // ── Kubernetes pod log tailing → Loki ──────────────────────────────────
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    discovery.relabel "pod_logs" {
+      targets = discovery.kubernetes.pods.targets
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label  = "app"
+      }
+    }
+
+    loki.source.kubernetes "pod_logs" {
+      targets    = discovery.relabel.pod_logs.output
+      forward_to = [loki.process.trace_id.receiver]
+    }
+
+    // Extract OTel-agent-populated trace_id from log lines written with the
+    // logback pattern `[traceId=<hex>,spanId=<hex>]`.
+    loki.process "trace_id" {
+      stage.regex {
+        expression = "traceId=(?P<trace_id>[0-9a-f]+)"
+      }
+      stage.labels {
+        values = { trace_id = "" }
+      }
+      forward_to = [loki.write.local.receiver]
+    }
+
+    loki.write "local" {
+      endpoint {
+        url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+      }
+      external_labels = { cluster = "ecommerce-k3s" }
+    }
+
+    // ── Prometheus discovery + scrape (pods with annotation) ───────────────
+    discovery.relabel "pod_metrics" {
+      targets = discovery.kubernetes.pods.targets
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
+        regex         = "true"
+        action        = "keep"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_path"]
+        regex         = "(.+)"
+        target_label  = "__metrics_path__"
+      }
+      rule {
+        source_labels = ["__address__", "__meta_kubernetes_pod_annotation_prometheus_io_port"]
+        regex         = "([^:]+)(?::\\d+)?;(\\d+)"
+        replacement   = "$1:$2"
+        target_label  = "__address__"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label  = "app"
+      }
+    }
+
+    prometheus.scrape "pod_annotations" {
+      targets         = discovery.relabel.pod_metrics.output
+      forward_to      = [prometheus.remote_write.local.receiver]
+      scrape_interval = "15s"
+    }
+
+    // Kubernetes cluster objects (kube-state-metrics not deployed; use cadvisor + kubelet)
+    discovery.kubernetes "nodes" {
+      role = "node"
+    }
+
+    prometheus.scrape "kubelet_cadvisor" {
+      targets    = discovery.kubernetes.nodes.targets
+      forward_to = [prometheus.remote_write.local.receiver]
+      scheme     = "https"
+      tls_config {
+        ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        insecure_skip_verify = true
+      }
+      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      metrics_path      = "/metrics/cadvisor"
+      job_name          = "kubelet-cadvisor"
+    }
+
+    prometheus.scrape "kubelet" {
+      targets    = discovery.kubernetes.nodes.targets
+      forward_to = [prometheus.remote_write.local.receiver]
+      scheme     = "https"
+      tls_config {
+        ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        insecure_skip_verify = true
+      }
+      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      metrics_path      = "/metrics"
+      job_name          = "kubelet"
+    }
+
+    // ── Kafka exporter (built-in) ───────────────────────────────────────────
+    prometheus.exporter.kafka "cluster" {
+      kafka_uris = [
+        "kafka-0.kafka-service.ecommerce.svc.cluster.local:9092",
+        "kafka-1.kafka-service.ecommerce.svc.cluster.local:9092",
+        "kafka-2.kafka-service.ecommerce.svc.cluster.local:9092",
+      ]
+      kafka_version              = "3.8.1"
+      use_sasl                   = false
+      allow_auto_topic_creation  = false
+      metadata_refresh_interval  = "30s"
+    }
+
+    prometheus.scrape "kafka" {
+      targets    = prometheus.exporter.kafka.cluster.targets
+      forward_to = [prometheus.remote_write.local.receiver]
+      scrape_interval = "30s"
+      job_name   = "kafka-exporter"
+    }
+
+    // ── Remote write to Prometheus ──────────────────────────────────────────
+    prometheus.remote_write "local" {
+      endpoint {
+        url = "http://prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+      }
+      external_labels = { cluster = "ecommerce-k3s" }
+    }
+
+    // ── Alloy self-metrics endpoint ────────────────────────────────────────
+    logging {
+      level = "info"
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy
+  namespace: monitoring
+  labels:
+    app: alloy
+spec:
+  selector:
+    matchLabels:
+      app: alloy
+  template:
+    metadata:
+      labels:
+        app: alloy
+    spec:
+      serviceAccountName: alloy
+      hostPID: true
+      containers:
+        - name: alloy
+          image: grafana/alloy:v1.4.2
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --server.http.listen-addr=0.0.0.0:12345
+            - --storage.path=/var/lib/alloy/data
+          ports:
+            - containerPort: 12345
+              name: http
+            - containerPort: 4317
+              name: otlp-grpc
+            - containerPort: 4318
+              name: otlp-http
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alloy
+            - name: data
+              mountPath: /var/lib/alloy/data
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: containers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+          resources:
+            requests: { cpu: 50m,  memory: 128Mi }
+            limits:   { cpu: 300m, memory: 256Mi }
+          readinessProbe:
+            httpGet: { path: /-/ready, port: 12345 }
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet: { path: /-/ready, port: 12345 }
+            initialDelaySeconds: 60
+      volumes:
+        - name: config
+          configMap:
+            name: alloy-config
+        - name: data
+          emptyDir: {}
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: containers
+          hostPath:
+            path: /var/lib/docker/containers
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  namespace: monitoring
+spec:
+  selector:
+    app: alloy
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+    - name: http
+      port: 12345
+      targetPort: 12345
