@@ -37,15 +37,17 @@ spec:
             - secretRef:
                 name: ecommerce-secrets
             - configMapRef:
-                name: pinpoint-config
+                name: otel-config
                 optional: true
           env:
             - name: SERVER_PORT
               value: "8083"
             - name: DB_NAME
               value: "ecommerce_payment"
-            - name: PINPOINT_APPLICATION_NAME
+            - name: OTEL_SERVICE_NAME
               value: "service-payment"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.namespace=ecommerce,deployment.environment=gce,k8s.cluster.name=ecommerce-k3s"
           resources:
             requests:
               memory: "256Mi"
