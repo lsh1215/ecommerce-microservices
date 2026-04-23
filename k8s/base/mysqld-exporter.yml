@@ -1,0 +1,75 @@
+# MySQL exporter — deploys as a small Deployment rather than a MySQL
+# StatefulSet sidecar to avoid rolling the stateful workload. Connects to
+# the existing `mysql-service` headless Service inside the `ecommerce`
+# namespace. Credentials come from a dedicated `mysqld-exporter-creds`
+# Secret (must exist before this Deployment starts).
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mysqld-exporter-creds
+  namespace: ecommerce
+type: Opaque
+stringData:
+  # Format: <user>:<pass>@tcp(<host>:<port>)/
+  # Uses the MySQL root user on mysql-service for simplicity.
+  DATA_SOURCE_NAME: "root:changeme@tcp(mysql-service:3306)/"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqld-exporter
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysqld-exporter
+  template:
+    metadata:
+      labels:
+        app: mysqld-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9104"
+    spec:
+      containers:
+        - name: exporter
+          image: prom/mysqld-exporter:v0.15.1
+          args:
+            - "--collect.info_schema.innodb_metrics"
+            - "--collect.info_schema.tables"
+            - "--collect.engine_innodb_status"
+            - "--collect.info_schema.processlist"
+          env:
+            - name: DATA_SOURCE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: mysqld-exporter-creds
+                  key: DATA_SOURCE_NAME
+          ports:
+            - containerPort: 9104
+              name: metrics
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+          readinessProbe:
+            tcpSocket: { port: 9104 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqld-exporter
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+spec:
+  selector:
+    app: mysqld-exporter
+  ports:
+    - name: metrics
+      port: 9104
+      targetPort: 9104

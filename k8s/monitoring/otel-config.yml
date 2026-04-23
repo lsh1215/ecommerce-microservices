@@ -1,0 +1,16 @@
+# Default stub referenced by every service Deployment via:
+#   envFrom:
+#     - configMapRef:
+#         name: otel-config
+#         optional: true
+#
+# The real activation overlay lives in `otel-config-active.yml` and is only
+# applied once the Alloy OTLP receiver is Ready. This stub keeps the
+# `configMapRef` resolvable for clusters where monitoring isn't deployed
+# (local k3d via scripts/local-k8s.sh, phase0 worktree runs, etc.).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-config
+  namespace: ecommerce
+data: {}

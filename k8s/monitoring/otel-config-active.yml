@@ -1,0 +1,22 @@
+# Activation overlay for the OpenTelemetry Java agent baked into each
+# service image. Applying this ConfigMap replaces the empty `otel-config`
+# stub (k8s/monitoring/otel-config.yml) with populated values; every
+# service picks them up on the next rollout because envFrom pulls env at
+# pod boot.
+#
+# DO NOT apply until Alloy's OTLP receiver (k8s/monitoring/alloy.yml) is
+# Ready — services emit telemetry to this endpoint from agent start.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-config
+  namespace: ecommerce
+data:
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://alloy.monitoring.svc.cluster.local:4317"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "grpc"
+  OTEL_TRACES_EXPORTER: "otlp"
+  OTEL_METRICS_EXPORTER: "otlp"
+  OTEL_LOGS_EXPORTER: "otlp"
+  OTEL_INSTRUMENTATION_KAFKA_ENABLED: "true"
+  OTEL_INSTRUMENTATION_MESSAGING_EXPERIMENTAL_RECEIVE_TELEMETRY_ENABLED: "true"
+  OTEL_PROPAGATORS: "tracecontext,baggage,b3multi"
