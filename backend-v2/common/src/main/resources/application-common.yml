@@ -2,3 +2,10 @@ spring:
   jackson:
     property-naming-strategy: SNAKE_CASE
     default-property-inclusion: non_null
+
+# Include trace_id / span_id (populated by OpenTelemetry Java agent when attached)
+# in every log line so Loki can link log entries to Tempo traces. Reads MDC keys
+# set by the agent; default-to-empty keeps output clean when the agent is inert.
+logging:
+  pattern:
+    console: "%d{ISO8601} %-5level [%thread] [traceId=%X{trace_id:-},spanId=%X{span_id:-}] %logger{36} - %msg%n"
