@@ -48,6 +48,10 @@ txt = re.sub(r'"\$\{(DS_[A-Z0-9_]+)\}"', ds_repl, txt)
 # Some panels embed the ref inline (not string-wrapped), eg "uid":${DS_X}
 txt = re.sub(r'\$\{(DS_[A-Z0-9_]+)\}',
              lambda m: 'loki' if 'LOKI' in m.group(1) else 'prometheus', txt)
+# Catch any residual bare DS_PROMETHEUS tokens that slipped through
+# (some dashboards reference them in non-standard positions)
+txt = re.sub(r'\bDS_[A-Z0-9_]+\b',
+             lambda m: 'loki' if 'LOKI' in m.group(0) else 'prometheus', txt)
 data = json.loads(txt)
 data.pop('__inputs', None)
 data.pop('__requires', None)
@@ -58,18 +62,26 @@ data['editable'] = False
 # Normalise every datasource spec to match our provisioned UIDs
 def walk(x):
     if isinstance(x, dict):
-        if 'datasource' in x and isinstance(x['datasource'], dict):
-            t = x['datasource'].get('type', '')
-            if t == 'loki':
-                x['datasource'] = {'type': 'loki', 'uid': 'loki'}
+        # Normalise every `datasource` field to the modern object form
+        # Grafana 10+ expects: {"type": "<plugin>", "uid": "<uid>"}. The
+        # legacy string form triggers "Failed to upgrade legacy queries".
+        if 'datasource' in x:
+            ds = x['datasource']
+            if isinstance(ds, dict):
+                t = ds.get('type', '')
+                x['datasource'] = (
+                    {'type': 'loki', 'uid': 'loki'} if t == 'loki'
+                    else {'type': 'prometheus', 'uid': 'prometheus'}
+                )
+            elif isinstance(ds, str):
+                low = ds.lower()
+                x['datasource'] = (
+                    {'type': 'loki', 'uid': 'loki'} if 'loki' in low
+                    else {'type': 'prometheus', 'uid': 'prometheus'}
+                )
             else:
+                # null or missing — fill with default prometheus
                 x['datasource'] = {'type': 'prometheus', 'uid': 'prometheus'}
-        elif 'datasource' in x and isinstance(x['datasource'], str):
-            # legacy string form
-            if x['datasource'].lower() == 'loki':
-                x['datasource'] = 'loki'
-            else:
-                x['datasource'] = 'prometheus'
         for v in x.values():
             walk(v)
     elif isinstance(x, list):
