@@ -22,6 +22,10 @@ spec:
       app: service-order
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/actuator/prometheus"
       labels:
         app: service-order
     spec:
