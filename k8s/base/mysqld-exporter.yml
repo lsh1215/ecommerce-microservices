@@ -11,9 +11,15 @@ metadata:
   namespace: ecommerce
 type: Opaque
 stringData:
-  # Format: <user>:<pass>@tcp(<host>:<port>)/
-  # Uses the MySQL root user on mysql-service for simplicity.
-  DATA_SOURCE_NAME: "root:changeme@tcp(mysql-service:3306)/"
+  # .my.cnf format required by mysqld-exporter v0.15+. Mounted into
+  # /etc/mysqld-exporter/.my.cnf; the binary is launched with
+  # --config.my-cnf=/etc/mysqld-exporter/.my.cnf.
+  .my.cnf: |
+    [client]
+    user=root
+    password=changeme
+    host=mysql-service
+    port=3306
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,16 +45,15 @@ spec:
         - name: exporter
           image: prom/mysqld-exporter:v0.15.1
           args:
+            - "--config.my-cnf=/etc/mysqld-exporter/.my.cnf"
             - "--collect.info_schema.innodb_metrics"
             - "--collect.info_schema.tables"
             - "--collect.engine_innodb_status"
             - "--collect.info_schema.processlist"
-          env:
-            - name: DATA_SOURCE_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: mysqld-exporter-creds
-                  key: DATA_SOURCE_NAME
+          volumeMounts:
+            - name: creds
+              mountPath: /etc/mysqld-exporter
+              readOnly: true
           ports:
             - containerPort: 9104
               name: metrics
@@ -58,6 +63,10 @@ spec:
           readinessProbe:
             tcpSocket: { port: 9104 }
             initialDelaySeconds: 15
+      volumes:
+        - name: creds
+          secret:
+            secretName: mysqld-exporter-creds
 ---
 apiVersion: v1
 kind: Service
