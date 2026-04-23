@@ -16,3 +16,8 @@ data:
   APP_SERVICES_ORDER_URL: "http://service-order:8082"
   APP_SERVICES_PAYMENT_URL: "http://service-payment:8083"
   APP_SERVICES_CUSTOMER_URL: "http://service-customer:8084"
+  # Expose /actuator/prometheus so Alloy scrapes Micrometer metrics. Each
+  # service still carries its own application.yml management block; this
+  # env var wins via Spring relaxed binding.
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics,circuitbreakers,circuitbreakerevents"
+  MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED: "true"
