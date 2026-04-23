@@ -204,6 +204,7 @@ data:
 
     // ── Kafka exporter (built-in) ───────────────────────────────────────────
     prometheus.exporter.kafka "cluster" {
+      instance = "ecommerce-kafka"
       kafka_uris = [
         "kafka-0.kafka-service.ecommerce.svc.cluster.local:9092",
         "kafka-1.kafka-service.ecommerce.svc.cluster.local:9092",
