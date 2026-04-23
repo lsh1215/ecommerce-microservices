@@ -1,28 +1,25 @@
 #!/bin/sh
-# Service launcher. Conditionally attaches the Pinpoint APM agent when a
-# collector address is provided via env; otherwise starts Spring Boot as-is.
+# Service launcher. Optionally attaches the OpenTelemetry Java agent when
+# a collector endpoint is provided via env; otherwise starts Spring Boot
+# with zero tracing overhead.
 #
 # Activation contract:
-#   PINPOINT_COLLECTOR_IP        present  -> agent attached
-#   PINPOINT_APPLICATION_NAME    required when agent attaches
-#   PINPOINT_PROFILE             optional, default: release
+#   OTEL_EXPORTER_OTLP_ENDPOINT  present  -> agent attached
+#   OTEL_SERVICE_NAME            required when agent attaches
+#   OTEL_RESOURCE_ATTRIBUTES     optional (deployment.environment, etc.)
 #
-# Leaving PINPOINT_COLLECTOR_IP unset is the supported path for local
-# Docker runs, k3d clusters, and any environment where Pinpoint is not
-# deployed — the service starts normally with zero tracing overhead.
+# Leaving OTEL_EXPORTER_OTLP_ENDPOINT unset is the supported path for
+# local `docker run`, k3d clusters without the monitoring stack, or any
+# environment where the OTel Collector / Alloy is not reachable.
 
 set -e
 
 JAVA_OPTS="${JAVA_OPTS:-}"
 
-if [ -n "${PINPOINT_COLLECTOR_IP:-}" ]; then
-  AGENT_DIR="/app/pinpoint-agent"
-  JAVA_OPTS="${JAVA_OPTS} -javaagent:${AGENT_DIR}/pinpoint-bootstrap.jar"
-  JAVA_OPTS="${JAVA_OPTS} -Dpinpoint.config=${AGENT_DIR}/pinpoint-root.config"
-  JAVA_OPTS="${JAVA_OPTS} -Dpinpoint.profiler.profiles.active=${PINPOINT_PROFILE:-release}"
-  JAVA_OPTS="${JAVA_OPTS} -Dpinpoint.applicationName=${PINPOINT_APPLICATION_NAME:?PINPOINT_APPLICATION_NAME is required when PINPOINT_COLLECTOR_IP is set}"
-  JAVA_OPTS="${JAVA_OPTS} -Dpinpoint.agentId=${HOSTNAME}"
-  JAVA_OPTS="${JAVA_OPTS} -Dprofiler.transport.grpc.collector.ip=${PINPOINT_COLLECTOR_IP}"
+if [ -n "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]; then
+  JAVA_OPTS="${JAVA_OPTS} -javaagent:/app/otel/opentelemetry-javaagent.jar"
+  # Agent honours OTEL_SERVICE_NAME / OTEL_RESOURCE_ATTRIBUTES / OTEL_EXPORTER_*
+  # from the environment directly, so nothing else is added here.
 fi
 
 exec java ${JAVA_OPTS} org.springframework.boot.loader.launch.JarLauncher "$@"
