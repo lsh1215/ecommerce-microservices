@@ -286,8 +286,8 @@ spec:
               mountPath: /var/lib/docker/containers
               readOnly: true
           resources:
-            requests: { cpu: 50m,  memory: 128Mi }
-            limits:   { cpu: 300m, memory: 256Mi }
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 768Mi }
           readinessProbe:
             httpGet: { path: /-/ready, port: 12345 }
             initialDelaySeconds: 15
