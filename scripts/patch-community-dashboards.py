@@ -90,11 +90,15 @@ def patch_jvm_micrometer():
             v["label"] = "service"
 
     # Pin `application` to service-product so on first load the dashboard
-    # doesn't pick an exporter app (kafka-exporter etc) alphabetically. A
-    # real user can still change it via the dropdown.
+    # doesn't pick an exporter app (kafka-exporter etc) alphabetically.
+    # `instance` cascades from `application` — set refresh: 1 (on load)
+    # so the cascade re-evaluates whenever the dashboard opens, even
+    # after pod IPs change between phase deploys.
     for v in d.get("templating", {}).get("list", []) or []:
         if v.get("name") == "application":
             _set_current(v, "service-product")
+        if v.get("type") == "query":
+            v["refresh"] = 1  # 1=on dashboard load, 2=on time range change
     if changed == 0:
         print(f"[jvm] already patched — skip")
         return

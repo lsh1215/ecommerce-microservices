@@ -52,6 +52,16 @@ cp -v "$MAIN/backend-v2/common/src/main/resources/application-common.yml" \
 cp -v "$MAIN/backend-v2/common/build.gradle" \
       "$TARGET/backend-v2/common/build.gradle"
 
+# Pre-Phase-5 worktrees pin RandomGeneratorFactory.getDefault() which
+# resolves to L32X64MixRandom — a class absent from many JRE 21 builds
+# (Alpine especially, but also the eclipse-temurin variant we use).
+# Main switched to ThreadLocalRandom; cherry-pick that file so payment
+# starts cleanly under every phase.
+PSP_REL=backend-v2/service-payment/src/main/java/com/ecommerce/payment/application/service/PaymentStubProcessor.java
+if [ -f "$MAIN/$PSP_REL" ] && [ -f "$TARGET/$PSP_REL" ]; then
+  cp -v "$MAIN/$PSP_REL" "$TARGET/$PSP_REL"
+fi
+
 # 2. Monitoring manifests (entirely net new in each phase)
 mkdir -p "$TARGET/k8s/monitoring/dashboards"
 cp -v "$MAIN/k8s/monitoring"/*.yml "$TARGET/k8s/monitoring/"
@@ -74,8 +84,9 @@ for svc, port in ports.items():
         print(f"[overlay] skip {svc}: no manifest in target")
         continue
     txt = p.read_text()
-    if "prometheus.io/scrape" in txt:
-        print(f"[overlay] {svc}: annotations already present")
+    new = txt
+    if "prometheus.io/scrape" in txt and "imagePullPolicy" in txt:
+        print(f"[overlay] {svc}: annotations + imagePullPolicy already present")
         continue
     new = re.sub(
         r'(template:\n    metadata:\n)(      labels:)',
@@ -85,34 +96,70 @@ for svc, port in ports.items():
          r'        prometheus.io/path: "/actuator/prometheus"\n'
          r'\2'),
         txt, count=1)
-    if new == txt:
-        print(f"[overlay] {svc}: WARN — template: metadata: labels: pattern not found")
-    else:
+    # imagePullPolicy: IfNotPresent so k3s uses the locally-imported
+    # `:latest` image instead of trying to pull from docker.io.
+    if "imagePullPolicy" not in new:
+        new = re.sub(
+            r'(image: ecommerce/[a-z-]+:latest)\n',
+            r'\1\n          imagePullPolicy: IfNotPresent\n',
+            new, count=1)
+    if new != txt:
         p.write_text(new)
-        print(f"[overlay] {svc}: annotated (port {port})")
+        print(f"[overlay] {svc}: patched (annotations / imagePullPolicy)")
+    else:
+        print(f"[overlay] {svc}: nothing to change")
 PY
 
 # 5. Configmap env merge. Append/replace the observability keys.
 CM="$TARGET/k8s/base/configmap.yml"
+# Pre-Phase-5 ingress files declare ingressClassName: nginx — k3s on
+# the GCE VM ships Traefik. Rewrite the class so the ingress takes effect.
+for ing in "$TARGET"/k8s/ingress/*.yml; do
+  [ -f "$ing" ] || continue
+  python3 - "$ing" <<'PY'
+import sys, yaml, pathlib
+p = pathlib.Path(sys.argv[1])
+docs = list(yaml.safe_load_all(p.read_text()))
+changed = False
+for d in docs:
+    if isinstance(d, dict) and d.get("kind") == "Ingress":
+        spec = d.setdefault("spec", {})
+        if spec.get("ingressClassName") != "traefik":
+            spec["ingressClassName"] = "traefik"
+            changed = True
+if changed:
+    p.write_text(yaml.safe_dump_all(docs, sort_keys=False))
+    print(f"[overlay] {p}: ingressClassName -> traefik")
+PY
+done
+
 if [ -f "$CM" ]; then
-  python3 - <<PY
-import pathlib, re, yaml
-p = pathlib.Path("$CM")
+  CM_PATH="$CM" python3 - <<'PY'
+import os, pathlib, yaml
+p = pathlib.Path(os.environ["CM_PATH"])
 doc = yaml.safe_load(p.read_text())
 if doc is None or doc.get("kind") != "ConfigMap":
-    print("[overlay] $CM not a ConfigMap; skip")
+    print(f"[overlay] {p} not a ConfigMap; skip")
 else:
     data = doc.setdefault("data", {})
+    # Schema bootstrap (validate would fail before tables exist),
+    # actuator exposure, and the RestClient base URLs that
+    # service-order reads via @Value-driven properties.
     want = {
-      "SPRING_PROFILES_ACTIVE": data.get("SPRING_PROFILES_ACTIVE", "k8s"),
-      "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE":
-        "health,info,prometheus,metrics,circuitbreakers,circuitbreakerevents",
-      "MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED": "true",
+        "SPRING_PROFILES_ACTIVE": data.get("SPRING_PROFILES_ACTIVE", "k8s"),
+        "SPRING_JPA_HIBERNATE_DDL_AUTO": "update",
+        "MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE":
+            "health,info,prometheus,metrics,circuitbreakers,circuitbreakerevents",
+        "MANAGEMENT_ENDPOINT_PROMETHEUS_ENABLED": "true",
+        "APP_SERVICES_PRODUCT_URL": "http://service-product:8081",
+        "APP_SERVICES_ORDER_URL": "http://service-order:8082",
+        "APP_SERVICES_PAYMENT_URL": "http://service-payment:8083",
+        "APP_SERVICES_CUSTOMER_URL": "http://service-customer:8084",
     }
     for k, v in want.items():
         data[k] = v
     p.write_text(yaml.safe_dump(doc, sort_keys=False))
-    print(f"[overlay] $CM: keys merged")
+    print(f"[overlay] {p}: keys merged ({len(want)} keys)")
 PY
 fi
 

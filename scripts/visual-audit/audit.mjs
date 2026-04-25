@@ -46,8 +46,10 @@ for (const uid of DASHBOARDS) {
   } catch (e) {
     console.error(`  nav timeout: ${e.message}`);
   }
-  // Let all panels finish their first render; Grafana 11 uses data-viz-panel-key on each
-  await page.waitForTimeout(12000);
+  // Let all panels finish their first render; Grafana 11 uses data-viz-panel-key on each.
+  // 20s gives template variables (label_values cascades) time to resolve
+  // even on slower dashboards like JVM where instance depends on application.
+  await page.waitForTimeout(20000);
 
   // Count panels and no-data / error states. Grafana 11 marks panels
   // with data-viz-panel-key and injects a "No data" text block into panels

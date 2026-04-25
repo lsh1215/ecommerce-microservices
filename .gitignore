@@ -130,3 +130,4 @@ frontend/scripts/
 logs/
 tmp/
 .gstack/
+scripts/__pycache__/
