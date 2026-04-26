@@ -93,6 +93,18 @@ gcloud compute ssh "${VM}" --zone="${ZONE}" --command='
   fi
 '
 
+# --- 4b. Re-stage monitoring helpers that live in `ecommerce` ns ---
+# mysqld-exporter is a Deployment in `ecommerce` namespace (so it can
+# reach the MySQL Service directly). The phase teardown nukes everything
+# in that namespace, so we always re-apply main's manifest here.
+# kafka-exporter, node-exporter, kube-state-metrics, Alloy/Prom/Loki/Tempo/
+# Grafana all live in `monitoring` ns and survive the teardown untouched.
+echo "[phase] re-staging mysqld-exporter (ecommerce ns)"
+gcloud compute scp --zone="${ZONE}" "${WORKTREE}/k8s/base/mysqld-exporter.yml" "${VM}:/tmp/" 2>&1 | tail -1
+gcloud compute ssh "${VM}" --zone="${ZONE}" --command='
+  sudo kubectl apply -f /tmp/mysqld-exporter.yml
+'
+
 # --- 5. Wait for service rollouts ---
 echo "[phase] waiting for services Ready"
 gcloud compute ssh "${VM}" --zone="${ZONE}" --command='

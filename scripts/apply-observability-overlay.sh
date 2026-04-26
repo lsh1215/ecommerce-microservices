@@ -85,8 +85,9 @@ for svc, port in ports.items():
         continue
     txt = p.read_text()
     new = txt
-    if "prometheus.io/scrape" in txt and "imagePullPolicy" in txt:
-        print(f"[overlay] {svc}: annotations + imagePullPolicy already present")
+    if ("prometheus.io/scrape" in txt and "imagePullPolicy" in txt
+            and "otel-config" in txt):
+        print(f"[overlay] {svc}: annotations + imagePullPolicy + otel-config already present")
         continue
     new = re.sub(
         r'(template:\n    metadata:\n)(      labels:)',
@@ -95,7 +96,7 @@ for svc, port in ports.items():
          rf'        prometheus.io/port: "{port}"\n'
          r'        prometheus.io/path: "/actuator/prometheus"\n'
          r'\2'),
-        txt, count=1)
+        new, count=1)
     # imagePullPolicy: IfNotPresent so k3s uses the locally-imported
     # `:latest` image instead of trying to pull from docker.io.
     if "imagePullPolicy" not in new:
@@ -103,9 +104,23 @@ for svc, port in ports.items():
             r'(image: ecommerce/[a-z-]+:latest)\n',
             r'\1\n          imagePullPolicy: IfNotPresent\n',
             new, count=1)
+    # otel-config envFrom — feeds OTEL_EXPORTER_OTLP_ENDPOINT etc. into the
+    # container so the OTel Java agent attaches at startup. `optional: true`
+    # keeps local k3d / docker compose runs working when the ConfigMap is
+    # absent (entrypoint.sh treats unset endpoint as "agent inert").
+    # Indentation matches the existing envFrom block: 12-space indent for
+    # the list dash, 16-space for `name:` (the same column the existing
+    # configMapRef / secretRef entries use).
+    if "otel-config" not in new:
+        new = re.sub(
+            r'(envFrom:\n(?:            - [a-zA-Z]+:\n                name: [a-zA-Z-]+\n)+)',
+            (r'\1            - configMapRef:\n'
+             r'                name: otel-config\n'
+             r'                optional: true\n'),
+            new, count=1)
     if new != txt:
         p.write_text(new)
-        print(f"[overlay] {svc}: patched (annotations / imagePullPolicy)")
+        print(f"[overlay] {svc}: patched (annotations / imagePullPolicy / otel-config)")
     else:
         print(f"[overlay] {svc}: nothing to change")
 PY

@@ -23,9 +23,12 @@ spec:
         - name: kafka-exporter
           image: danielqsj/kafka-exporter:v1.8.0
           args:
-            - --kafka.server=kafka-0.kafka-service.ecommerce.svc.cluster.local:9092
-            - --kafka.server=kafka-1.kafka-service.ecommerce.svc.cluster.local:9092
-            - --kafka.server=kafka-2.kafka-service.ecommerce.svc.cluster.local:9092
+            # Generic Service DNS — main ships a 3-broker StatefulSet and
+            # phase0..phase5 worktrees ship a single-broker Deployment, but
+            # both expose the same `kafka-service` ClusterIP/headless that
+            # routes to whichever broker pods exist. FQDN form is required
+            # because this exporter lives in the `monitoring` namespace.
+            - --kafka.server=kafka-service.ecommerce.svc.cluster.local:9092
             - --web.listen-address=:9308
             - --group.filter=.*
             - --topic.filter=.*

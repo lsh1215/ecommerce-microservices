@@ -14,7 +14,20 @@ commit. Metric labels captured during verification:
 
 import json
 
-def stat(id, title, gridPos, expr, unit="short"):
+def stat(id, title, gridPos, expr, unit="short", thresholds=None):
+    """Stat panel. `thresholds` is a list of (value, color) tuples; the
+    first tuple's value is replaced with None (the "below first threshold"
+    bucket Grafana renders as the lowest band). When omitted, panel stays
+    a flat green — fine for "is the service alive" gauges. For panels
+    where high values mean trouble (failure rate, error count), pass
+    explicit thresholds so Grafana paints the cell red on bad numbers.
+    """
+    if thresholds is None:
+        steps = [{"value": None, "color": "green"}]
+    else:
+        steps = []
+        for i, (val, color) in enumerate(thresholds):
+            steps.append({"value": None if i == 0 else val, "color": color})
     return {
         "type": "stat", "id": id, "title": title, "gridPos": gridPos,
         "datasource": {"type": "prometheus", "uid": "prometheus"},
@@ -23,7 +36,7 @@ def stat(id, title, gridPos, expr, unit="short"):
         "fieldConfig": {"defaults": {"unit": unit,
                         "color": {"mode": "thresholds"},
                         "thresholds": {"mode": "absolute",
-                                       "steps": [{"value": None, "color": "green"}]}}, "overrides": []},
+                                       "steps": steps}}, "overrides": []},
         "options": {"graphMode": "area", "colorMode": "value",
                     "justifyMode": "auto", "textMode": "auto"},
     }
@@ -68,9 +81,11 @@ def nid(): global pid; pid += 1; return pid
 # Row 1 — instant health stats
 panels += [
     stat(nid(), "JVM UP (services scraped)", {"h":4,"w":4,"x":0,"y":0},
-         'count(count by (pod) (jvm_memory_used_bytes{app=~"service-.*"}))'),
+         'count(count by (pod) (jvm_memory_used_bytes{app=~"service-.*"}))',
+         thresholds=[(0, "red"), (1, "yellow"), (4, "green")]),
     stat(nid(), "Kafka Brokers", {"h":4,"w":4,"x":4,"y":0}, 'kafka_brokers'),
-    stat(nid(), "MySQL Up", {"h":4,"w":4,"x":8,"y":0}, 'mysql_up'),
+    stat(nid(), "MySQL Up", {"h":4,"w":4,"x":8,"y":0}, 'mysql_up',
+         thresholds=[(0, "red"), (1, "green")]),
     stat(nid(), "MySQL QPS", {"h":4,"w":4,"x":12,"y":0},
          'rate(mysql_global_status_queries[5m])', unit="reqps"),
     stat(nid(), "Active DB Connections", {"h":4,"w":4,"x":16,"y":0},
@@ -85,7 +100,7 @@ panels += [
        [('sum by (app) (jvm_memory_used_bytes{app=~"service-.*",area="heap"})', "{{app}}")],
        unit="bytes"),
     ts(nid(), "HTTP Request Rate (per service, via OTLP)", {"h":8,"w":12,"x":12,"y":4},
-       [('sum by (job) (rate(http_server_request_duration_seconds_count{job=~"ecommerce/service-.*"}[10m]))', "{{job}}")],
+       [('sum by (job) (rate(http_server_request_duration_seconds_count{job=~"(ecommerce/)?service-.*"}[10m]))', "{{job}}")],
        unit="reqps"),
 ]
 
@@ -140,9 +155,11 @@ panels += [
     stat(nid(), "k6 iterations/s", {"h":4,"w":6,"x":6,"y":54},
          'sum(rate(k6_iterations_total[5m]))', unit="reqps"),
     stat(nid(), "k6 HTTP p95 (ms)", {"h":4,"w":6,"x":12,"y":54},
-         'avg(k6_http_req_duration_p95)', unit="ms"),
+         'avg(k6_http_req_duration_p95)', unit="ms",
+         thresholds=[(0, "green"), (500, "yellow"), (2000, "red")]),
     stat(nid(), "k6 HTTP failure rate", {"h":4,"w":6,"x":18,"y":54},
-         'avg(k6_http_req_failed_rate)', unit="percentunit"),
+         'avg(k6_http_req_failed_rate)', unit="percentunit",
+         thresholds=[(0, "green"), (0.05, "yellow"), (0.20, "red")]),
     ts(nid(), "k6 HTTP Request Duration", {"h":8,"w":24,"x":0,"y":58},
        [('avg(k6_http_req_duration_avg)', "avg"),
         ('avg(k6_http_req_duration_p95)', "p95"),
@@ -169,4 +186,27 @@ dashboard = {
     "time": {"from": "now-15m", "to": "now"},
     "panels": panels,
 }
-print(json.dumps(dashboard, indent=2))
+
+# Two output modes:
+#   no args      → pretty JSON to stdout (debug / inspection)
+#   --configmap  → write the wrapped ConfigMap to
+#                  k8s/monitoring/dashboards/dashboard-ecommerce-overview.yml
+import sys, pathlib
+if "--configmap" in sys.argv:
+    import yaml
+    out = pathlib.Path(__file__).resolve().parent.parent / "k8s" / "monitoring" \
+        / "dashboards" / "dashboard-ecommerce-overview.yml"
+    cm = {
+        "apiVersion": "v1",
+        "kind": "ConfigMap",
+        "metadata": {
+            "name": "grafana-dashboard-ecommerce-overview",
+            "namespace": "monitoring",
+            "labels": {"grafana_dashboard": "1"},
+        },
+        "data": {"ecommerce-overview.json": json.dumps(dashboard, separators=(",", ":"))},
+    }
+    out.write_text(yaml.safe_dump(cm, sort_keys=False, allow_unicode=True))
+    print(f"wrote {out}")
+else:
+    print(json.dumps(dashboard, indent=2))
