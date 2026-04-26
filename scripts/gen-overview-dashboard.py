@@ -157,8 +157,17 @@ panels += [
     stat(nid(), "k6 HTTP p95 (ms)", {"h":4,"w":6,"x":12,"y":54},
          'avg(k6_http_req_duration_p95)', unit="ms",
          thresholds=[(0, "green"), (500, "yellow"), (2000, "red")]),
+    # k6_http_reqs_total emits one series per (status, expected_response,
+    # error) tuple. expected_response="false" covers both 4xx/5xx
+    # responses and connection-level failures (status=0 timeouts).
+    # Average across series doesn't work — series-count averaging gives
+    # 50% when half the buckets pass / half fail, regardless of
+    # request volume. Compute the actual fraction from the underlying
+    # counter values via max_over_time over the panel's time range.
     stat(nid(), "k6 HTTP failure rate", {"h":4,"w":6,"x":18,"y":54},
-         'avg(k6_http_req_failed_rate)', unit="percentunit",
+         'sum(max_over_time(k6_http_reqs_total{expected_response="false"}[$__range])) '
+         '/ clamp_min(sum(max_over_time(k6_http_reqs_total[$__range])), 1)',
+         unit="percentunit",
          thresholds=[(0, "green"), (0.05, "yellow"), (0.20, "red")]),
     ts(nid(), "k6 HTTP Request Duration", {"h":8,"w":24,"x":0,"y":58},
        [('avg(k6_http_req_duration_avg)', "avg"),
