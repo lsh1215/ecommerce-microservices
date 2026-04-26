@@ -151,7 +151,11 @@ panels += [
 
 # Row 8 — k6 live panel (visible while running)
 panels += [
-    stat(nid(), "k6 VUs", {"h":4,"w":6,"x":0,"y":54}, 'k6_vus'),
+    # k6_vus is a gauge that drops to a low value during graceful
+    # shutdown. Use max_over_time over the panel range to show the
+    # peak VU count for the run, which is what users care about.
+    stat(nid(), "k6 VUs", {"h":4,"w":6,"x":0,"y":54},
+         'max(max_over_time(k6_vus[$__range]))'),
     stat(nid(), "k6 iterations/s", {"h":4,"w":6,"x":6,"y":54},
          'sum(rate(k6_iterations_total[5m]))', unit="reqps"),
     stat(nid(), "k6 HTTP p95 (ms)", {"h":4,"w":6,"x":12,"y":54},
