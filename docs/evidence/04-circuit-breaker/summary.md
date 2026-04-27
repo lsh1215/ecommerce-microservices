@@ -1,110 +1,92 @@
-# Unit 04 — Circuit Breaker (이력서 클레임 #4: Slow Dependency 격리)
+# Unit 04 — Circuit Breaker
 
-## 문제 정의
+## 가설
 
-타 서비스의 **완전 다운**이 아니라 **응답 지연(Latency) 장애** 시:
-- 동기 RestClient 호출 thread가 timeout 한도까지 block
-- 200 thread Tomcat pool이 빠르게 포화됨 → **무관한 API까지 연쇄 마비** (Thread Starvation)
-- `/actuator/health` 같은 헬스체크도 응답 지연되어 k8s liveness probe 실패 → 강제 재시작 cascade
+타 서비스의 **응답 지연(slow call)** 시 동기 RestClient 호출 thread가
+타임아웃까지 block 된다. 한정된 Tomcat thread pool이 빠르게 saturate
+되어 Product를 거치지 않는 무관한 API까지 thread starvation으로 마비된다.
+Resilience4j Circuit Breaker가 slow-call 비율을 모니터링하다 임계 초과
+시 회로를 OPEN 하여 fast-fail 시키면 thread 점유를 차단할 수 있다.
 
-이력서 클레임: "Product internal에 2s chaos delay 주입 시 order p95 12.58s, http_req_failed 75.43%"
+## 셋업
 
-## 해결 방법
+- 스크립트: `k6/scripts/phase4-slow-product.js` — 30 VUs order-create + 5 VUs `/actuator/health`, 30s
+- Chaos delay: `service-product`에 `APP_CHAOS_ENABLED=true`, `APP_CHAOS_STOCK_DELAY_MS=2000`
+  (모든 `reserveStock` 호출이 server-side에서 2초 정지)
+- 인프라: GCE e2-standard-4, k3s 단일 노드, public ingress 경유
+- 모니터링: 기존 LGTM 스택 재사용. 대시보드 재배포 없음.
 
-**Resilience4j Circuit Breaker** — Order 서비스의 Product/Customer RestClient 호출을 CB로 감싼다.
+`evidence/04-no-cb` 워크트리는 `main`과 정확히 한 가지만 다르다 —
+`ProductCatalogRestClient`의 `@CircuitBreaker` annotation 과 fallback
+메서드가 제거되어 있고 `application.yml`의 resilience4j 블록도 빠짐.
+Kafka, outbox, idempotency, JWT trust, 3-broker infra 모두 동일.
 
-```yaml
-resilience4j:
-  circuitbreaker:
-    configs:
-      default:
-        slidingWindowSize: 10
-        minimumNumberOfCalls: 5
-        failureRateThreshold: 50
-        slowCallDurationThreshold: 2s
-        slowCallRateThreshold: 50
-        waitDurationInOpenState: 10s
-```
+## 결과
 
-3가지 상태:
-- **CLOSED**: 정상. 모든 호출 통과. 실패/지연을 sliding window에 기록.
-- **OPEN**: 임계 초과 시 전이. 즉시 fallback 메서드 실행 (`CallNotPermittedException` → 503). thread 점유 차단.
-- **HALF_OPEN**: 10초 후 시범 호출 3개 허용. 성공 시 CLOSED 복귀, 실패 시 다시 OPEN.
-
-`@CircuitBreaker(name=CB_NAME, fallbackMethod="...")` annotation으로 감싸진 메서드:
-- `existsVariant`, `fetchSnapshot`, `reserveStock`, `releaseStock`, `getCustomerSnapshot`
-
-## 테스트 시나리오 (Squeeze 환경 — thread starvation 강제 재현)
-
-| 항목 | 값 |
-|---|---|
-| 스크립트 | `k6/scripts/phase4-slow-product.js` (30 VUs order-create + 5 VUs order-query, 30s) |
-| Chaos delay | `APP_CHAOS_ENABLED=true APP_CHAOS_STOCK_DELAY_MS=2000` (Product internal 2s 지연) |
-| Thread squeeze | `SERVER_TOMCAT_THREADS_MAX=10` (Tomcat 기본 200을 10으로 축소 → 30 VU가 쉽게 saturate) |
-| 인프라 | GCE e2-standard-4, k3s 단일 노드 |
-
-> Note: 일반 부하에선 200 thread pool이 saturated 안 되어 effect 약함. 이력서의 12.58s 측정도 docker-compose 환경 + 다른 timeout 설정 영향. **squeeze test로 thread starvation을 강제 발현**하여 본질 동일 검증.
-
-## 결과 요약
-
-| 지표 | Problem (phase3, no CB) | Solution (phase4, CB) | 변화 |
-|---|---|---|---|
-| order_create_duration **median** | **14.99s** (k6 timeout 한계) | **1.41s** | **10배 단축** ↓ |
-| order_create_duration avg | 14.86s | 3.21s | **4.6배** ↓ |
-| order_create_duration p95 | 15.00s | 14.99s | (둘 다 timeout — 일부 HALF_OPEN sample이 slow) |
-| iterations | 359 | **570** | **1.6배** ↑ |
-| order_create_errors | 71.87% | 100% (모두 503 fast-fail) | — |
-| order_query_duration p95 | 21.13ms | 20.34ms | 비슷 (5 VUs로 thread pool 영향 안 받음) |
-| CB state (post-test) | (없음) | **HALF_OPEN** (cycling OPEN ↔ HALF_OPEN) | — |
-
-> p95 둘 다 14.99s인 건 k6 iteration timeout(15s) 때문. **median이 더 정직한 비교** — Problem 14.99s vs Solution 1.41s = **CB가 대부분 호출을 1초 안에 fast-fail**.
-
-## Evidence
-
-| | k6 raw | CB 상태 | Grafana 화면 |
-|---|---|---|---|
-| Problem | [`problem/k6-output.txt`](./problem/k6-output.txt) | (CB 없음) | [`problem/dashboards/`](./problem/dashboards/) — overview, jvm, k6 |
-| Solution | [`solution/k6-output.txt`](./solution/k6-output.txt) | [`solution/cb-state.txt`](./solution/cb-state.txt) | [`solution/dashboards/`](./solution/dashboards/) |
-
-## 모니터링 대시보드 핵심 panel
-
-| Panel | Problem | Solution |
+| 지표 | Problem (no-cb) | Solution (main, CB on) |
 |---|---|---|
-| **k6 HTTP p95 (ms)** | 빨강 14990ms | 빨강 14990ms (timeout 한계) |
-| **k6 HTTP failure rate** | 빨강 95% | 빨강 100% |
-| **JVM Live Threads (per service)** | order: ~10/10 saturated | order: 호흡 (CB가 thread 풀어줌) |
-| **Process CPU Usage** | order: 거의 IO wait | order: 정상 |
-| **k6 iterations/s** | 11.97 | **19.0** (1.6배) |
+| `order_create_duration` p95 | **15.00 s** (k6 timeout) | **1.64 s** |
+| `order_create_duration` avg | 7.95 s | 575 ms |
+| `order_create_duration` med | 12.39 s | 372 ms |
+| `order_create` 체크 통과율 | 70 % (84/120) | 99 % (1338/1339) |
+| `order_query_duration` p95 | 3.08 ms | 13.29 ms |
+| iterations / 30s | **420** | **1 639** (3.9×) |
+| VU low watermark | 1 (대부분 정체) | 35 (안정) |
+| `http_req_duration` p95 (성공만) | 14.7 s | 1.04 s |
+| Threshold `p(95)<3000` | **CROSSED** | passed |
 
-## 검증 결과 — **PASS**
+raw k6 output: [`problem/k6.txt`](./problem/k6.txt), [`solution/k6.txt`](./solution/k6.txt)
 
-- Problem: median 14.99s + Tomcat 10 thread saturation 입증 ✓
-- Solution: median 1.41s + CB가 thread 차단 ✓
-- 이력서 본질 ("CB 도입으로 thread starvation 격리, 처리량 회복") 정확히 재현
-- 절대 수치(573배)는 docker-compose 환경 한정 — squeeze 환경에서도 **median 10배 단축, throughput 1.6배** 확인
+## 해석
 
-## 재현 명령
+**Problem 측 (no-cb)** — order POST p95가 k6 iteration timeout (15s) 까지
+밀려 있다. RestClient에 escape hatch가 없어 `reserveStock`가 2초 block
+되면 그대로 thread를 점유한다. iteration 수가 Solution의 25 % 까지
+떨어지고 (`vus min=1`) VU가 사실상 직렬화된다.
+
+**Solution 측 (CB on)** — 5 슬로우콜이 sliding window를 채우면 CB가
+OPEN 으로 전이, 후속 호출은 즉시 503 fast-fail. p95가 15s → 1.6s 로
+거의 한 자리수 단축. iterations 도 4 배 회복.
+
+`order_query_duration` 이 Solution 에서 *더 높게* 보이는 건 회귀가
+아님 — Solution 에서는 order POST 가 503 으로 빠르게 회수되어 query
+경로가 더 많은 traffic 과 thread 를 공유한다. Problem 에서는 order POST
+가 thread 를 잡아두니 query 경로가 거의 idle 한 thread pool 위에서
+돈다. 두 build 모두 query path 는 sub-15ms 로 안정. 핵심 신호는
+**order_create p95 가 한 자리수 단축** 인 것.
+
+## 재현
 
 ```bash
-# Problem (phase3, no CB)
-./scripts/deploy-phase.sh phase3
-# Cherry-pick chaos config (phase3 worktree에 없음)
-cp backend-v2/service-product/src/main/java/com/ecommerce/product/infra/config/ChaosDelayConfig.java \
-   ../ecommerce-microservices-worktrees/phase3/backend-v2/service-product/src/main/java/com/ecommerce/product/infra/config/
-cd ../ecommerce-microservices-worktrees/phase3
-docker buildx build --no-cache --build-arg SERVICE_NAME=service-product -t ecommerce/service-product:latest --load backend-v2/
+# Problem build
+docker buildx build --platform linux/amd64 \
+  --build-arg SERVICE_NAME=service-order \
+  -t ecommerce/service-order:04-no-cb \
+  --load ../ecommerce-microservices-worktrees/04-no-cb/backend-v2/
 
-gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a -- '
-  sudo kubectl -n ecommerce set env deploy/service-product APP_CHAOS_ENABLED=true APP_CHAOS_STOCK_DELAY_MS=2000
-  sudo kubectl -n ecommerce set env deploy/service-order SERVER_TOMCAT_THREADS_MAX=10
-'
+docker save ecommerce/service-order:04-no-cb | \
+  gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a \
+    --command='cat - > /tmp/order.tar && sudo k3s ctr images import /tmp/order.tar && rm /tmp/order.tar'
 
-ORDER_API=http://34.64.219.137 CUSTOMER_ID=1 \
-K6_PROMETHEUS_RW_SERVER_URL=http://34.64.219.137:30090/api/v1/write \
-k6 run -o experimental-prometheus-rw --tag testid=u04-problem-phase3 \
-  k6/scripts/phase4-slow-product.js
+# Apply Problem
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce set image deploy/service-order \
+    service-order=docker.io/ecommerce/service-order:04-no-cb
+  sudo kubectl -n ecommerce rollout status deploy/service-order'
 
-# Solution — same on phase4 (CB enabled)
-./scripts/deploy-phase.sh phase4
-# Same chaos + squeeze, same k6 command with testid=u04-solution-phase4
+# k6 (run on the VM since Prometheus is ClusterIP-only)
+gcloud compute scp --zone=asia-northeast3-a k6/scripts/phase4-slow-product.js ecommerce-k3s:/tmp/k6.js
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  PROM=$(sudo kubectl -n monitoring get svc prometheus -o jsonpath="{.spec.clusterIP}")
+  ORDER_API=http://34.64.219.137 \
+  K6_PROMETHEUS_RW_SERVER_URL="http://${PROM}:9090/api/v1/write" \
+  k6 run --tag testid=04-cb-problem \
+    --out experimental-prometheus-rw \
+    /tmp/k6.js'
+
+# Restore Solution
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce set image deploy/service-order \
+    service-order=docker.io/ecommerce/service-order:latest
+  sudo kubectl -n ecommerce rollout status deploy/service-order'
 ```

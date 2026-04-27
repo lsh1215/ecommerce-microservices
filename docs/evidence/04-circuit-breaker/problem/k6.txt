@@ -1,0 +1,50 @@
+  █ THRESHOLDS 
+
+    order_create_duration
+    ✗ 'p(95)<3000' p(95)=15s
+
+    order_query_duration
+    ✓ 'p(95)<1000' p(95)=3.08ms
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 840    20.787575/s
+    checks_succeeded...: 60.00% 504 out of 840
+    checks_failed......: 40.00% 336 out of 840
+
+    ✗ health query: 200
+      ↳  0% — ✓ 0 / ✗ 300
+    ✓ health query: fast (<500ms)
+    ✗ order create: 201 or 503 fast-fail
+      ↳  70% — ✓ 84 / ✗ 36
+    ✓ order create: not 5xx other
+
+    CUSTOM
+    order_create_duration..........: avg=7.95s  min=2.2ms    med=12.39s   max=15s    p(90)=15s    p(95)=15s   
+    order_create_errors............: 73.33% 88 out of 120
+    order_query_duration...........: avg=1.3ms  min=604.66µs med=980.29µs max=8.35ms p(90)=1.71ms p(95)=3.08ms
+
+    HTTP
+    http_req_duration..............: avg=2.27s  min=604.66µs med=1.17ms   max=15s    p(90)=14.23s p(95)=14.99s
+      { expected_response:true }...: avg=12.94s min=9.04s    med=12.94s   max=14.9s  p(90)=14.58s p(95)=14.71s
+    http_req_failed................: 92.38% 388 out of 420
+    http_reqs......................: 420    10.393787/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.66s  min=103.05ms med=502.03ms max=15.1s  p(90)=14.33s p(95)=15.1s 
+    iterations.....................: 420    10.393787/s
+    vus............................: 1      min=1          max=35
+    vus_max........................: 35     min=35         max=35
+
+    NETWORK
+    data_received..................: 88 kB  2.2 kB/s
+    data_sent......................: 88 kB  2.2 kB/s
+
+
+
+
+running (0m40.4s), 00/35 VUs, 420 complete and 0 interrupted iterations
+order_creation ✓ [ 100% ] 30 VUs  30s
+order_query    ✓ [ 100% ] 5 VUs   30s
+time="2026-04-27T09:42:28Z" level=error msg="thresholds on metrics 'order_create_duration' have been crossed"
