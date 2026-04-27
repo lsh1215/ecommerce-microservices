@@ -1,0 +1,31 @@
+{
+    "name": "order.created",
+    "internal": false,
+    "partitions": [
+        {
+            "partition": 0,
+            "leader": 1,
+            "replicas": [
+                {
+                    "broker": 1,
+                    "leader": true,
+                    "inSync": true
+                }
+            ],
+            "offsetMax": 2,
+            "offsetMin": 0
+        }
+    ],
+    "partitionCount": 1,
+    "replicationFactor": 1,
+    "replicas": 1,
+    "inSyncReplicas": 1,
+    "bytesInPerSec": null,
+    "bytesOutPerSec": null,
+    "segmentSize": 459,
+    "segmentCount": 1,
+    "underReplicatedPartitions": 0,
+    "cleanUpPolicy": "DELETE",
+    "keySerde": null,
+    "valueSerde": null
+}

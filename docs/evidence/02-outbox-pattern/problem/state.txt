@@ -1,0 +1,36 @@
+[orders 90 (normal) vs 91 (kafka-down moment)]
++----+----------------------------+-----------+
+| id | order_number               | status    |
++----+----------------------------+-----------+
+| 90 | 01KQ7H5CZJ6VHKBCP368TKJM5Z | PAID      |
+| 91 | 01KQ7H6C8C9GMRTRFYRGRV2XXG | CANCELLED |
++----+----------------------------+-----------+
+
+[payment rows for those orderIds]
++----+----------+-----------+--------------------------------------+
+| id | order_id | status    | transaction_id                       |
++----+----------+-----------+--------------------------------------+
+| 97 |       90 | COMPLETED | 45afe482-53ee-420b-9f68-e225ddb639e3 |
+| 98 |       91 | FAILED    | NULL                                 |
++----+----------+-----------+--------------------------------------+
+
+[outbox_event > id 89 (no-outbox build should not write any)]
+
+[no-outbox WARN logs]
+[after recovery — order 92 (lost) state]
++----+----------------------------+---------+
+| id | order_number               | status  |
++----+----------------------------+---------+
+| 92 | 01KQ7HAE4REAT4NKV7RTKPCNE1 | PENDING |
++----+----------------------------+---------+
+
+[payment for order 92 — should be ZERO under no-outbox + buffer drop]
+
+[outbox table is the no-outbox build does not write here]
++-----------------------+
+| new_outbox_after_id89 |
++-----------------------+
+|                     0 |
++-----------------------+
+
+[current order topic offset]

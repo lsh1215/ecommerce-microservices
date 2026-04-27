@@ -1,0 +1,27 @@
+[outbox_event rows on order DB]
++----+----------------+---------------+-----------+-------------+----------------------------+
+| id | aggregate_type | event_type    | status    | retry_count | partition_key              |
++----+----------------+---------------+-----------+-------------+----------------------------+
+| 89 | Order          | order.created | PUBLISHED |           0 | 01KQ7GR68PQKXG84E2H04MPAE4 |
+| 88 | Order          | order.created | PUBLISHED |           0 | 01KQ7GQY23MDQNB242P8JQNSKT |
+| 87 | Order          | order.created | PUBLISHED |           0 | 01KQ7532Y6J0PH544R5NW74XVC |
+| 86 | Order          | order.created | PUBLISHED |           0 | 01KQ7532FXDJCFRD8NA7XYMXSJ |
+| 85 | Order          | order.created | PUBLISHED |           0 | 01KQ753162WH0ANASAGKK388SZ |
+| 84 | Order          | order.created | PUBLISHED |           0 | 01KQ753103VY0FA36RP2RK6E9P |
+| 83 | Order          | order.created | PUBLISHED |           0 | 01KQ7530WJE2PSCGYZ3ZYCF9RV |
+| 82 | Order          | order.created | PUBLISHED |           0 | 01KQ7530SE222DZP0XVGXE2NVN |
+| 81 | Order          | order.created | PUBLISHED |           0 | 01KQ7530HET776GKK629RBMP7F |
+| 80 | Order          | order.created | PUBLISHED |           0 | 01KQ75308V641525YV46EY987Y |
++----+----------------+---------------+-----------+-------------+----------------------------+
+
+[outbox status summary]
++-----------+----------+
+| status    | COUNT(*) |
++-----------+----------+
+| PUBLISHED |       89 |
++-----------+----------+
+
+[order.created topic end offset]
+Error: Could not find or load main class kafka.tools.GetOffsetShell
+Caused by: java.lang.ClassNotFoundException: kafka.tools.GetOffsetShell
+command terminated with exit code 1

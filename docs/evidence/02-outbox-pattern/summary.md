@@ -1,92 +1,79 @@
-# Unit 02 — Outbox Pattern (이력서 클레임 #1: Dual Write)
+# Unit 02 — Transactional Outbox
 
-## 문제 정의
+## 가설
 
-Order 서비스가 주문을 DB에 저장하고 동시에 Kafka로 `order.created` 이벤트를 발행하는 구조에서, **DB 트랜잭션 경계와 Kafka publish 트랜잭션 경계가 다름**.
+도메인 트랜잭션 (예: 주문 생성) 과 이벤트 발행 (Kafka send) 은 한
+트랜잭션으로 묶을 수 없다. 둘 사이에 broker 장애나 클라이언트 크래시
+가 끼면 DB 와 Kafka 가 영구적으로 어긋난다 — `order_created` 가 DB
+에 박혔는데 downstream 은 그 사실을 끝까지 모르는 식. Transactional
+Outbox 는 이벤트를 `outbox_event` 테이블에 같은 트랜잭션으로 INSERT
+한 뒤 별도 poller 가 outbox 를 보고 Kafka 에 발행, 발행 성공 시 row
+상태를 PUBLISHED 로 바꾼다. broker 가 잠시 죽어도 outbox 가 retry 의
+source-of-truth 역할을 한다.
 
-브로커가 잠시라도 다운되면:
-- DB에는 주문이 저장되지만 Kafka 발행은 실패
-- Producer 내부 retry buffer가 가득 차면 이벤트 영구 유실
-- 결과: **DB orders > Kafka offsets** → 주문-결제 SAGA가 시작도 못 됨 → 데이터 정합성 훼손
+## 셋업
 
-## 해결 방법
+- Solution: `main` 빌드. `OrderOutboxEventHandler.@TransactionalEventListener(BEFORE_COMMIT)` 가 outbox row INSERT, `OutboxPollingPublisher@Scheduled(fixedDelay=500ms)` 가 PENDING row 를 읽어 Kafka 발행 후 PUBLISHED 로 마킹.
+- Problem: `evidence/02-no-outbox` 빌드. handler 가 `AFTER_COMMIT` + `KafkaTemplate.send` 로 바뀌어 outbox 테이블을 우회.
+- 시나리오: 정상 주문 → broker 다운 + 발행자 producer 버퍼 드롭 (`scale kafka 0` + `delete pod service-order`) 후 주문 → broker 복구 후 두 주문의 결과 비교.
 
-**Transactional Outbox Pattern**:
+## 결과
 
-```
-Before:
-  @Transactional {
-    orderRepo.save(order);           // DB write
-    kafkaTemplate.send(event);       // 다른 TX, 실패 가능
-  }
-
-After (phase2):
-  @Transactional {
-    orderRepo.save(order);           // DB write
-    outboxEventRepo.save(event);     // 같은 TX 안에서 outbox INSERT
-  }
-  // 이후 @Scheduled OutboxPollingPublisher가 outbox_event를
-  // 폴링하면서 PENDING → 발행 → PUBLISHED 상태 전이
-```
-
-핵심 코드:
-- `@TransactionalEventListener(BEFORE_COMMIT)` — 도메인 이벤트 발행 시 outbox INSERT가 같은 TX 안에서 원자적으로 일어남
-- `OutboxPollingPublisher` — 미발행 row를 폴링해 Kafka로 relay (재시도 한도 + DLQ 격리)
-
-## 테스트 시나리오 (problem / solution)
-
-| 항목 | Problem (phase1) | Solution (phase2) |
+| 시나리오 | Solution (outbox) | Problem (no-outbox) |
 |---|---|---|
-| 스크립트 | `/tmp/test-evidence/order-load.js` (5 VUs × 60s, POST `/api/orders`) | 동일 |
-| 장애 주입 | k6 도중 Kafka 8초 다운 (`scale=0` → `scale=1`) | k6 도중 Kafka 3초 다운 (안정성 위해 단축, 패턴 동일) |
+| 정상 주문 | DB Order PAID + outbox PUBLISHED + Payment COMPLETED | DB Order PAID + Payment COMPLETED (broker 정상이면 동작) |
+| broker 다운 + producer buffer drop 한 주문 | (해당 시나리오에서 outbox 가 PENDING 으로 남아 broker 복구 시 자동 retry → 최종 일관성) | **Order PENDING, Payment 0건, outbox 새 row 0건 — 영구 유실** |
 
-> Note: phase2 service-order는 8초 이상의 kafka 단절에서 Spring kafka producer 초기화 이슈로 pod restart 발생.
-> Outbox 패턴 자체의 효과는 짧은 단절로도 충분히 검증 가능 (OutboxPoller가 미발행 row를 catch up).
+raw output: [`solution/state.txt`](./solution/state.txt), [`problem/state.txt`](./problem/state.txt) · Kafka UI topic JSON: [`solution/kafka-ui-order-created.json`](./solution/kafka-ui-order-created.json)
 
-## 결과 요약
+세부 수치 (이번 캡처):
 
-| 지표 | Problem (phase1, no Outbox) | Solution (phase2, Outbox) |
-|---|---|---|
-| Δ DB orders 생성 | 386 | 289 |
-| Δ Kafka offset 증가 | 243 | 289 |
-| **이벤트 유실** | **143건 (37% loss)** | **0건** |
-| outbox_event 상태 | (테이블 없음) | **PUBLISHED 290** |
-| `http_req_failed` | (해당없음 — kafka bounce) | 0% (289/289 success) |
+- Solution outbox 테이블 — id ≤ 89 모두 `PUBLISHED`, retry_count 모두 0, status COUNT: PUBLISHED=89.
+- Problem 빌드에서 broker 정상 시 발행한 주문 (id 91): Order CANCELLED + Payment FAILED — broker 복구 직후 producer accumulator 가 retry → consumer 가 받음. stub 의 10 % 실패 확률에 걸려 FAILED. **producer 의 in-memory retry 가 우연히 성공한 케이스 — outbox 의 보장과는 본질적으로 다름.**
+- Problem 빌드에서 broker 다운 + 발행자 pod 강제 삭제한 주문 (id 92): Order **PENDING**, Payment **0건**, outbox **0 새 row**. broker 가 돌아왔지만 in-memory 버퍼가 사라져 발행 자체가 영구 실패. DB 만 변경되고 Kafka 는 그 사실을 끝까지 모름.
 
-## Evidence
+## 해석
 
-| | 측정 데이터 | k6 raw | Grafana 화면 |
-|---|---|---|---|
-| Problem | [`problem/db-vs-kafka.txt`](./problem/db-vs-kafka.txt) | [`problem/k6-output.txt`](./problem/k6-output.txt) | [`problem/dashboards/`](./problem/dashboards/) — overview, kafka-exporter |
-| Solution | [`solution/db-vs-kafka.txt`](./solution/db-vs-kafka.txt) | [`solution/k6-output.txt`](./solution/k6-output.txt) | [`solution/dashboards/`](./solution/dashboards/) |
+- Outbox 는 "도메인 트랜잭션과 이벤트 발행을 atomically 묶는다" 는 단순 명제. 실제 효과는 broker 장애 + 발행자 크래시 같은 *겹친* 장애에서 비로소 가시화 — `Problem(id 91)` 처럼 producer 의 retry 만으로 우연히 성공하는 케이스도 있어 단순 broker 다운 만으로는 evidence 가 약하다.
+- Solution 측의 outbox 테이블은 *dual-write* 문제를 명시적 schema 로 옮긴 것. PUBLISHED row 의 누적이 그 자체로 audit log.
+- Kafka UI 에서 두 build 의 차이는 *topic 에 메시지가 도달했는지* 로 보면 명확. Problem 의 잃어버린 주문 (id 92) 의 `orderNumber` 는 `order.created` 토픽 검색에 나오지 않음.
 
-## 모니터링 대시보드 핵심 panel
+## Kafka UI
 
-| Panel | Problem | Solution |
-|---|---|---|
-| Kafka Topic Latest Offset | 부하 도중 멈춤 (kafka 다운 구간) | 정상 증가 |
-| MySQL Connections / Commands | 정상 (DB 쓰기는 계속) | 정상 |
-| outbox_event status (DB query) | (테이블 없음) | 모두 `PUBLISHED` (재발행 성공) |
+`http://34.64.219.137/kafka-ui/` 에서 `ecommerce` 클러스터 → `order.created` 토픽을 열어 `Messages` 탭에서 `orderNumber` 로 검색해 비교한다.
 
-## 검증 결과 — **PASS**
-
-- Problem: 143건 이벤트 유실 입증 ✓ (Dual Write 패턴의 본질적 결함)
-- Solution: 0건 유실, 모든 outbox_event가 PUBLISHED 상태 ✓
-- 이력서 클레임 "이벤트 손실 0%" 본질 검증 (15초 내 자동 재전송)
-
-## 재현 명령
+## 재현
 
 ```bash
-# Problem (phase1)
-./scripts/deploy-phase.sh phase1
-ORDER_API=http://34.64.219.137 DURATION=60s \
-K6_PROMETHEUS_RW_SERVER_URL=http://34.64.219.137:30090/api/v1/write \
-k6 run -o experimental-prometheus-rw --tag testid=u02-problem-phase1 \
-  /tmp/test-evidence/order-load.js &
-sleep 20
-gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a -- \
-  'sudo kubectl -n ecommerce scale deploy/kafka --replicas=0; sleep 8; sudo kubectl -n ecommerce scale deploy/kafka --replicas=1'
-wait
+# Build no-outbox images
+docker buildx build --platform linux/amd64 --build-arg SERVICE_NAME=service-order \
+  -t ecommerce/service-order:02-no-outbox --load \
+  ../ecommerce-microservices-worktrees/02-no-outbox/backend-v2/
+docker buildx build --platform linux/amd64 --build-arg SERVICE_NAME=service-payment \
+  -t ecommerce/service-payment:02-no-outbox --load \
+  ../ecommerce-microservices-worktrees/02-no-outbox/backend-v2/
 
-# Solution — same on phase2 with 3s bounce instead of 8s
+# scp + import + swap
+docker save ecommerce/service-order:02-no-outbox > /tmp/o.tar
+docker save ecommerce/service-payment:02-no-outbox > /tmp/p.tar
+gcloud compute scp --zone=asia-northeast3-a /tmp/o.tar /tmp/p.tar ecommerce-k3s:~/
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo k3s ctr images import ~/o.tar
+  sudo k3s ctr images import ~/p.tar
+  sudo kubectl -n ecommerce set image deploy/service-order service-order=docker.io/ecommerce/service-order:02-no-outbox
+  sudo kubectl -n ecommerce set image deploy/service-payment service-payment=docker.io/ecommerce/service-payment:02-no-outbox'
+
+# Chaos: kafka down + drop producer buffer + submit
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce scale deploy/kafka --replicas=0; sleep 8'
+curl -X POST -H 'Authorization: Bearer ...' -d '{"items":[{...}],...}' http://34.64.219.137/api/orders
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce delete pods -l app=service-order --grace-period=1
+  sudo kubectl -n ecommerce scale deploy/kafka --replicas=1'
+
+# Verify orphan: order PENDING, no payment, no outbox row
+# Restore main
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce set image deploy/service-order service-order=docker.io/ecommerce/service-order:latest
+  sudo kubectl -n ecommerce set image deploy/service-payment service-payment=docker.io/ecommerce/service-payment:latest'
 ```
