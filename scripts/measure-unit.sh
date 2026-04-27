@@ -103,7 +103,7 @@ ORDER_API=$EXT bash "$ROOT/scripts/warmup-stabilizer.sh" \
   "$STABILIZE_TARGET_MS" "$STABILIZE_CONSECUTIVE" 60
 
 echo "[6/9] measurement window start"
-START_MS=$(date +%s%3N)
+START_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
 echo "  testid=$TESTID start=$START_MS"
 
 # Categorical units (Unit 03) skip k6 measurement
@@ -115,16 +115,17 @@ if [ "$K6_VUS" -gt 0 ]; then
   fi
   gcloud compute ssh "$VM" --zone="$ZONE" --command="
     PROM=\$(sudo kubectl -n monitoring get svc prometheus -o jsonpath='{.spec.clusterIP}')
-    ORDER_API=$EXT \
+    ORDER_API=$EXT PRODUCT_API=$EXT \
+    K6_VUS=$K6_VUS K6_DURATION=$K6_DURATION \
     K6_PROMETHEUS_RW_SERVER_URL=http://\${PROM}:9090/api/v1/write \
     K6_PROMETHEUS_RW_TREND_STATS='p(95),p(99),avg,max,min' \
-    k6 run --tag testid=$TESTID --duration $K6_DURATION --vus $K6_VUS \
+    k6 run --tag testid=$TESTID \
       --out experimental-prometheus-rw \
       /tmp/k6-measure.js 2>&1 | tail -25
   " 2>&1 | tee "$EVIDENCE_DIR_ABS/k6-v3.txt" | tail -20
 fi
 
-END_MS=$(date +%s%3N)
+END_MS=$(python3 -c 'import time; print(int(time.time()*1000))')
 echo "[7/9] measurement window end=$END_MS (duration=$((END_MS - START_MS))ms)"
 
 # Window trim (Unit 04 CB sliding-window grace)

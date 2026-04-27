@@ -11,6 +11,10 @@ import { Trend, Rate } from 'k6/metrics';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
 const CUSTOMER_ID = __ENV.CUSTOMER_ID || 14;
 const VARIANT_ID = __ENV.VARIANT_ID || 1;
+// JWT trust on main: ingress requires Authorization. Demo unsigned token
+// with sub matching CUSTOMER_ID. customerId comes from header on main; the
+// body's customerId is ignored.
+const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxNCJ9.sig'}`;
 
 // 주문 생성 경로와 주문 조회 경로의 지표를 분리 측정 (thread pool saturation 영향 파악)
 const orderCreateDuration = new Trend('order_create_duration', true);
@@ -66,7 +70,7 @@ export function createOrder() {
   });
 
   const res = http.post(`${ORDER_API}/api/orders`, payload, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
     timeout: '15s',
   });
 

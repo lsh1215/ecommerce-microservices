@@ -3,13 +3,14 @@ import { check, sleep } from 'k6';
 
 const PRODUCT_API = __ENV.PRODUCT_API || 'http://localhost:8081';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
+const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.sig'}`;
 
 export const options = {
   scenarios: {
     smoke: {
       executor: 'constant-vus',
-      vus: 1,
-      duration: '10s',
+      vus: Number(__ENV.K6_VUS || 1),
+      duration: __ENV.K6_DURATION || '10s',
     },
   },
   thresholds: {
@@ -48,7 +49,7 @@ export default function () {
   });
 
   const orderRes = http.post(`${ORDER_API}/api/orders`, orderPayload, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
   });
   check(orderRes, {
     'order created': (r) => r.status === 200 || r.status === 201,

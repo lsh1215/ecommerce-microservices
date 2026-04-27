@@ -6,7 +6,6 @@
 // Env: WARMUP_VUS (default 5), WARMUP_DURATION (default '90s'),
 //      ORDER_API (default 34.64.219.137 ingress), JWT (default demo bearer)
 import http from 'k6/http';
-import { sleep } from 'k6/options';
 
 const ORDER_API = __ENV.ORDER_API || 'http://34.64.219.137';
 const AUTH = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.sig'}`;
