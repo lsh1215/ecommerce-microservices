@@ -1,13 +1,11 @@
 package com.ecommerce.order.infra.outbox;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
 import com.ecommerce.common.config.KafkaTopics;
-import com.ecommerce.common.outbox.OutboxEvent;
-import com.ecommerce.common.outbox.OutboxEventRepository;
 import com.ecommerce.order.domain.event.OrderCancelledEvent;
 import com.ecommerce.order.domain.event.OrderCreatedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,17 +13,20 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+
+import java.util.concurrent.CompletableFuture;
 
 @ExtendWith(MockitoExtension.class)
 class OrderOutboxEventHandlerTest {
 
     @Mock
-    private OutboxEventRepository outboxRepository;
+    private KafkaTemplate<String, String> stringKafkaTemplate;
 
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -34,39 +35,24 @@ class OrderOutboxEventHandlerTest {
     private OrderOutboxEventHandler handler;
 
     @Test
-    void handleOrderCreated_savesOutboxEvent() {
+    void handleOrderCreated_sendsToKafkaDirectly() {
         OrderCreatedEvent event = new OrderCreatedEvent(1L, "ORDER-001", 10L, new BigDecimal("100.00"));
-        given(outboxRepository.save(any(OutboxEvent.class))).willAnswer(inv -> inv.getArgument(0));
+        given(stringKafkaTemplate.send(any(String.class), any(String.class), any(String.class)))
+                .willReturn(CompletableFuture.completedFuture((SendResult<String, String>) null));
 
         handler.handleOrderCreated(event);
 
-        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
-        verify(outboxRepository).save(captor.capture());
-
-        OutboxEvent saved = captor.getValue();
-        assertThat(saved.getAggregateType()).isEqualTo("Order");
-        assertThat(saved.getAggregateId()).isEqualTo("1");
-        assertThat(saved.getEventType()).isEqualTo(KafkaTopics.ORDER_CREATED);
-        assertThat(saved.getPartitionKey()).isEqualTo("ORDER-001");
-        assertThat(saved.getPayload()).contains("ORDER-001");
-        assertThat(saved.isPublished()).isFalse();
+        verify(stringKafkaTemplate).send(eq(KafkaTopics.ORDER_CREATED), eq("ORDER-001"), any(String.class));
     }
 
     @Test
-    void handleOrderCancelled_savesOutboxEvent() {
+    void handleOrderCancelled_sendsToKafkaDirectly() {
         OrderCancelledEvent event = new OrderCancelledEvent(2L, "ORDER-002", "payment failed");
-        given(outboxRepository.save(any(OutboxEvent.class))).willAnswer(inv -> inv.getArgument(0));
+        given(stringKafkaTemplate.send(any(String.class), any(String.class), any(String.class)))
+                .willReturn(CompletableFuture.completedFuture((SendResult<String, String>) null));
 
         handler.handleOrderCancelled(event);
 
-        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
-        verify(outboxRepository).save(captor.capture());
-
-        OutboxEvent saved = captor.getValue();
-        assertThat(saved.getAggregateType()).isEqualTo("Order");
-        assertThat(saved.getAggregateId()).isEqualTo("2");
-        assertThat(saved.getEventType()).isEqualTo(KafkaTopics.ORDER_CANCELLED);
-        assertThat(saved.getPartitionKey()).isEqualTo("ORDER-002");
-        assertThat(saved.getPayload()).contains("payment failed");
+        verify(stringKafkaTemplate).send(eq(KafkaTopics.ORDER_CANCELLED), eq("ORDER-002"), any(String.class));
     }
 }
