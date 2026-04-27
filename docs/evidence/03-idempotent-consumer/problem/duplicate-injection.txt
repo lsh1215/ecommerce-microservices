@@ -1,2 +1,0 @@
-bash: -c: line 2: syntax error near unexpected token `('
-bash: -c: line 2: `echo === payment rows after 5 dup inject (guards OFF) ==='
