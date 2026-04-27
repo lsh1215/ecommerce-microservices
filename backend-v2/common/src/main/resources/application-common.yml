@@ -3,6 +3,12 @@ spring:
     property-naming-strategy: SNAKE_CASE
     default-property-inclusion: non_null
 
+# no-idempotency evidence: skip ProcessedEvent dedup so duplicate Kafka
+# deliveries result in duplicate side-effects in the consumer.
+application:
+  idempotency:
+    enabled: false
+
 # Include trace_id / span_id (populated by OpenTelemetry Java agent when attached)
 # in every log line so Loki can link log entries to Tempo traces. Reads MDC keys
 # set by the agent; default-to-empty keeps output clean when the agent is inert.
