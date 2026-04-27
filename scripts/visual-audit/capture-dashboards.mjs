@@ -38,7 +38,7 @@ const context = await browser.newContext({
 
 const summary = [];
 for (const uid of DASHBOARDS) {
-  const url = `${GRAFANA}/d/${uid}/?orgId=1&from=${FROM}&to=${TO}&kiosk${VAR_PARAMS}`;
+  const url = `${GRAFANA}/d/${uid}/?orgId=1&from=${FROM}&to=${TO}${VAR_PARAMS}&kiosk`;
   const page = await context.newPage();
   console.error(`[capture] ${uid}`);
   try {
