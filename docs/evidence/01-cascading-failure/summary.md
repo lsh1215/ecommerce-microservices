@@ -1,90 +1,98 @@
-# Unit 01 — Cascading Failure (이력서 클레임 #2: SAGA Orchestration)
+# Unit 01 — SAGA Pattern (Cascading Failure Isolation)
 
-## 문제 정의
+## 가설
 
-이커머스 4-service 마이크로서비스 환경에서 Order 서비스가 Payment를 **동기 RestClient**로 호출하는 구조였다. Payment 단일 장애가 발생하면:
+주문 생성은 본질적으로 다단계 (Order → Product 재고예약 → Payment 결제)
+다. 이 흐름을 단일 트랜잭션으로 묶을 수 없으니 (서비스 경계가 곧
+트랜잭션 경계) Order 가 Payment 까지 동기 RestClient 로 chain 하면
+Payment 의 지연이 그대로 Order POST 의 latency 와 throughput 으로
+새어 나간다 — *cascading failure*. SAGA + Kafka 는 Order 가 결제 결과
+를 기다리지 않고 PENDING 으로 즉시 응답한 뒤 Payment 를 별도 reactor
+로 비동기 처리하여 이 cascade 를 차단한다.
 
-- Order의 RestClient 호출이 `Connection refused`로 즉시 실패
-- 200 thread Tomcat pool이 retry/timeout 대기로 점유됨
-- **주문 매출이 즉시 100% 중단됨** (가용성 곱셈 결합)
+## 셋업
 
-## 해결 방법
+- Solution: `main` 빌드. `OrderSagaOrchestrator.startSaga` 가 stock
+  reservation 까지만 동기, Payment 는 Kafka `order.created` 이벤트로
+  발행 후 PENDING 반환.
+- Problem: `evidence/01-no-saga` 빌드. 동일 흐름이지만 새로 추가한
+  `PaymentSyncClient.process` 가 `POST /api/payments/process` 를 동기
+  호출, 결과 (PAID / CANCELLED) 가 와야 응답. SagaInstance row 는 단일
+  state-transition 으로 collapse.
+- Cascading 트리거: `service-payment` 의 `PaymentStubProcessor` 에
+  `app.chaos.payment-delay-ms` 환경변수로 2 초 인공 지연 주입. main
+  코드에 추가된 무해 toggle (`APP_CHAOS_PAYMENT_DELAY_MS=2000`).
+- 부하: `k6/scripts/cascading-failure.js` — 20 VUs constant_load 60s,
+  variant 1 stock 100 k 로 stock 고갈 영향 제거.
 
-Order ↔ Payment 경로를 **Kafka 이벤트 비동기**로 전환 + **SAGA Orchestration**:
+## 결과
 
-```
-Before: k6 → Order ─sync RestClient→ Payment(DOWN) ❌ 5xx
-After:  k6 → Order ─kafka publish→ order.created (queued)
-                  └─→ 201 PENDING (즉시 반환)
-        Payment 복구 후 consumer가 큐에서 소비
-        → payment.completed 이벤트 → SAGA Orchestrator
-        → Order PENDING → PAID 상태 전이
-```
-
-핵심 코드:
-- `OrderEventProducer.publishOrderCreated()` — `kafkaTemplate.send(...).whenComplete(...)` fire-and-forget
-- `OrderSagaOrchestrator` — SAGA 상태 머신 (`startSaga`, `onPaymentCompleted`, `onPaymentFailed`, `compensate`)
-
-## 테스트 시나리오 (problem / solution 동일)
-
-| 항목 | 값 |
-|---|---|
-| 스크립트 | `k6/scripts/order-flow.js` (3 reqs/iter: products GET, product detail GET, order POST) |
-| 부하 | `--vus 5 --duration 30s` |
-| 장애 주입 | `kubectl scale deploy/service-payment --replicas=0` |
-| 인프라 | GCE e2-standard-4, k3s 단일 노드 |
-| 모니터링 | Grafana LGTM stack (재배포 없이 재사용) |
-
-## 결과 요약
-
-| 지표 | Problem (phase0, sync) | Solution (phase1, async SAGA) | 변화 |
-|---|---|---|---|
-| 총 요청 | 51 | 414 | 8.1배 ↑ |
-| `http_req_failed` | **33.33%** (17/51) | **0.00%** (0/414) | -33.33%p |
-| 주문 생성 (201) | **0건** | **138건** | — |
-| `iteration_duration` p95 | 21.96s | **1.28s** | 17배 단축 |
-| 처리량 | 0.48 iter/s | **4.45 iter/s** | 9.2배 ↑ |
-| 응답 본문 | `Connection refused` 5xx | 201 `status=PENDING` | — |
-
-> 33%는 3 reqs/iter 중 order POST 1건만 실패 → **주문 가용성 관점 100% → 0% 실패**.
-
-## Evidence
-
-| | k6 raw output | Grafana 화면 |
+| 지표 | Solution (main, async SAGA) | Problem (no-saga, sync REST) |
 |---|---|---|
-| Problem | [`problem/k6-output.txt`](./problem/k6-output.txt) | [`problem/dashboards/`](./problem/dashboards/) — ecommerce-overview, k6-prometheus |
-| Solution | [`solution/k6-output.txt`](./solution/k6-output.txt) | [`solution/dashboards/`](./solution/dashboards/) — ecommerce-overview, k6-prometheus |
+| `http_req_duration` p95 | **3.03 s** | **5.26 s** |
+| 성공 응답 p95 | 3.79 s | **6.37 s** |
+| iterations / 60 s | **1 179** | 873 (-26 %) |
+| VU low watermark | 20 (안정) | **1 (collapsed)** |
+| `http_req_failed` rate | 81 % | 83 % |
 
-## 모니터링 대시보드 핵심 panel
+raw output: [`solution/k6.txt`](./solution/k6.txt), [`problem/k6.txt`](./problem/k6.txt)
 
-같은 `Ecommerce Overview` 대시보드에서 두 시점을 비교:
+## 해석
 
-| Panel | Problem | Solution |
-|---|---|---|
-| **k6 HTTP failure rate** | 빨강 33.3% | 초록 0% |
-| **HTTP Request Rate (per service, via OTLP)** | order에서 5xx 폭발 | order 정상 2xx |
-| **Service Graph (Tempo)** | order→payment 빨간 엣지 | order→kafka 정상 |
-| **JVM UP** | 노랑 3 (payment 다운) | 노랑 3 (동일 — 인프라 변동 없음, 비즈니스 결과만 다름) |
+- 두 빌드 모두 stock UPDATE row-lock 경합이 baseline latency 를 약 3 s
+  까지 끌어올린다 (variant 1 단일 row 에 20 VUs 가 동시 접근).
+- 이 baseline 위에 Payment 의 2 s 지연이 얹히면 Solution 은 Kafka
+  publish 후 즉시 응답하므로 영향 없음 — `http_req_duration` p95 는
+  3.03 s 그대로.
+- Problem 은 PaymentSyncClient 가 그 2 s 를 동기로 기다리고 그 동안 VU
+  가 점유되어 throughput 이 26 % 무너지고 VU 가 1 까지 saturate
+  (`vus min=1`).
+- 성공 응답만 보면 Solution 2.51 s avg → Problem 4.58 s avg. **결제
+  지연이 그대로 주문 POST 에 누설** 되는 양이 약 2 s — 정확히 주입
+  delay 의 양과 일치한다.
 
-## 검증 결과 — **PASS**
+## 보조 evidence
 
-기대값 대비 실측 일치:
-- Problem: order POST 100% 실패 ✓ (예상치 일치)
-- Solution: order POST 100% 성공 ✓ (예상치 일치)
-- 처리량 9배 향상 — Tomcat thread 차단 제거 효과
+- Tempo trace: Solution 의 POST `/api/orders` span tree 에는
+  `service-payment` span 이 없고 Kafka producer span 만 보인다.
+  Problem 은 `POST /api/payments/process` span 이 부모 trace 안에 자식으로 묶인다.
+- Kafka UI (`http://34.64.219.137/kafka-ui/`) `order.created` 토픽:
+  Solution 은 message rate 가 부하 그대로, Problem 은 sync 실패가
+  많아 토픽 메시지 수가 적다.
 
-## 재현 명령
+## 재현
 
 ```bash
-# Problem
-./scripts/deploy-phase.sh phase0
-gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a -- \
-  'sudo kubectl -n ecommerce scale deploy/service-payment --replicas=0'
-PRODUCT_API=http://34.64.219.137 ORDER_API=http://34.64.219.137 \
-K6_PROMETHEUS_RW_SERVER_URL=http://34.64.219.137:30090/api/v1/write \
-k6 run --vus 5 --duration 30s -o experimental-prometheus-rw \
-  --tag testid=u01-problem-phase0 \
-  k6/scripts/order-flow.js
+# Build no-saga service-order
+docker buildx build --platform linux/amd64 --build-arg SERVICE_NAME=service-order \
+  -t ecommerce/service-order:01-no-saga --load \
+  ../ecommerce-microservices-worktrees/01-no-saga/backend-v2/
 
-# Solution — same command after `./scripts/deploy-phase.sh phase1`
+# Build payment image with chaos delay (main code, additive toggle)
+docker buildx build --platform linux/amd64 --build-arg SERVICE_NAME=service-payment \
+  -t ecommerce/service-payment:main-chaos --load backend-v2/
+
+# Push + import + Solution leg
+docker save ecommerce/service-payment:main-chaos > /tmp/p.tar
+gcloud compute scp --zone=asia-northeast3-a /tmp/p.tar ecommerce-k3s:~/
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo k3s ctr images import ~/p.tar; rm ~/p.tar
+  sudo kubectl -n ecommerce set image deploy/service-payment service-payment=docker.io/ecommerce/service-payment:main-chaos
+  sudo kubectl -n ecommerce set env deploy/service-payment APP_CHAOS_PAYMENT_DELAY_MS=2000'
+
+# k6 Solution
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  PROM=$(sudo kubectl -n monitoring get svc prometheus -o jsonpath="{.spec.clusterIP}")
+  ORDER_API=http://34.64.219.137 K6_PROMETHEUS_RW_SERVER_URL="http://${PROM}:9090/api/v1/write" \
+  k6 run --tag testid=01-saga-solution-paymentslow --out experimental-prometheus-rw /tmp/k6-cascade.js'
+
+# Swap in no-saga + k6 Problem
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce set image deploy/service-order service-order=docker.io/ecommerce/service-order:01-no-saga'
+# … same k6 run, testid=01-saga-problem-paymentslow
+
+# Restore main + clear chaos
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce set image deploy/service-order service-order=docker.io/ecommerce/service-order:latest
+  sudo kubectl -n ecommerce set env deploy/service-payment APP_CHAOS_PAYMENT_DELAY_MS-'
 ```

@@ -1,0 +1,25 @@
+    ✗ not timeout
+      ↳  99% — ✓ 1178 / ✗ 1
+
+    HTTP
+    http_req_duration..............: avg=718.44ms min=1.32ms   med=3.2ms    max=10s   p(90)=2.56s p(95)=3.03s
+      { expected_response:true }...: avg=2.51s    min=1s       med=2.46s    max=4.79s p(90)=3.48s p(95)=3.79s
+    http_req_failed................: 81.08% 956 out of 1179
+    http_reqs......................: 1179   19.565831/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.01s    min=301.72ms med=304.35ms max=10.3s p(90)=2.86s p(95)=3.33s
+    iterations.....................: 1179   19.565831/s
+    vus............................: 20     min=20          max=20
+    vus_max........................: 20     min=20          max=20
+
+    NETWORK
+    data_received..................: 369 kB 6.1 kB/s
+    data_sent......................: 552 kB 9.2 kB/s
+
+
+
+
+running (1m00.3s), 00/20 VUs, 1179 complete and 0 interrupted iterations
+constant_load ✓ [ 100% ] 20 VUs  1m0s
+time="2026-04-27T14:02:47Z" level=error msg="thresholds on metrics 'http_req_failed' have been crossed"
