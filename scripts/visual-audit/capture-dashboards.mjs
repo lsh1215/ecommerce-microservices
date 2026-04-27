@@ -16,6 +16,12 @@ const OUT_DIR = process.env.OUT_DIR;
 const DASHBOARDS = (process.env.DASHBOARDS || '').split(',').map(s => s.trim()).filter(Boolean);
 const GRAFANA = process.env.GRAFANA_URL || 'http://34.64.219.137/grafana';
 const WAIT_MS = Number(process.env.WAIT_MS || 18000);
+// Template-variable URL params via VAR_<NAME>=<value> envs, e.g.
+// VAR_TESTID=u04-solution -> ?var-testid=u04-solution
+const VAR_PARAMS = Object.entries(process.env)
+  .filter(([k]) => k.startsWith('VAR_'))
+  .map(([k, v]) => `&var-${k.slice(4).toLowerCase()}=${encodeURIComponent(v)}`)
+  .join('');
 
 if (!FROM || !TO || !OUT_DIR || DASHBOARDS.length === 0) {
   console.error('FROM, TO, OUT_DIR, DASHBOARDS env vars required');
@@ -32,7 +38,7 @@ const context = await browser.newContext({
 
 const summary = [];
 for (const uid of DASHBOARDS) {
-  const url = `${GRAFANA}/d/${uid}/?orgId=1&from=${FROM}&to=${TO}&kiosk`;
+  const url = `${GRAFANA}/d/${uid}/?orgId=1&from=${FROM}&to=${TO}&kiosk${VAR_PARAMS}`;
   const page = await context.newPage();
   console.error(`[capture] ${uid}`);
   try {
