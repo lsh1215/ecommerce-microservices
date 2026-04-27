@@ -40,33 +40,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,circuitbreakers,circuitbreakerevents,metrics
-  health:
-    circuitbreakers:
-      enabled: true
+        include: health,info,metrics
   endpoint:
     health:
       show-details: always
-
-# Resilience4j Circuit Breaker (Phase 4)
-# - Order 서비스의 동기 RestClient 호출(Product)에 적용.
-# - 의존 서비스가 느려지거나(slow call) 실패하면 스레드 고갈을 막기 위해 회로를 OPEN.
-resilience4j:
-  circuitbreaker:
-    instances:
-      productService:
-        registerHealthIndicator: true
-        slidingWindowType: COUNT_BASED
-        slidingWindowSize: 10               # 최근 10건 기준 판단
-        minimumNumberOfCalls: 5              # 5건 이상부터 평가
-        failureRateThreshold: 50             # 실패율 50% 이상이면 OPEN
-        slowCallDurationThreshold: 2s        # 2초 이상 걸리면 slow call
-        slowCallRateThreshold: 50            # slow call 비율 50% 이상이면 OPEN
-        waitDurationInOpenState: 10s         # OPEN 상태 10초 유지 후 HALF_OPEN
-        permittedNumberOfCallsInHalfOpenState: 3
-        automaticTransitionFromOpenToHalfOpenEnabled: true
-        recordExceptions:
-          - java.util.concurrent.TimeoutException
-          - java.net.ConnectException
-          - org.springframework.web.client.ResourceAccessException
-          - org.springframework.web.client.HttpServerErrorException
