@@ -19,20 +19,16 @@ import com.ecommerce.order.application.dto.CreateOrderCommand;
 import com.ecommerce.order.application.dto.OrderItemCommand;
 import com.ecommerce.order.application.dto.ProductSnapshotDto;
 import com.ecommerce.order.application.dto.ShippingAddressCommand;
-import com.ecommerce.order.domain.event.OrderCreatedEvent;
 import com.ecommerce.order.domain.model.Order;
-import com.ecommerce.order.domain.model.OrderItem;
 import com.ecommerce.order.domain.model.OrderStatus;
 import com.ecommerce.order.domain.model.SagaInstance;
 import com.ecommerce.order.domain.model.SagaState;
-import com.ecommerce.order.domain.model.ShippingAddress;
-import com.ecommerce.order.domain.model.VariantSnapshot;
 import com.ecommerce.order.domain.repository.OrderRepository;
 import com.ecommerce.order.domain.repository.SagaInstanceRepository;
 import com.ecommerce.order.domain.service.ProductCatalogPort;
+import com.ecommerce.order.infra.client.PaymentSyncClient;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,7 +36,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class OrderSagaOrchestratorTest {
@@ -55,39 +50,49 @@ class OrderSagaOrchestratorTest {
     ProductCatalogPort productCatalog;
 
     @Mock
-    ApplicationEventPublisher eventPublisher;
+    PaymentSyncClient paymentClient;
 
     @InjectMocks
     OrderSagaOrchestrator orchestrator;
 
     @Test
-    @DisplayName("정상 주문 생성 시 PENDING 상태의 Order를 반환하고 SAGA를 PAYMENT_PROCESSING으로 전이한다")
-    void startSaga_happyPath_returnsOrderInPendingState() {
-        // Given — customerId is trusted from the X-Customer-Id header populated
-        // by Traefik forwardAuth, so the orchestrator no longer calls
-        // CustomerDirectoryPort.ensureExists.
+    @DisplayName("정상 주문 + Payment 동기 성공 시 Order는 PAID, SAGA는 COMPLETED")
+    void startSaga_happyPath_paymentSyncSucceeds_returnsPaidOrder() {
         given(productCatalog.fetchSnapshot(anyLong())).willReturn(snapshotDto(100L));
         willDoNothing().given(productCatalog).reserveStock(anyLong(), anyInt());
         given(orderRepository.save(any(Order.class))).willAnswer(inv -> inv.getArgument(0));
         given(sagaRepository.save(any(SagaInstance.class))).willAnswer(inv -> inv.getArgument(0));
+        given(paymentClient.process(any(), any(), any()))
+                .willReturn(new PaymentSyncClient.Result(true, 7L, "TX-9"));
 
-        // When
         Order result = orchestrator.startSaga(validCommand());
 
-        // Then
-        assertThat(result.getStatus()).isEqualTo(OrderStatus.PENDING);
-        assertThat(result.getTotalAmount()).isGreaterThan(BigDecimal.ZERO);
-        verify(eventPublisher).publishEvent(any(OrderCreatedEvent.class));
-
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.PAID);
         ArgumentCaptor<SagaInstance> sagaCaptor = ArgumentCaptor.forClass(SagaInstance.class);
         verify(sagaRepository, times(1)).save(sagaCaptor.capture());
-        assertThat(sagaCaptor.getValue().getState()).isEqualTo(SagaState.PAYMENT_PROCESSING);
+        assertThat(sagaCaptor.getValue().getState()).isEqualTo(SagaState.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("Payment 동기 거절 시 주문을 취소하고 재고를 해제한다")
+    void startSaga_paymentRejected_cancelsOrder() {
+        given(productCatalog.fetchSnapshot(anyLong())).willReturn(snapshotDto(100L));
+        willDoNothing().given(productCatalog).reserveStock(anyLong(), anyInt());
+        willDoNothing().given(productCatalog).releaseStock(anyLong(), anyInt());
+        given(orderRepository.save(any(Order.class))).willAnswer(inv -> inv.getArgument(0));
+        given(sagaRepository.save(any(SagaInstance.class))).willAnswer(inv -> inv.getArgument(0));
+        given(paymentClient.process(any(), any(), any()))
+                .willReturn(new PaymentSyncClient.Result(false, 7L, null));
+
+        Order result = orchestrator.startSaga(validCommand());
+
+        assertThat(result.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        verify(productCatalog).releaseStock(eq(100L), anyInt());
     }
 
     @Test
     @DisplayName("두 번째 아이템 재고 예약 실패 시 첫 번째 아이템의 재고를 해제하고 예외를 전파한다")
     void startSaga_stockInsufficient_releasesAlreadyReservedStockAndRethrows() {
-        // Given
         given(productCatalog.fetchSnapshot(anyLong())).willReturn(snapshotDto(100L));
         willDoNothing().given(productCatalog).reserveStock(eq(100L), anyInt());
         willThrow(new BusinessException(OrderErrorCode.STOCK_RESERVATION_FAILED))
@@ -100,56 +105,12 @@ class OrderSagaOrchestratorTest {
                 null
         );
 
-        // When / Then
         assertThatThrownBy(() -> orchestrator.startSaga(twoItemCommand))
                 .isInstanceOf(BusinessException.class);
         verify(productCatalog).releaseStock(eq(100L), anyInt());
         verify(productCatalog, never()).releaseStock(eq(200L), anyInt());
         verify(orderRepository, never()).save(any());
     }
-
-    @Test
-    @DisplayName("결제 완료 이벤트 수신 시 Order를 PAID로, SAGA를 COMPLETED로 전이한다")
-    void handlePaymentCompleted_updatesOrderAndSagaToFinalState() {
-        // Given
-        SagaInstance saga = SagaInstance.create(1L, "ORD-001");
-        saga.moveToPaymentProcessing();
-        ShippingAddress address = new ShippingAddress("John", "010-0000-0000", "12345", "St 1", null);
-        Order order = Order.create(1L, "ORD-001", address, null);
-
-        given(sagaRepository.findByOrderNumber("ORD-001")).willReturn(Optional.of(saga));
-        given(orderRepository.findById(1L)).willReturn(Optional.of(order));
-
-        // When
-        orchestrator.handlePaymentCompleted("ORD-001", 1L, 10L, "TX-001", new BigDecimal("100.00"));
-
-        // Then
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID);
-        assertThat(saga.getState()).isEqualTo(SagaState.COMPLETED);
-    }
-
-    @Test
-    @DisplayName("결제 실패 이벤트 수신 시 주문을 취소하고 예약된 재고를 해제하며 SAGA를 COMPENSATED로 전이한다")
-    void handlePaymentFailed_cancelsOrderAndReleasesStock() {
-        // Given
-        SagaInstance saga = SagaInstance.create(1L, "ORD-001");
-        saga.moveToPaymentProcessing();
-        Order order = buildOrderWithItem(100L, 2);
-
-        given(sagaRepository.findByOrderNumber("ORD-001")).willReturn(Optional.of(saga));
-        given(orderRepository.findById(1L)).willReturn(Optional.of(order));
-        willDoNothing().given(productCatalog).releaseStock(anyLong(), anyInt());
-
-        // When
-        orchestrator.handlePaymentFailed("ORD-001", 1L, "stub rejection");
-
-        // Then
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
-        assertThat(saga.getState()).isEqualTo(SagaState.COMPENSATED);
-        verify(productCatalog).releaseStock(100L, 2);
-    }
-
-    // --- helper methods ---
 
     private CreateOrderCommand validCommand() {
         return new CreateOrderCommand(
@@ -172,14 +133,5 @@ class OrderSagaOrchestratorTest {
     private ProductSnapshotDto snapshotDto(Long variantId) {
         return new ProductSnapshotDto(variantId, variantId, "Test Product", "M", "White",
                 BigDecimal.valueOf(50000));
-    }
-
-    private Order buildOrderWithItem(Long variantId, int qty) {
-        ShippingAddress address = new ShippingAddress("John", "010-0000-0000", "12345", "St 1", null);
-        Order order = Order.create(1L, "ORD-001", address, null);
-        VariantSnapshot snapshot = new VariantSnapshot(variantId, variantId, "Test Product",
-                "M", "White", BigDecimal.valueOf(50000));
-        order.addItem(OrderItem.create(snapshot, qty));
-        return order;
     }
 }

@@ -26,6 +26,18 @@ service:
   product:
     base-url: ${PRODUCT_SERVICE_URL:http://localhost:8081}
 
+# RestClient bean wiring (used by Resilience4j-protected adapters and
+# the no-saga PaymentSyncClient).
+app:
+  services:
+    product:
+      url: ${PRODUCT_SERVICE_URL:http://localhost:8081}
+    payment:
+      url: ${PAYMENT_SERVICE_URL:http://localhost:8083}
+  rest-client:
+    connect-timeout: 5000
+    read-timeout: 10000
+
 springdoc:
   info:
     title: Order Service API
