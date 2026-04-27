@@ -1,0 +1,24 @@
+# Traefik forwardAuth middleware: JWT verification at the ingress edge.
+#
+# The Traefik router calls service-customer's /api/internal/customers/verify
+# endpoint with the original Authorization header. service-customer decodes
+# the JWT payload, extracts `sub` (customerId), and returns 200 + an
+# X-Customer-Id response header. Traefik then forwards the original request
+# to the backend (service-order, etc.) with that trusted header attached.
+#
+# Order/Product/Payment never call Customer for validation. Customer remains
+# the auth source of truth, but the dependency is hoisted to ingress level.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: jwt-auth
+  namespace: ecommerce
+spec:
+  forwardAuth:
+    address: http://service-customer.ecommerce.svc.cluster.local:8084/api/internal/customers/verify
+    authResponseHeaders:
+      - X-Customer-Id
+    authRequestHeaders:
+      - Authorization
+      - X-Customer-Id
+    trustForwardHeader: true

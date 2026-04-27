@@ -10,6 +10,7 @@ const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
 const PAYMENT_API = __ENV.PAYMENT_API || 'http://localhost:8083';
 const CUSTOMER_API = __ENV.CUSTOMER_API || 'http://localhost:8084';
 const CUSTOMER_ID = __ENV.CUSTOMER_ID || 14;
+const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxNCJ9.sig'}`;
 
 export const options = {
   scenarios: {
@@ -66,7 +67,7 @@ export default function () {
   });
 
   const orderRes = http.post(`${ORDER_API}/api/orders`, orderPayload, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
   });
   check(orderRes, { 'order created 201': (r) => r.status === 201 });
 

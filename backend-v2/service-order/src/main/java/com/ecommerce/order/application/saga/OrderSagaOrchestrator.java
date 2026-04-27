@@ -15,7 +15,6 @@ import com.ecommerce.order.domain.model.ShippingAddress;
 import com.ecommerce.order.domain.model.VariantSnapshot;
 import com.ecommerce.order.domain.repository.OrderRepository;
 import com.ecommerce.order.domain.repository.SagaInstanceRepository;
-import com.ecommerce.order.domain.service.CustomerDirectoryPort;
 import com.ecommerce.order.domain.service.ProductCatalogPort;
 import com.github.f4b6a3.ulid.UlidCreator;
 import java.math.BigDecimal;
@@ -35,7 +34,6 @@ public class OrderSagaOrchestrator {
     private final OrderRepository orderRepository;
     private final SagaInstanceRepository sagaRepository;
     private final ProductCatalogPort productCatalog;
-    private final CustomerDirectoryPort customerDirectory;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
@@ -44,10 +42,11 @@ public class OrderSagaOrchestrator {
      */
     @Transactional
     public Order startSaga(CreateOrderCommand command) {
-        // 1단계: 고객 존재 검증 (동기 - Customer 서비스)
-        customerDirectory.ensureExists(command.customerId());
+        // 고객 검증은 Traefik forwardAuth middleware가 service-customer로
+        // 위임하여 ingress 단계에서 끝남. 여기서는 X-Customer-Id 헤더로
+        // 전달된 customerId를 trust하고 곧장 주문 Aggregate 생성으로 진입.
 
-        // 2단계: 주문 Aggregate 생성
+        // 주문 Aggregate 생성
         Order order = Order.create(
                 command.customerId(),
                 generateOrderNumber(),

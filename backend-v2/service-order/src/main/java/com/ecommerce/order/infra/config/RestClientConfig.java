@@ -21,14 +21,6 @@ public class RestClientConfig {
     }
 
     @Bean
-    public RestClient customerRestClient(
-            @Value("${app.services.customer.url}") String baseUrl,
-            @Value("${app.rest-client.connect-timeout:5000}") int connectTimeout,
-            @Value("${app.rest-client.read-timeout:10000}") int readTimeout) {
-        return buildRestClient(baseUrl, connectTimeout, readTimeout);
-    }
-
-    @Bean
     public RestClient paymentRestClient(
             @Value("${app.services.payment.url}") String baseUrl,
             @Value("${app.rest-client.connect-timeout:5000}") int connectTimeout,

@@ -14,6 +14,7 @@ import { Trend, Rate } from 'k6/metrics';
 const PRODUCT_API = __ENV.PRODUCT_API || 'http://localhost:8081';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
 const CUSTOMER_ID = __ENV.CUSTOMER_ID || 14;
+const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxNCJ9.sig'}`;
 
 const orderCreateDuration = new Trend('order_create_duration', true);
 const orderCreateErrors = new Rate('order_create_errors');
@@ -73,7 +74,7 @@ export default function () {
     });
 
     const orderRes = http.post(`${ORDER_API}/api/orders`, orderPayload, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
       timeout: '10s',
     });
     orderCreateDuration.add(orderRes.timings.duration);

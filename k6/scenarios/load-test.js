@@ -13,6 +13,7 @@ const PRODUCT_API = __ENV.PRODUCT_API || 'http://localhost:8081';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
 const PAYMENT_API = __ENV.PAYMENT_API || 'http://localhost:8083';
 const CUSTOMER_ID = __ENV.CUSTOMER_ID || 14;
+const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxNCJ9.sig'}`;
 
 // 경로별 p99/처리량 분리 측정
 const browseDuration = new Trend('browse_duration', true);
@@ -78,7 +79,7 @@ export default function () {
     });
 
     const orderRes = http.post(`${ORDER_API}/api/orders`, orderPayload, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
     });
     orderCreateDuration.add(orderRes.timings.duration);
     check(orderRes, { 'order create 201': (r) => r.status === 201 });

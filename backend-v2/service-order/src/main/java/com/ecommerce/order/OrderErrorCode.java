@@ -11,12 +11,10 @@ public enum OrderErrorCode implements ErrorCodeBase {
 
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_001", "Order not found"),
     INVALID_ORDER_STATUS_TRANSITION(HttpStatus.BAD_REQUEST, "ORDER_002", "Invalid order status transition"),
-    CUSTOMER_NOT_FOUND(HttpStatus.NOT_FOUND, "ORDER_003", "Customer not found"),
     STOCK_RESERVATION_FAILED(HttpStatus.BAD_REQUEST, "ORDER_004", "Stock reservation failed"),
     ORDER_CANCEL_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "ORDER_005", "Order cancellation not allowed"),
     PRODUCT_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ORDER_006", "Product service unavailable"),
-    PAYMENT_FAILED(HttpStatus.BAD_GATEWAY, "ORDER_007", "Payment processing failed"),
-    CUSTOMER_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ORDER_008", "Customer service unavailable");
+    PAYMENT_FAILED(HttpStatus.BAD_GATEWAY, "ORDER_007", "Payment processing failed");
 
     private final HttpStatus status;
     private final String code;

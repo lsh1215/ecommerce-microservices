@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -33,9 +34,14 @@ public class OrderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
+    public ApiResponse<OrderResponse> createOrder(
+            @RequestHeader("X-Customer-Id") Long customerId,
+            @Valid @RequestBody CreateOrderRequest request) {
+        // customerId comes from the trusted header populated by Traefik's
+        // forwardAuth middleware (which calls service-customer's /internal/verify).
+        // The body field is ignored — clients can omit it.
         CreateOrderCommand command = new CreateOrderCommand(
-                request.customerId(),
+                customerId,
                 request.items().stream()
                         .map(item -> new OrderItemCommand(
                                 item.productVariantId(), item.productId(), item.productName(),

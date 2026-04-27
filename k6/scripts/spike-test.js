@@ -2,6 +2,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
+const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.sig'}`;
 
 export const options = {
   scenarios: {
@@ -46,7 +47,7 @@ export default function () {
   });
 
   const res = http.post(`${ORDER_API}/api/orders`, orderPayload, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
   });
   check(res, {
     'status is 2xx': (r) => r.status >= 200 && r.status < 300,
