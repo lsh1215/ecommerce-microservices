@@ -28,8 +28,14 @@
 
 set -euo pipefail
 
+DRY_RUN=0
+if [ "${1:-}" = "--dry-run" ]; then
+  DRY_RUN=1
+  shift
+fi
+
 if [ $# -lt 1 ]; then
-  echo "usage: $0 <phase-worktree-path>"
+  echo "usage: $0 [--dry-run] <phase-worktree-path>"
   exit 1
 fi
 
@@ -40,9 +46,36 @@ if [ ! -d "$TARGET/backend-v2" ] || [ ! -d "$TARGET/k8s" ]; then
 fi
 
 MAIN="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MAIN_SHA="$(git -C "$MAIN" rev-parse HEAD)"
 
-echo "[overlay] source: $MAIN"
+echo "[overlay] source: $MAIN @ $MAIN_SHA"
 echo "[overlay] target: $TARGET"
+[ $DRY_RUN -eq 1 ] && echo "[overlay] DRY-RUN: no files will be written"
+
+# Capability check used by Option D phases (per plan §4.7 Rule 2).
+# Returns 0 if the target worktree has the named endpoint; 1 otherwise.
+# Currently checks for the JWT-trust /verify endpoint on service-customer.
+overlay_supports_endpoint() {
+  local target="$1"
+  local endpoint="$2"
+  case "$endpoint" in
+    customer-verify)
+      grep -rqs '/verify' \
+        "$target/backend-v2/service-customer/src/main/java/com/ecommerce/customer/api/controller/" \
+        2>/dev/null
+      ;;
+    *)
+      return 1  # unknown endpoint => assume not supported, caller decides
+      ;;
+  esac
+}
+
+# Skip ingress overlay for Option D phases that lack the JWT verify endpoint
+SKIP_JWT_INGRESS=0
+if ! overlay_supports_endpoint "$TARGET" customer-verify; then
+  SKIP_JWT_INGRESS=1
+  echo "[overlay] target lacks /verify on service-customer — Option D mode: ingress JWT middleware will NOT be overlaid"
+fi
 
 # 1. Backend files (entrypoint, Dockerfile, common resources & deps)
 cp -v "$MAIN/backend-v2/entrypoint.sh"  "$TARGET/backend-v2/entrypoint.sh"
@@ -177,6 +210,17 @@ else:
     print(f"[overlay] {p}: keys merged ({len(want)} keys)")
 PY
 fi
+
+if [ $DRY_RUN -eq 1 ]; then
+  echo ""
+  echo "[overlay] DRY-RUN complete. Re-run without --dry-run to apply."
+  exit 0
+fi
+
+# Write overlay-applied marker so resume protocol can detect freshness.
+# Schema (per plan §9): one line "<source-main-sha> <UTC-timestamp>".
+echo "$MAIN_SHA $(date -u +%FT%TZ)" > "$TARGET/.overlay-applied"
+echo "[overlay] wrote $TARGET/.overlay-applied: $MAIN_SHA $(date -u +%FT%TZ)"
 
 echo ""
 echo "[overlay] DONE. Next steps in $TARGET:"

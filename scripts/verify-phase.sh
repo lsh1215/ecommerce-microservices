@@ -49,9 +49,15 @@ gcloud compute scp --zone="${ZONE}" \
   "${VM}:/tmp/" 2>&1 | tail -1
 gcloud compute ssh "${VM}" --zone="${ZONE}" --command='
   sudo kubectl apply -f /tmp/dashboard-mysql-overview.yml -f /tmp/dashboard-kafka-exporter-overview.yml -f /tmp/dashboard-jvm-micrometer.yml
-  sudo kubectl -n monitoring rollout restart deploy/grafana
-  sudo kubectl -n monitoring rollout status deploy/grafana --timeout=90s
 '
+# Grafana refresh: rely on kiwigrid k8s-sidecar (WATCH mode) +
+# Grafana file-provider (updateIntervalSeconds: 30). No rollout
+# restart needed. The carrier Grafana manifest sets anonymous-Admin
+# (Org Admin) without a Server-Admin password, so /api/admin/...
+# isn't usable either. sleep 35 gives both sidecar+file-provider
+# cycles time to land the new dashboard YAMLs in Grafana.
+echo "[verify] waiting 35s for kiwigrid sidecar + Grafana file-provider scan…"
+( sleep 35 )
 
 # 5. Generate load: 90 s k6 + parallel HTTP polling against /api/products.
 BASE=http://34.64.219.137

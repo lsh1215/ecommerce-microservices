@@ -499,6 +499,84 @@ def audit():
     print(f"OK: {all_t['ok']}   PARTIAL: {all_t['partial']}   EMPTY: {all_t['empty']}   "
           f"ERROR: {all_t['error']}   SKIP (no-targets): {all_t['skip']}")
 
+    return all_t, panel_reports
+
+
+def load_expectations(path: str):
+    """Load phase-panel-expectations.json (or yml) into a list of rules.
+    Each rule is a dict: {dashboard_pattern, panel_pattern?, metric_pattern?,
+                          disposition: idle-by-phase|metric-unavailable-permanent|deferred|audit-false-positive,
+                          exceptions: [tag,...]}.
+    Returns [] if path is missing.
+    """
+    p = pathlib.Path(path)
+    if not p.exists():
+        return []
+    txt = p.read_text()
+    if path.endswith(".json"):
+        return json.loads(txt)
+    return yaml.safe_load(txt) or []
+
+
+def panel_disposition(rules, dash, panel_title, expr_sample, active_tags):
+    """Match a panel against expectations rules. Returns (category, rule) or
+    (None, None) if no match.
+    """
+    for rule in rules:
+        if "dashboard_pattern" in rule and not re.search(rule["dashboard_pattern"], dash):
+            continue
+        if "panel_pattern" in rule and not re.search(rule["panel_pattern"], panel_title or ""):
+            continue
+        if "metric_pattern" in rule and not re.search(rule["metric_pattern"], expr_sample or ""):
+            continue
+        # Exceptions: if any active_tag matches an exception, the rule is suppressed.
+        if rule.get("exceptions") and any(tag in rule["exceptions"] for tag in active_tags):
+            continue
+        return rule.get("disposition", "deferred"), rule
+    return None, None
+
 
 if __name__ == "__main__":
-    audit()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--strict", action="store_true",
+                        help="Exit non-zero if any panel is EMPTY/PARTIAL/ERROR without a "
+                             "documented disposition in --expectations.")
+    parser.add_argument("--expectations", default=".omc/research/phase-panel-expectations.json",
+                        help="Path to expectations file (json or yml). Missing file = no rules.")
+    parser.add_argument("--active-tags", default="",
+                        help="Comma-separated tags identifying the current run context "
+                             "(e.g., 'under-T3-C1', 'phase4'). Used to suppress 'idle-by-phase' "
+                             "rules for panels that should be live in this run.")
+    args = parser.parse_args()
+
+    overall, panel_reports = audit()
+
+    if not args.strict:
+        sys.exit(0)
+
+    rules = load_expectations(args.expectations)
+    active_tags = [t.strip() for t in args.active_tags.split(",") if t.strip()]
+    unaccounted = []
+    accounted = {"idle-by-phase": 0, "metric-unavailable-permanent": 0,
+                 "deferred": 0, "audit-false-positive": 0}
+    for dash, panels in panel_reports.items():
+        for pid, title, status, hit, samples in panels:
+            if status in ("OK", "SKIP"):
+                continue
+            expr = samples[0][0] if samples else ""
+            disp, rule = panel_disposition(rules, dash, title, expr, active_tags)
+            if disp is None:
+                unaccounted.append((dash, pid, title, status))
+            else:
+                accounted[disp] = accounted.get(disp, 0) + 1
+
+    print("\n## Strict Mode")
+    print(f"accounted: {accounted}")
+    print(f"unaccounted: {len(unaccounted)}")
+    if unaccounted:
+        print("\nFirst 20 unaccounted:")
+        for dash, pid, title, status in unaccounted[:20]:
+            print(f"  - {dash} #{pid} '{title}' = {status}")
+        sys.exit(2)
+    sys.exit(0)
