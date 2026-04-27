@@ -29,7 +29,6 @@ import com.ecommerce.order.domain.model.ShippingAddress;
 import com.ecommerce.order.domain.model.VariantSnapshot;
 import com.ecommerce.order.domain.repository.OrderRepository;
 import com.ecommerce.order.domain.repository.SagaInstanceRepository;
-import com.ecommerce.order.domain.service.CustomerDirectoryPort;
 import com.ecommerce.order.domain.service.ProductCatalogPort;
 import java.math.BigDecimal;
 import java.util.List;
@@ -56,9 +55,6 @@ class OrderSagaOrchestratorTest {
     ProductCatalogPort productCatalog;
 
     @Mock
-    CustomerDirectoryPort customerDirectory;
-
-    @Mock
     ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
@@ -67,8 +63,9 @@ class OrderSagaOrchestratorTest {
     @Test
     @DisplayName("정상 주문 생성 시 PENDING 상태의 Order를 반환하고 SAGA를 PAYMENT_PROCESSING으로 전이한다")
     void startSaga_happyPath_returnsOrderInPendingState() {
-        // Given
-        willDoNothing().given(customerDirectory).ensureExists(anyLong());
+        // Given — customerId is trusted from the X-Customer-Id header populated
+        // by Traefik forwardAuth, so the orchestrator no longer calls
+        // CustomerDirectoryPort.ensureExists.
         given(productCatalog.fetchSnapshot(anyLong())).willReturn(snapshotDto(100L));
         willDoNothing().given(productCatalog).reserveStock(anyLong(), anyInt());
         given(orderRepository.save(any(Order.class))).willAnswer(inv -> inv.getArgument(0));
@@ -88,24 +85,9 @@ class OrderSagaOrchestratorTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 고객으로 주문 생성 시 BusinessException을 던진다")
-    void startSaga_customerNotFound_throwsBusinessException() {
-        // Given
-        willThrow(new BusinessException(OrderErrorCode.CUSTOMER_NOT_FOUND))
-                .given(customerDirectory).ensureExists(anyLong());
-
-        // When / Then
-        assertThatThrownBy(() -> orchestrator.startSaga(validCommand()))
-                .isInstanceOf(BusinessException.class);
-        verify(productCatalog, never()).reserveStock(anyLong(), anyInt());
-        verify(orderRepository, never()).save(any());
-    }
-
-    @Test
     @DisplayName("두 번째 아이템 재고 예약 실패 시 첫 번째 아이템의 재고를 해제하고 예외를 전파한다")
     void startSaga_stockInsufficient_releasesAlreadyReservedStockAndRethrows() {
         // Given
-        willDoNothing().given(customerDirectory).ensureExists(anyLong());
         given(productCatalog.fetchSnapshot(anyLong())).willReturn(snapshotDto(100L));
         willDoNothing().given(productCatalog).reserveStock(eq(100L), anyInt());
         willThrow(new BusinessException(OrderErrorCode.STOCK_RESERVATION_FAILED))

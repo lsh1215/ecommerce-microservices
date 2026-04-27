@@ -3,6 +3,9 @@ import { check, sleep } from 'k6';
 
 const PRODUCT_API = __ENV.PRODUCT_API || 'http://localhost:8081';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
+// Unsigned demo JWT (header.payload.signature) — payload `{"sub":"1"}` so
+// Traefik forwardAuth -> service-customer/verify decodes customerId=1.
+const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.sig'}`;
 
 export const options = {
   scenarios: {
@@ -48,7 +51,7 @@ export default function () {
   });
 
   const orderRes = http.post(`${ORDER_API}/api/orders`, orderPayload, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
   });
   check(orderRes, {
     'order created': (r) => r.status === 200 || r.status === 201,

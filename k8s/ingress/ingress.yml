@@ -1,7 +1,8 @@
+# Public routes — no auth required. Customer create/login + product browse.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ecommerce-ingress
+  name: ecommerce-public-ingress
   namespace: ecommerce
 spec:
   ingressClassName: traefik
@@ -22,6 +23,30 @@ spec:
                 name: service-product
                 port:
                   number: 8081
+          - path: /api/customers
+            pathType: Prefix
+            backend:
+              service:
+                name: service-customer
+                port:
+                  number: 8084
+---
+# Protected routes — JWT verified at the ingress via Traefik forwardAuth.
+# The middleware adds X-Customer-Id from the verified token onto every
+# request reaching service-order / service-payment, removing the need for
+# either to call service-customer for identity validation.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ecommerce-protected-ingress
+  namespace: ecommerce
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: ecommerce-jwt-auth@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
           - path: /api/orders
             pathType: Prefix
             backend:
@@ -36,13 +61,6 @@ spec:
                 name: service-payment
                 port:
                   number: 8083
-          - path: /api/customers
-            pathType: Prefix
-            backend:
-              service:
-                name: service-customer
-                port:
-                  number: 8084
 ---
 # Grafana served at /grafana (sub-path). GF_SERVER_SERVE_FROM_SUB_PATH=true
 # means Grafana itself rewrites asset URLs; Traefik forwards the path
