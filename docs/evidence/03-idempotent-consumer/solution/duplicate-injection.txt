@@ -1,0 +1,11 @@
+=== payment rows ===
+id	order_number	status	amount
+13	01KQ62QGKP722V151JQ2X4FWYM	COMPLETED	29900.00
+=== processed_event ===
+event_id	COUNT(*)
+u03s-final-1777246921	1
+=== skip logs ===
+2026-04-26T23:42:24.384Z  INFO 1 --- [service-payment] [ntainer#0-0-C-1] c.e.c.i.IdempotentEventHandler           : 중복 이벤트 감지, 건너뜀: eventId=u03s-final-1777246921, type=order.created
+2026-04-26T23:42:34.220Z  INFO 1 --- [service-payment] [ntainer#0-0-C-1] c.e.c.i.IdempotentEventHandler           : 중복 이벤트 감지, 건너뜀: eventId=u03s-final-1777246921, type=order.created
+2026-04-26T23:42:43.992Z  INFO 1 --- [service-payment] [ntainer#0-0-C-1] c.e.c.i.IdempotentEventHandler           : 중복 이벤트 감지, 건너뜀: eventId=u03s-final-1777246921, type=order.created
+2026-04-26T23:42:53.516Z  INFO 1 --- [service-payment] [ntainer#0-0-C-1] c.e.c.i.IdempotentEventHandler           : 중복 이벤트 감지, 건너뜀: eventId=u03s-final-1777246921, type=order.created

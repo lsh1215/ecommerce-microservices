@@ -1,0 +1,3 @@
+delta_db_orders: 386
+delta_kafka_offset: 243
+event_loss: 143

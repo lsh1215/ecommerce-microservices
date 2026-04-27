@@ -1,0 +1,6 @@
+delta_db_orders: 289
+delta_kafka_offset: 289
+event_loss: 0
+outbox_status:
+status	COUNT(*)
+PUBLISHED	290

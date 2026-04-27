@@ -1,0 +1,20 @@
+[
+  {
+    "uid": "ecommerce-overview",
+    "png": "../../docs/evidence/04-circuit-breaker/problem/dashboards/ecommerce-overview.png",
+    "total": 0,
+    "noData": 0
+  },
+  {
+    "uid": "ecommerce-jvm-micrometer",
+    "png": "../../docs/evidence/04-circuit-breaker/problem/dashboards/ecommerce-jvm-micrometer.png",
+    "total": 0,
+    "noData": 0
+  },
+  {
+    "uid": "ecommerce-k6-prometheus",
+    "png": "../../docs/evidence/04-circuit-breaker/problem/dashboards/ecommerce-k6-prometheus.png",
+    "total": 0,
+    "noData": 0
+  }
+]

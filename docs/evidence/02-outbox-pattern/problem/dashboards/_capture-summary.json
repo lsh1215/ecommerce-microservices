@@ -1,0 +1,14 @@
+[
+  {
+    "uid": "ecommerce-overview",
+    "png": "../../docs/evidence/02-outbox-pattern/problem/dashboards/ecommerce-overview.png",
+    "total": 0,
+    "noData": 0
+  },
+  {
+    "uid": "ecommerce-kafka-exporter-overview",
+    "png": "../../docs/evidence/02-outbox-pattern/problem/dashboards/ecommerce-kafka-exporter-overview.png",
+    "total": 0,
+    "noData": 0
+  }
+]

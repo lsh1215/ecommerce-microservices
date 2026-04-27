@@ -1,0 +1,14 @@
+[
+  {
+    "uid": "ecommerce-overview",
+    "png": "../../docs/evidence/01-cascading-failure/problem/dashboards/ecommerce-overview.png",
+    "total": 0,
+    "noData": 0
+  },
+  {
+    "uid": "ecommerce-k6-prometheus",
+    "png": "../../docs/evidence/01-cascading-failure/problem/dashboards/ecommerce-k6-prometheus.png",
+    "total": 0,
+    "noData": 0
+  }
+]
