@@ -1,105 +1,76 @@
-# Unit 03 — Idempotent Consumer (이력서 클레임 #3: 중복 이벤트 차단)
+# Unit 03 — Idempotent Consumer
 
-## 문제 정의
+## 가설
 
-Kafka는 본질적으로 **at-least-once** 전달:
-- Producer 재시도: ack timeout 후 같은 이벤트 재전송 (Outbox poller의 `retry_count`도 해당)
-- Consumer rebalance: offset commit 전 재시작 → 동일 메시지 재소비
-- 다중 consumer group: 같은 토픽 구독 시 각 그룹이 독립 수신
+Kafka delivery 보장은 at-least-once 다. 동일 메시지가 (rebalance, retry,
+broker hiccup 등으로) 두 번 이상 도착할 수 있다. 핸들러에 멱등성
+가드 (eventId 기반 dedup + business-state 검사) 가 없으면 동일 결제가
+중복 생성된다.
 
-장애 시나리오:
-- 같은 `order.created` 이벤트가 5번 전달됨 → 멱등 가드 없으면 5건의 결제 row 생성
-- **이중 결제, 과다 재고 차감, SAGA 상태 머신 오작동**
+## 셋업
 
-## 해결 방법
+`order.created` 토픽에 동일 페이로드 (`eventId` 동일, `orderId` 동일)
+를 5번 inject 하고 service-payment 의 결과 row 수를 센다. dedup 가드를
+toggle off 시키는 두 환경 변수 (`APPLICATION_IDEMPOTENCY_ENABLED`,
+`APPLICATION_BUSINESS_IDEMPOTENCY_GUARD_ENABLED`) 가 코드에 wiring 되어
+있어 (`@Value("${application.idempotency.enabled:true}")`) Problem 측
+은 env override 만으로 재현 가능. evidence/03-no-idempotency 워크트리는
+같은 toggle 을 빌드 타임에 yml 로 굽는다.
 
-**`processed_event` UNIQUE 테이블 + `IdempotentEventHandler` 래퍼**:
+이번 캡처는 evidence/03-no-idempotency 빌드의 결과를 확인하기 위해
+service-payment 만 main 코드로 fresh 빌드 후 env override 로 toggle
+했다 — 워크트리 빌드와 동일한 동작. 다른 서비스 + Kafka + DB 모두
+공유.
 
-```java
-@Transactional
-public boolean tryProcess(String eventId, String eventType, Runnable processor) {
-    if (!idempotencyEnabled) {                          // 토글 OFF: 그냥 실행
-        log.warn("idempotency disabled");
-        processor.run();
-        return true;
-    }
-    if (processedEventRepository.existsByEventId(eventId)) {
-        log.info("중복 이벤트 감지, 건너뜀: eventId={}", eventId);
-        return false;                                   // 1차 방어: pre-check
-    }
-    processor.run();
-    try {
-        processedEventRepository.saveAndFlush(ProcessedEvent.of(eventId, eventType));
-    } catch (DataIntegrityViolationException e) {
-        // 2차 방어: 동시 처리 시 DB UNIQUE 제약이 차단 → @Transactional 롤백
-    }
-    return true;
-}
-```
+## 결과
 
-**2-Layer 방어**:
-1. **사전 조회 (`existsByEventId`)** — 일반적인 중복 차단
-2. **DB UNIQUE 제약** — 두 인스턴스가 동시에 commit 시도 시 한 쪽이 `DataIntegrityViolationException` → `@Transactional` 롤백 → `payment.save(...)`도 함께 취소
-
-`PaymentService.processFromEvent`에는 추가로 `existsByOrderIdAndStatus(orderId, COMPLETED)` 비즈니스 가드. 두 가드 모두 토글 가능 (`application.idempotency.enabled`, `application.business-idempotency-guard.enabled`).
-
-## 테스트 시나리오
-
-| 항목 | Problem (guards OFF) | Solution (guards ON, default) |
+| 지표 | Solution (idempotency on) | Problem (toggles off) |
 |---|---|---|
-| 동작 | 같은 eventId의 `order.created` 5번 inject | 동일 |
-| 환경 | phase3 + main의 toggle 코드 cherry-pick + env var false | 동일 + env var true |
-| 측정 | Payment 테이블 row 수, processed_event 레코드, 로그 |
+| 동일 eventId 메시지 | 5건 inject | 5건 inject |
+| `payment` 테이블 신규 row | **1** | **5** |
+| `processed_event` 테이블 row | 1 (eventId 단일) | 0 (dedup 미사용) |
+| 4× dedup INFO log | "중복 이벤트 감지, 건너뜀" | — |
+| WARN log | — | "idempotency disabled" + "guard disabled" 5쌍 |
 
-> Note: phase3 worktree에는 toggle 코드가 없어서 main에서 cherry-pick 후 service-order/service-payment 이미지 재빌드. phase3-multi-consumer-test 하니스(docker-compose 기반)와 본질적으로 같은 의도지만 단일 consumer 단순화 버전.
+5건 중 1건이 FAILED 인 건 `PaymentStubProcessor` 의 90 % 성공률 시뮬레이션 때문. dedup 동작 자체와는 무관.
 
-## 결과 요약
+raw output: [`solution/raw.txt`](./solution/raw.txt), [`problem/raw.txt`](./problem/raw.txt)
 
-| 지표 | Problem (guards OFF) | Solution (guards ON) |
-|---|---|---|
-| 5 dup `order.created` 주입 | ✓ | ✓ |
-| **Payment 테이블 row 수** | **5건** (중복 결제) | **1건** ✓ |
-| processed_event 항목 | (체크 안 함, 가드 OFF) | **1 (eventId 기록)** |
-| Skip 로그 | (없음, 모두 처리) | `중복 이벤트 감지, 건너뜀` × **4회** |
-| `idempotency disabled` 로그 | × **5회** (토글 적용 확인) | (없음) |
+## 해석
 
-→ **5번 주입 / 1번 처리 = exactly-once 효과** 입증
+Solution 측 — IdempotentEventHandler 의 첫 호출이 `processed_event(eventId)`
+row 를 INSERT (UNIQUE constraint), 후속 4 건은 `existsByEventId` 가 true
+를 반환하여 processor 를 건너뜀. PaymentService 는 1번만 호출되어
+payment row 1 개. INSERT 단계에서 race 가 나도 DB UNIQUE 가 최후 가드
+역할.
 
-## Evidence
+Problem 측 — 두 toggle 모두 false. IdempotentEventHandler 는 dedup 검사
+없이 processor 를 매번 실행. PaymentService.processFromEvent 의 business
+guard (이미 COMPLETED Payment 가 있으면 skip) 도 비활성. 결과적으로 5건
+의 payment row 가 동일 orderId 에 대해 생성됨. transaction_id 5건이 모두
+다른 게 그 증거.
 
-| | 측정 raw | Grafana 화면 |
-|---|---|---|
-| Problem | [`problem/duplicate-injection.txt`](./problem/duplicate-injection.txt) | [`problem/dashboards/`](./problem/dashboards/) — overview, logs-app |
-| Solution | [`solution/duplicate-injection.txt`](./solution/duplicate-injection.txt) | [`solution/dashboards/`](./solution/dashboards/) |
-
-## 모니터링 대시보드 핵심 panel
-
-- **Logs / App** — service-payment 로그에서 `중복 이벤트 감지, 건너뜀` 메시지 4회 (Solution) vs `idempotency disabled` 5회 (Problem)
-- **Ecommerce Overview** — Recent service logs 패널에서 동일 정보 일부 노출
-
-## 검증 결과 — **PASS**
-
-- Problem: guards OFF로 5 row 생성 ✓ (가드 비활성 시 중복 처리 입증)
-- Solution: 1 row + 4 skip ✓ (이력서 "동일 이벤트 5회 중복 주입 → 결제 1건만 정상 처리" 정확히 재현)
-
-## 재현 명령
+## 재현
 
 ```bash
-# Cherry-pick toggle code (phase3 worktree에 없으므로)
-cp backend-v2/common/src/main/java/com/ecommerce/common/idempotency/IdempotentEventHandler.java \
-   ../ecommerce-microservices-worktrees/phase3/backend-v2/common/src/main/java/com/ecommerce/common/idempotency/
-cp backend-v2/service-payment/src/main/java/com/ecommerce/payment/application/service/PaymentService.java \
-   ../ecommerce-microservices-worktrees/phase3/backend-v2/service-payment/src/main/java/com/ecommerce/payment/application/service/
+# Solution: idempotency on (default)
+EVENT_ID=test-evt-03-sol PAYLOAD='{...same eventId...}'
+for i in 1 2 3 4 5; do
+  echo "$PAYLOAD" | kubectl exec -i kafka-... -- kafka-console-producer ...
+done
+kubectl exec mysql-0 -- mysql ... "SELECT COUNT(*) FROM payment WHERE order_id=99001"
 
-./scripts/deploy-phase.sh phase3
-# 이미지 재빌드 (no-cache 권장 — gradle 캐시 회피)
-cd ../ecommerce-microservices-worktrees/phase3
-docker buildx build --no-cache --build-arg SERVICE_NAME=service-payment -t ecommerce/service-payment:latest --load backend-v2/
+# Problem: toggles off
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce set env deploy/service-payment \
+    APPLICATION_IDEMPOTENCY_ENABLED=false \
+    APPLICATION_BUSINESS_IDEMPOTENCY_GUARD_ENABLED=false
+  sudo kubectl -n ecommerce rollout status deploy/service-payment'
 
-# Problem
-gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a -- \
-  'sudo kubectl -n ecommerce set env deploy/service-payment APPLICATION_IDEMPOTENCY_ENABLED=false APPLICATION_BUSINESS_IDEMPOTENCY_GUARD_ENABLED=false'
-# Inject 5x same eventId via kafka-console-producer
+# repeat with new orderId; expect 5 payment rows
 
-# Solution — flip env vars to true, repeat
+# Restore
+gcloud compute ssh ecommerce-k3s --zone=asia-northeast3-a --command='
+  sudo kubectl -n ecommerce set env deploy/service-payment \
+    APPLICATION_IDEMPOTENCY_ENABLED- APPLICATION_BUSINESS_IDEMPOTENCY_GUARD_ENABLED-'
 ```
