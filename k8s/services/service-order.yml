@@ -29,6 +29,8 @@ spec:
       labels:
         app: service-order
     spec:
+      nodeSelector:
+        role: svc-order
       containers:
         - name: service-order
           image: ecommerce/service-order:latest
@@ -44,6 +46,8 @@ spec:
                 name: otel-config
                 optional: true
           env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql-order-service:3306/ecommerce_order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
             - name: SERVER_PORT
               value: "8082"
             - name: DB_NAME

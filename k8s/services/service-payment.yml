@@ -29,6 +29,8 @@ spec:
       labels:
         app: service-payment
     spec:
+      nodeSelector:
+        role: svc-payment
       containers:
         - name: service-payment
           image: ecommerce/service-payment:latest
@@ -44,6 +46,8 @@ spec:
                 name: otel-config
                 optional: true
           env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql-payment-service:3306/ecommerce_payment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
             - name: SERVER_PORT
               value: "8083"
             - name: DB_NAME

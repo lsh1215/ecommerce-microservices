@@ -1,0 +1,321 @@
+# Per-service MySQL StatefulSets — one DB per Spring Boot service, each
+# pinned to its service node so DB lives on the same host as the
+# application that owns it (proper Database-per-Service in MSA).
+#
+# Hostnames inside the cluster:
+#   mysql-order-service.ecommerce.svc.cluster.local   :3306  -> ecommerce_order
+#   mysql-payment-service.ecommerce.svc.cluster.local :3306  -> ecommerce_payment
+#   mysql-product-service.ecommerce.svc.cluster.local :3306  -> ecommerce_product
+#   mysql-customer-service.ecommerce.svc.cluster.local:3306  -> ecommerce_customer
+#
+# Each service Deployment overrides SPRING_DATASOURCE_URL to point at its
+# dedicated host. The legacy single-mysql `mysql-service` and StatefulSet
+# `mysql` are removed in favor of these.
+
+# ─────────────────────────────────────────────────────────────────────────
+# Order DB
+# ─────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-order-service
+  namespace: ecommerce
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: mysql-order
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-order-init
+  namespace: ecommerce
+data:
+  01-init.sql: |
+    CREATE DATABASE IF NOT EXISTS ecommerce_order CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS 'sa'@'%' IDENTIFIED BY 'changeme';
+    GRANT ALL PRIVILEGES ON ecommerce_order.* TO 'sa'@'%';
+    FLUSH PRIVILEGES;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-order
+  namespace: ecommerce
+spec:
+  serviceName: mysql-order-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-order
+  template:
+    metadata:
+      labels:
+        app: mysql-order
+    spec:
+      nodeSelector:
+        role: svc-order
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - { containerPort: 3306 }
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: ecommerce-secrets, key: DB_ROOT_PASSWORD } }
+          volumeMounts:
+            - { name: mysql-data, mountPath: /var/lib/mysql }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+          resources:
+            requests: { memory: 256Mi, cpu: 100m }
+            limits:   { memory: 768Mi, cpu: 500m }
+          readinessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+      volumes:
+        - name: init
+          configMap: { name: mysql-order-init }
+  volumeClaimTemplates:
+    - metadata: { name: mysql-data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 3Gi } }
+---
+# ─────────────────────────────────────────────────────────────────────────
+# Payment DB
+# ─────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-payment-service
+  namespace: ecommerce
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: mysql-payment
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-payment-init
+  namespace: ecommerce
+data:
+  01-init.sql: |
+    CREATE DATABASE IF NOT EXISTS ecommerce_payment CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS 'sa'@'%' IDENTIFIED BY 'changeme';
+    GRANT ALL PRIVILEGES ON ecommerce_payment.* TO 'sa'@'%';
+    FLUSH PRIVILEGES;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-payment
+  namespace: ecommerce
+spec:
+  serviceName: mysql-payment-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-payment
+  template:
+    metadata:
+      labels:
+        app: mysql-payment
+    spec:
+      nodeSelector:
+        role: svc-payment
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - { containerPort: 3306 }
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: ecommerce-secrets, key: DB_ROOT_PASSWORD } }
+          volumeMounts:
+            - { name: mysql-data, mountPath: /var/lib/mysql }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+          resources:
+            requests: { memory: 256Mi, cpu: 100m }
+            limits:   { memory: 768Mi, cpu: 500m }
+          readinessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+      volumes:
+        - name: init
+          configMap: { name: mysql-payment-init }
+  volumeClaimTemplates:
+    - metadata: { name: mysql-data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 3Gi } }
+---
+# ─────────────────────────────────────────────────────────────────────────
+# Product DB
+# ─────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-product-service
+  namespace: ecommerce
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: mysql-product
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-product-init
+  namespace: ecommerce
+data:
+  01-init.sql: |
+    CREATE DATABASE IF NOT EXISTS ecommerce_product CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS 'sa'@'%' IDENTIFIED BY 'changeme';
+    GRANT ALL PRIVILEGES ON ecommerce_product.* TO 'sa'@'%';
+    FLUSH PRIVILEGES;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-product
+  namespace: ecommerce
+spec:
+  serviceName: mysql-product-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-product
+  template:
+    metadata:
+      labels:
+        app: mysql-product
+    spec:
+      nodeSelector:
+        role: svc-product
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - { containerPort: 3306 }
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: ecommerce-secrets, key: DB_ROOT_PASSWORD } }
+          volumeMounts:
+            - { name: mysql-data, mountPath: /var/lib/mysql }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+          resources:
+            requests: { memory: 256Mi, cpu: 100m }
+            limits:   { memory: 768Mi, cpu: 500m }
+          readinessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+      volumes:
+        - name: init
+          configMap: { name: mysql-product-init }
+  volumeClaimTemplates:
+    - metadata: { name: mysql-data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 3Gi } }
+---
+# ─────────────────────────────────────────────────────────────────────────
+# Customer DB
+# ─────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-customer-service
+  namespace: ecommerce
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+  selector:
+    app: mysql-customer
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-customer-init
+  namespace: ecommerce
+data:
+  01-init.sql: |
+    CREATE DATABASE IF NOT EXISTS ecommerce_customer CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE USER IF NOT EXISTS 'sa'@'%' IDENTIFIED BY 'changeme';
+    GRANT ALL PRIVILEGES ON ecommerce_customer.* TO 'sa'@'%';
+    FLUSH PRIVILEGES;
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-customer
+  namespace: ecommerce
+spec:
+  serviceName: mysql-customer-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-customer
+  template:
+    metadata:
+      labels:
+        app: mysql-customer
+    spec:
+      nodeSelector:
+        role: svc-customer
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - { containerPort: 3306 }
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: ecommerce-secrets, key: DB_ROOT_PASSWORD } }
+          volumeMounts:
+            - { name: mysql-data, mountPath: /var/lib/mysql }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+          resources:
+            requests: { memory: 256Mi, cpu: 100m }
+            limits:   { memory: 768Mi, cpu: 500m }
+          readinessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: ["mysqladmin", "ping", "-h", "localhost"] }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+      volumes:
+        - name: init
+          configMap: { name: mysql-customer-init }
+  volumeClaimTemplates:
+    - metadata: { name: mysql-data }
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources: { requests: { storage: 3Gi } }

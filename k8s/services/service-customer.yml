@@ -29,6 +29,8 @@ spec:
       labels:
         app: service-customer
     spec:
+      nodeSelector:
+        role: svc-customer
       containers:
         - name: service-customer
           image: ecommerce/service-customer:latest
@@ -44,6 +46,8 @@ spec:
                 name: otel-config
                 optional: true
           env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql-customer-service:3306/ecommerce_customer?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
             - name: SERVER_PORT
               value: "8084"
             - name: DB_NAME

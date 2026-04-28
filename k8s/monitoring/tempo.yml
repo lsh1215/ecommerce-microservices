@@ -78,6 +78,9 @@ spec:
       labels:
         app: tempo
     spec:
+      nodeSelector:
+        role: monitoring
+
       containers:
         - name: tempo
           image: grafana/tempo:2.6.0

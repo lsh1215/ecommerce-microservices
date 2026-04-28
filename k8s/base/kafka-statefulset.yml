@@ -35,6 +35,8 @@ spec:
       labels:
         app: kafka
     spec:
+      nodeSelector:
+        role: kafka
       terminationGracePeriodSeconds: 30
       containers:
         - name: kafka

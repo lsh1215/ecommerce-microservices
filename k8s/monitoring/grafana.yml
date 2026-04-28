@@ -154,6 +154,9 @@ spec:
       securityContext:
         fsGroup: 472
         runAsUser: 472
+      nodeSelector:
+        role: monitoring
+
       containers:
         - name: grafana
           image: grafana/grafana:11.2.0

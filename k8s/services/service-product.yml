@@ -29,6 +29,8 @@ spec:
       labels:
         app: service-product
     spec:
+      nodeSelector:
+        role: svc-product
       containers:
         - name: service-product
           image: ecommerce/service-product:latest
@@ -44,6 +46,8 @@ spec:
                 name: otel-config
                 optional: true
           env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql-product-service:3306/ecommerce_product?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
             - name: SERVER_PORT
               value: "8081"
             - name: DB_NAME
