@@ -18,7 +18,7 @@ spec:
         app: jaeger
     spec:
       nodeSelector:
-        role: server
+        role: monitoring
 
       containers:
         - name: jaeger

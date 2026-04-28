@@ -70,7 +70,7 @@ spec:
         app: loki
     spec:
       nodeSelector:
-        role: server
+        role: monitoring
 
       containers:
         - name: loki

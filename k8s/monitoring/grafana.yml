@@ -155,7 +155,7 @@ spec:
         fsGroup: 472
         runAsUser: 472
       nodeSelector:
-        role: server
+        role: monitoring
 
       containers:
         - name: grafana
