@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-BOOTSTRAP="kafka-1:9092"
+BOOTSTRAP="${BOOTSTRAP:-kafka-0.kafka-service.ecommerce.svc.cluster.local:9092}"
 TOPICS="order.created order.cancelled payment.completed payment.failed product.stock-reserved product.stock-released customer.registered"
 
 echo "Waiting for Kafka cluster to be ready..."
