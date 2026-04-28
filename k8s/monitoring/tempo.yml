@@ -95,8 +95,8 @@ spec:
             - name: data
               mountPath: /var/tempo
           resources:
-            requests: { cpu: 100m, memory: 256Mi }
-            limits:   { cpu: 500m, memory: 384Mi }
+            requests: { cpu: 100m, memory: 512Mi }
+            limits:   { cpu: 1000m, memory: 1Gi }
           readinessProbe:
             httpGet: { path: /ready, port: 3200 }
             initialDelaySeconds: 30

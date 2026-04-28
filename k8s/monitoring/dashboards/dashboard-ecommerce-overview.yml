@@ -1,1201 +1,384 @@
 apiVersion: v1
+data:
+  ecommerce-overview.json: "{\n  \"uid\": \"ecommerce-overview\",\n  \"title\": \"\
+    Ecommerce Overview\",\n  \"tags\": [\n    \"ecommerce\",\n    \"custom\"\n  ],\n\
+    \  \"timezone\": \"browser\",\n  \"schemaVersion\": 39,\n  \"version\": 2,\n \
+    \ \"editable\": true,\n  \"graphTooltip\": 1,\n  \"refresh\": \"30s\",\n  \"time\"\
+    : {\n    \"from\": \"now-15m\",\n    \"to\": \"now\"\n  },\n  \"panels\": [\n\
+    \    {\n      \"type\": \"stat\",\n      \"id\": 1,\n      \"title\": \"JVM UP\
+    \ (services scraped)\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\"\
+    : 4,\n        \"x\": 0,\n        \"y\": 0\n      },\n      \"datasource\": {\n\
+    \        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n\
+    \      \"targets\": [\n        {\n          \"refId\": \"A\",\n          \"expr\"\
+    : \"count(count by (pod) (jvm_memory_used_bytes{app=~\\\"service-.*\\\"}))\",\n\
+    \          \"datasource\": {\n            \"type\": \"prometheus\",\n        \
+    \    \"uid\": \"prometheus\"\n          }\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"short\",\n          \"color\"\
+    : {\n            \"mode\": \"thresholds\"\n          },\n          \"thresholds\"\
+    : {\n            \"mode\": \"absolute\",\n            \"steps\": [\n         \
+    \     {\n                \"value\": null,\n                \"color\": \"green\"\
+    \n              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"graphMode\": \"area\",\n     \
+    \   \"colorMode\": \"value\",\n        \"justifyMode\": \"auto\",\n        \"\
+    textMode\": \"auto\"\n      }\n    },\n    {\n      \"type\": \"stat\",\n    \
+    \  \"id\": 2,\n      \"title\": \"Kafka Brokers\",\n      \"gridPos\": {\n   \
+    \     \"h\": 4,\n        \"w\": 4,\n        \"x\": 4,\n        \"y\": 0\n    \
+    \  },\n      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"\
+    uid\": \"prometheus\"\n      },\n      \"targets\": [\n        {\n          \"\
+    refId\": \"A\",\n          \"expr\": \"kafka_brokers\",\n          \"datasource\"\
+    : {\n            \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\
+    \n          }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"short\",\n          \"color\": {\n            \"mode\"\
+    : \"thresholds\"\n          },\n          \"thresholds\": {\n            \"mode\"\
+    : \"absolute\",\n            \"steps\": [\n              {\n                \"\
+    value\": null,\n                \"color\": \"green\"\n              }\n      \
+    \      ]\n          }\n        },\n        \"overrides\": []\n      },\n     \
+    \ \"options\": {\n        \"graphMode\": \"area\",\n        \"colorMode\": \"\
+    value\",\n        \"justifyMode\": \"auto\",\n        \"textMode\": \"auto\"\n\
+    \      }\n    },\n    {\n      \"type\": \"stat\",\n      \"id\": 3,\n      \"\
+    title\": \"MySQL Up\",\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\"\
+    : 4,\n        \"x\": 8,\n        \"y\": 0\n      },\n      \"datasource\": {\n\
+    \        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n\
+    \      \"targets\": [\n        {\n          \"refId\": \"A\",\n          \"expr\"\
+    : \"mysql_up\",\n          \"datasource\": {\n            \"type\": \"prometheus\"\
+    ,\n            \"uid\": \"prometheus\"\n          }\n        }\n      ],\n   \
+    \   \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"short\"\
+    ,\n          \"color\": {\n            \"mode\": \"thresholds\"\n          },\n\
+    \          \"thresholds\": {\n            \"mode\": \"absolute\",\n          \
+    \  \"steps\": [\n              {\n                \"value\": null,\n         \
+    \       \"color\": \"green\"\n              }\n            ]\n          }\n  \
+    \      },\n        \"overrides\": []\n      },\n      \"options\": {\n       \
+    \ \"graphMode\": \"area\",\n        \"colorMode\": \"value\",\n        \"justifyMode\"\
+    : \"auto\",\n        \"textMode\": \"auto\"\n      }\n    },\n    {\n      \"\
+    type\": \"stat\",\n      \"id\": 4,\n      \"title\": \"MySQL QPS\",\n      \"\
+    gridPos\": {\n        \"h\": 4,\n        \"w\": 4,\n        \"x\": 12,\n     \
+    \   \"y\": 0\n      },\n      \"datasource\": {\n        \"type\": \"prometheus\"\
+    ,\n        \"uid\": \"prometheus\"\n      },\n      \"targets\": [\n        {\n\
+    \          \"refId\": \"A\",\n          \"expr\": \"rate(mysql_global_status_queries[5m])\"\
+    ,\n          \"datasource\": {\n            \"type\": \"prometheus\",\n      \
+    \      \"uid\": \"prometheus\"\n          }\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"reqps\",\n          \"color\"\
+    : {\n            \"mode\": \"thresholds\"\n          },\n          \"thresholds\"\
+    : {\n            \"mode\": \"absolute\",\n            \"steps\": [\n         \
+    \     {\n                \"value\": null,\n                \"color\": \"green\"\
+    \n              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"graphMode\": \"area\",\n     \
+    \   \"colorMode\": \"value\",\n        \"justifyMode\": \"auto\",\n        \"\
+    textMode\": \"auto\"\n      }\n    },\n    {\n      \"type\": \"stat\",\n    \
+    \  \"id\": 5,\n      \"title\": \"Active DB Connections\",\n      \"gridPos\"\
+    : {\n        \"h\": 4,\n        \"w\": 4,\n        \"x\": 16,\n        \"y\":\
+    \ 0\n      },\n      \"datasource\": {\n        \"type\": \"prometheus\",\n  \
+    \      \"uid\": \"prometheus\"\n      },\n      \"targets\": [\n        {\n  \
+    \        \"refId\": \"A\",\n          \"expr\": \"sum(hikaricp_connections_active{app=~\\\
+    \"service-.*\\\"})\",\n          \"datasource\": {\n            \"type\": \"prometheus\"\
+    ,\n            \"uid\": \"prometheus\"\n          }\n        }\n      ],\n   \
+    \   \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"short\"\
+    ,\n          \"color\": {\n            \"mode\": \"thresholds\"\n          },\n\
+    \          \"thresholds\": {\n            \"mode\": \"absolute\",\n          \
+    \  \"steps\": [\n              {\n                \"value\": null,\n         \
+    \       \"color\": \"green\"\n              }\n            ]\n          }\n  \
+    \      },\n        \"overrides\": []\n      },\n      \"options\": {\n       \
+    \ \"graphMode\": \"area\",\n        \"colorMode\": \"value\",\n        \"justifyMode\"\
+    : \"auto\",\n        \"textMode\": \"auto\"\n      }\n    },\n    {\n      \"\
+    type\": \"stat\",\n      \"id\": 6,\n      \"title\": \"Kafka Topic Partitions\"\
+    ,\n      \"gridPos\": {\n        \"h\": 4,\n        \"w\": 4,\n        \"x\":\
+    \ 20,\n        \"y\": 0\n      },\n      \"datasource\": {\n        \"type\":\
+    \ \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n      \"targets\"\
+    : [\n        {\n          \"refId\": \"A\",\n          \"expr\": \"sum(kafka_topic_partition_in_sync_replica)\"\
+    ,\n          \"datasource\": {\n            \"type\": \"prometheus\",\n      \
+    \      \"uid\": \"prometheus\"\n          }\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"short\",\n          \"color\"\
+    : {\n            \"mode\": \"thresholds\"\n          },\n          \"thresholds\"\
+    : {\n            \"mode\": \"absolute\",\n            \"steps\": [\n         \
+    \     {\n                \"value\": null,\n                \"color\": \"green\"\
+    \n              }\n            ]\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"graphMode\": \"area\",\n     \
+    \   \"colorMode\": \"value\",\n        \"justifyMode\": \"auto\",\n        \"\
+    textMode\": \"auto\"\n      }\n    },\n    {\n      \"type\": \"timeseries\",\n\
+    \      \"id\": 7,\n      \"title\": \"JVM Heap Used (per service)\",\n      \"\
+    gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n     \
+    \   \"y\": 4\n      },\n      \"datasource\": {\n        \"type\": \"prometheus\"\
+    ,\n        \"uid\": \"prometheus\"\n      },\n      \"targets\": [\n        {\n\
+    \          \"refId\": \"A\",\n          \"expr\": \"sum by (app) (jvm_memory_used_bytes{app=~\\\
+    \"service-.*\\\",area=\\\"heap\\\"})\",\n          \"legendFormat\": \"{{app}}\"\
+    ,\n          \"datasource\": {\n            \"type\": \"prometheus\",\n      \
+    \      \"uid\": \"prometheus\"\n          }\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"bytes\",\n          \"custom\"\
+    : {\n            \"lineWidth\": 2,\n            \"fillOpacity\": 10,\n       \
+    \     \"showPoints\": \"never\"\n          },\n          \"color\": {\n      \
+    \      \"mode\": \"palette-classic\"\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"legend\": {\n          \"displayMode\"\
+    : \"list\",\n          \"placement\": \"bottom\"\n        },\n        \"tooltip\"\
+    : {\n          \"mode\": \"multi\"\n        }\n      }\n    },\n    {\n      \"\
+    type\": \"timeseries\",\n      \"id\": 8,\n      \"title\": \"HTTP Request Rate\
+    \ (per service, via OTLP)\",\n      \"gridPos\": {\n        \"h\": 8,\n      \
+    \  \"w\": 12,\n        \"x\": 12,\n        \"y\": 4\n      },\n      \"datasource\"\
+    : {\n        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n    \
+    \  },\n      \"targets\": [\n        {\n          \"refId\": \"A\",\n        \
+    \  \"expr\": \"sum by (job) (rate(http_server_request_duration_seconds_count{job=~\\\
+    \"ecommerce/service-.*\\\"}[10m]))\",\n          \"legendFormat\": \"{{job}}\"\
+    ,\n          \"datasource\": {\n            \"type\": \"prometheus\",\n      \
+    \      \"uid\": \"prometheus\"\n          }\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"reqps\",\n          \"custom\"\
+    : {\n            \"lineWidth\": 2,\n            \"fillOpacity\": 10,\n       \
+    \     \"showPoints\": \"never\"\n          },\n          \"color\": {\n      \
+    \      \"mode\": \"palette-classic\"\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"legend\": {\n          \"displayMode\"\
+    : \"list\",\n          \"placement\": \"bottom\"\n        },\n        \"tooltip\"\
+    : {\n          \"mode\": \"multi\"\n        }\n      }\n    },\n    {\n      \"\
+    type\": \"timeseries\",\n      \"id\": 9,\n      \"title\": \"JVM Live Threads\
+    \ (per service)\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n\
+    \        \"x\": 0,\n        \"y\": 12\n      },\n      \"datasource\": {\n   \
+    \     \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n \
+    \     \"targets\": [\n        {\n          \"refId\": \"A\",\n          \"expr\"\
+    : \"jvm_threads_live_threads{app=~\\\"service-.*\\\"}\",\n          \"legendFormat\"\
+    : \"{{app}}\",\n          \"datasource\": {\n            \"type\": \"prometheus\"\
+    ,\n            \"uid\": \"prometheus\"\n          }\n        }\n      ],\n   \
+    \   \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"short\"\
+    ,\n          \"custom\": {\n            \"lineWidth\": 2,\n            \"fillOpacity\"\
+    : 10,\n            \"showPoints\": \"never\"\n          },\n          \"color\"\
+    : {\n            \"mode\": \"palette-classic\"\n          }\n        },\n    \
+    \    \"overrides\": []\n      },\n      \"options\": {\n        \"legend\": {\n\
+    \          \"displayMode\": \"list\",\n          \"placement\": \"bottom\"\n \
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\"\n        }\n\
+    \      }\n    },\n    {\n      \"type\": \"timeseries\",\n      \"id\": 10,\n\
+    \      \"title\": \"Process CPU Usage (per service)\",\n      \"gridPos\": {\n\
+    \        \"h\": 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 12\n\
+    \      },\n      \"datasource\": {\n        \"type\": \"prometheus\",\n      \
+    \  \"uid\": \"prometheus\"\n      },\n      \"targets\": [\n        {\n      \
+    \    \"refId\": \"A\",\n          \"expr\": \"process_cpu_usage{app=~\\\"service-.*\\\
+    \"}\",\n          \"legendFormat\": \"{{app}}\",\n          \"datasource\": {\n\
+    \            \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n\
+    \          }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"percentunit\",\n          \"custom\": {\n         \
+    \   \"lineWidth\": 2,\n            \"fillOpacity\": 10,\n            \"showPoints\"\
+    : \"never\"\n          },\n          \"color\": {\n            \"mode\": \"palette-classic\"\
+    \n          }\n        },\n        \"overrides\": []\n      },\n      \"options\"\
+    : {\n        \"legend\": {\n          \"displayMode\": \"list\",\n          \"\
+    placement\": \"bottom\"\n        },\n        \"tooltip\": {\n          \"mode\"\
+    : \"multi\"\n        }\n      }\n    },\n    {\n      \"type\": \"timeseries\"\
+    ,\n      \"id\": 11,\n      \"title\": \"Container CPU (cores, per container)\"\
+    ,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\"\
+    : 0,\n        \"y\": 20\n      },\n      \"datasource\": {\n        \"type\":\
+    \ \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n      \"targets\"\
+    : [\n        {\n          \"refId\": \"A\",\n          \"expr\": \"sum by (container)\
+    \ (rate(container_cpu_usage_seconds_total{container!=\\\"\\\"}[10m]))\",\n   \
+    \       \"legendFormat\": \"{{container}}\",\n          \"datasource\": {\n  \
+    \          \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n  \
+    \        }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"short\",\n          \"custom\": {\n            \"lineWidth\"\
+    : 2,\n            \"fillOpacity\": 10,\n            \"showPoints\": \"never\"\n\
+    \          },\n          \"color\": {\n            \"mode\": \"palette-classic\"\
+    \n          }\n        },\n        \"overrides\": []\n      },\n      \"options\"\
+    : {\n        \"legend\": {\n          \"displayMode\": \"list\",\n          \"\
+    placement\": \"bottom\"\n        },\n        \"tooltip\": {\n          \"mode\"\
+    : \"multi\"\n        }\n      }\n    },\n    {\n      \"type\": \"timeseries\"\
+    ,\n      \"id\": 12,\n      \"title\": \"Container Memory WSS (per container)\"\
+    ,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\"\
+    : 12,\n        \"y\": 20\n      },\n      \"datasource\": {\n        \"type\"\
+    : \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n      \"targets\"\
+    : [\n        {\n          \"refId\": \"A\",\n          \"expr\": \"sum by (container)\
+    \ (container_memory_working_set_bytes{pod=~\\\"service-.*|kafka-.*|mysql-.*|alloy-.*|grafana-.*|prometheus-.*|tempo-.*|loki-.*|mysqld-.*\\\
+    \"})\",\n          \"legendFormat\": \"{{container}}\",\n          \"datasource\"\
+    : {\n            \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\
+    \n          }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"bytes\",\n          \"custom\": {\n            \"lineWidth\"\
+    : 2,\n            \"fillOpacity\": 10,\n            \"showPoints\": \"never\"\n\
+    \          },\n          \"color\": {\n            \"mode\": \"palette-classic\"\
+    \n          }\n        },\n        \"overrides\": []\n      },\n      \"options\"\
+    : {\n        \"legend\": {\n          \"displayMode\": \"list\",\n          \"\
+    placement\": \"bottom\"\n        },\n        \"tooltip\": {\n          \"mode\"\
+    : \"multi\"\n        }\n      }\n    },\n    {\n      \"type\": \"timeseries\"\
+    ,\n      \"id\": 13,\n      \"title\": \"Kafka Latest Offset (per topic)\",\n\
+    \      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\": 0,\n\
+    \        \"y\": 28\n      },\n      \"datasource\": {\n        \"type\": \"prometheus\"\
+    ,\n        \"uid\": \"prometheus\"\n      },\n      \"targets\": [\n        {\n\
+    \          \"refId\": \"A\",\n          \"expr\": \"max by (topic) (kafka_topic_partition_current_offset)\"\
+    ,\n          \"legendFormat\": \"{{topic}}\",\n          \"datasource\": {\n \
+    \           \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n \
+    \         }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"short\",\n          \"custom\": {\n            \"lineWidth\"\
+    : 2,\n            \"fillOpacity\": 10,\n            \"showPoints\": \"never\"\n\
+    \          },\n          \"color\": {\n            \"mode\": \"palette-classic\"\
+    \n          }\n        },\n        \"overrides\": []\n      },\n      \"options\"\
+    : {\n        \"legend\": {\n          \"displayMode\": \"list\",\n          \"\
+    placement\": \"bottom\"\n        },\n        \"tooltip\": {\n          \"mode\"\
+    : \"multi\"\n        }\n      }\n    },\n    {\n      \"type\": \"timeseries\"\
+    ,\n      \"id\": 14,\n      \"title\": \"Kafka ISR (min per topic, should be >=1)\"\
+    ,\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n        \"x\"\
+    : 12,\n        \"y\": 28\n      },\n      \"datasource\": {\n        \"type\"\
+    : \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n      \"targets\"\
+    : [\n        {\n          \"refId\": \"A\",\n          \"expr\": \"min by (topic)\
+    \ (kafka_topic_partition_in_sync_replica)\",\n          \"legendFormat\": \"{{topic}}\"\
+    ,\n          \"datasource\": {\n            \"type\": \"prometheus\",\n      \
+    \      \"uid\": \"prometheus\"\n          }\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"short\",\n          \"custom\"\
+    : {\n            \"lineWidth\": 2,\n            \"fillOpacity\": 10,\n       \
+    \     \"showPoints\": \"never\"\n          },\n          \"color\": {\n      \
+    \      \"mode\": \"palette-classic\"\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"legend\": {\n          \"displayMode\"\
+    : \"list\",\n          \"placement\": \"bottom\"\n        },\n        \"tooltip\"\
+    : {\n          \"mode\": \"multi\"\n        }\n      }\n    },\n    {\n      \"\
+    type\": \"timeseries\",\n      \"id\": 15,\n      \"title\": \"MySQL Commands/sec\
+    \ (top 5)\",\n      \"gridPos\": {\n        \"h\": 8,\n        \"w\": 12,\n  \
+    \      \"x\": 0,\n        \"y\": 36\n      },\n      \"datasource\": {\n     \
+    \   \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n   \
+    \   \"targets\": [\n        {\n          \"refId\": \"A\",\n          \"expr\"\
+    : \"topk(5, rate(mysql_global_status_commands_total[5m]))\",\n          \"legendFormat\"\
+    : \"{{command}}\",\n          \"datasource\": {\n            \"type\": \"prometheus\"\
+    ,\n            \"uid\": \"prometheus\"\n          }\n        }\n      ],\n   \
+    \   \"fieldConfig\": {\n        \"defaults\": {\n          \"unit\": \"reqps\"\
+    ,\n          \"custom\": {\n            \"lineWidth\": 2,\n            \"fillOpacity\"\
+    : 10,\n            \"showPoints\": \"never\"\n          },\n          \"color\"\
+    : {\n            \"mode\": \"palette-classic\"\n          }\n        },\n    \
+    \    \"overrides\": []\n      },\n      \"options\": {\n        \"legend\": {\n\
+    \          \"displayMode\": \"list\",\n          \"placement\": \"bottom\"\n \
+    \       },\n        \"tooltip\": {\n          \"mode\": \"multi\"\n        }\n\
+    \      }\n    },\n    {\n      \"type\": \"timeseries\",\n      \"id\": 16,\n\
+    \      \"title\": \"MySQL Connections\",\n      \"gridPos\": {\n        \"h\"\
+    : 8,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 36\n      },\n  \
+    \    \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"\
+    prometheus\"\n      },\n      \"targets\": [\n        {\n          \"refId\":\
+    \ \"A\",\n          \"expr\": \"mysql_global_status_threads_connected\",\n   \
+    \       \"legendFormat\": \"connected\",\n          \"datasource\": {\n      \
+    \      \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n      \
+    \    }\n        },\n        {\n          \"refId\": \"B\",\n          \"expr\"\
+    : \"mysql_global_status_threads_running\",\n          \"legendFormat\": \"running\"\
+    ,\n          \"datasource\": {\n            \"type\": \"prometheus\",\n      \
+    \      \"uid\": \"prometheus\"\n          }\n        },\n        {\n         \
+    \ \"refId\": \"C\",\n          \"expr\": \"mysql_global_variables_max_connections\"\
+    ,\n          \"legendFormat\": \"max\",\n          \"datasource\": {\n       \
+    \     \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n       \
+    \   }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n\
+    \          \"unit\": \"short\",\n          \"custom\": {\n            \"lineWidth\"\
+    : 2,\n            \"fillOpacity\": 10,\n            \"showPoints\": \"never\"\n\
+    \          },\n          \"color\": {\n            \"mode\": \"palette-classic\"\
+    \n          }\n        },\n        \"overrides\": []\n      },\n      \"options\"\
+    : {\n        \"legend\": {\n          \"displayMode\": \"list\",\n          \"\
+    placement\": \"bottom\"\n        },\n        \"tooltip\": {\n          \"mode\"\
+    : \"multi\"\n        }\n      }\n    },\n    {\n      \"type\": \"nodeGraph\"\
+    ,\n      \"id\": 17,\n      \"title\": \"Service Graph (from Tempo metrics_generator)\"\
+    ,\n      \"gridPos\": {\n        \"h\": 10,\n        \"w\": 12,\n        \"x\"\
+    : 0,\n        \"y\": 44\n      },\n      \"datasource\": {\n        \"type\":\
+    \ \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n      \"targets\"\
+    : [\n        {\n          \"refId\": \"A\",\n          \"format\": \"table\",\n\
+    \          \"expr\": \"sum by (client, server) (rate(traces_service_graph_request_total[1h]))\"\
+    ,\n          \"datasource\": {\n            \"type\": \"prometheus\",\n      \
+    \      \"uid\": \"prometheus\"\n          }\n        }\n      ]\n    },\n    {\n\
+    \      \"type\": \"timeseries\",\n      \"id\": 18,\n      \"title\": \"Span Call\
+    \ Rate (per service)\",\n      \"gridPos\": {\n        \"h\": 10,\n        \"\
+    w\": 12,\n        \"x\": 12,\n        \"y\": 44\n      },\n      \"datasource\"\
+    : {\n        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n    \
+    \  },\n      \"targets\": [\n        {\n          \"refId\": \"A\",\n        \
+    \  \"expr\": \"sum by (service_name) (rate(traces_spanmetrics_calls_total[5m]))\"\
+    ,\n          \"legendFormat\": \"{{service_name}}\",\n          \"datasource\"\
+    : {\n            \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\
+    \n          }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"reqps\",\n          \"custom\": {\n            \"lineWidth\"\
+    : 2,\n            \"fillOpacity\": 10,\n            \"showPoints\": \"never\"\n\
+    \          },\n          \"color\": {\n            \"mode\": \"palette-classic\"\
+    \n          }\n        },\n        \"overrides\": []\n      },\n      \"options\"\
+    : {\n        \"legend\": {\n          \"displayMode\": \"list\",\n          \"\
+    placement\": \"bottom\"\n        },\n        \"tooltip\": {\n          \"mode\"\
+    : \"multi\"\n        }\n      }\n    },\n    {\n      \"type\": \"stat\",\n  \
+    \    \"id\": 19,\n      \"title\": \"k6 VUs\",\n      \"gridPos\": {\n       \
+    \ \"h\": 4,\n        \"w\": 6,\n        \"x\": 0,\n        \"y\": 54\n      },\n\
+    \      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\":\
+    \ \"prometheus\"\n      },\n      \"targets\": [\n        {\n          \"refId\"\
+    : \"A\",\n          \"expr\": \"k6_vus\",\n          \"datasource\": {\n     \
+    \       \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n     \
+    \     }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\":\
+    \ {\n          \"unit\": \"short\",\n          \"color\": {\n            \"mode\"\
+    : \"thresholds\"\n          },\n          \"thresholds\": {\n            \"mode\"\
+    : \"absolute\",\n            \"steps\": [\n              {\n                \"\
+    value\": null,\n                \"color\": \"green\"\n              }\n      \
+    \      ]\n          }\n        },\n        \"overrides\": []\n      },\n     \
+    \ \"options\": {\n        \"graphMode\": \"area\",\n        \"colorMode\": \"\
+    value\",\n        \"justifyMode\": \"auto\",\n        \"textMode\": \"auto\"\n\
+    \      }\n    },\n    {\n      \"type\": \"stat\",\n      \"id\": 20,\n      \"\
+    title\": \"k6 iterations/s\",\n      \"gridPos\": {\n        \"h\": 4,\n     \
+    \   \"w\": 6,\n        \"x\": 6,\n        \"y\": 54\n      },\n      \"datasource\"\
+    : {\n        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n    \
+    \  },\n      \"targets\": [\n        {\n          \"refId\": \"A\",\n        \
+    \  \"expr\": \"sum(rate(k6_iterations_total[5m]))\",\n          \"datasource\"\
+    : {\n            \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\
+    \n          }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"reqps\",\n          \"color\": {\n            \"mode\"\
+    : \"thresholds\"\n          },\n          \"thresholds\": {\n            \"mode\"\
+    : \"absolute\",\n            \"steps\": [\n              {\n                \"\
+    value\": null,\n                \"color\": \"green\"\n              }\n      \
+    \      ]\n          }\n        },\n        \"overrides\": []\n      },\n     \
+    \ \"options\": {\n        \"graphMode\": \"area\",\n        \"colorMode\": \"\
+    value\",\n        \"justifyMode\": \"auto\",\n        \"textMode\": \"auto\"\n\
+    \      }\n    },\n    {\n      \"type\": \"stat\",\n      \"id\": 21,\n      \"\
+    title\": \"k6 HTTP p95 (ms)\",\n      \"gridPos\": {\n        \"h\": 4,\n    \
+    \    \"w\": 6,\n        \"x\": 12,\n        \"y\": 54\n      },\n      \"datasource\"\
+    : {\n        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n    \
+    \  },\n      \"targets\": [\n        {\n          \"refId\": \"A\",\n        \
+    \  \"expr\": \"avg(k6_http_req_duration_p95)\",\n          \"datasource\": {\n\
+    \            \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n\
+    \          }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"ms\",\n          \"color\": {\n            \"mode\"\
+    : \"thresholds\"\n          },\n          \"thresholds\": {\n            \"mode\"\
+    : \"absolute\",\n            \"steps\": [\n              {\n                \"\
+    value\": null,\n                \"color\": \"green\"\n              }\n      \
+    \      ]\n          }\n        },\n        \"overrides\": []\n      },\n     \
+    \ \"options\": {\n        \"graphMode\": \"area\",\n        \"colorMode\": \"\
+    value\",\n        \"justifyMode\": \"auto\",\n        \"textMode\": \"auto\"\n\
+    \      }\n    },\n    {\n      \"type\": \"stat\",\n      \"id\": 22,\n      \"\
+    title\": \"k6 HTTP failure rate\",\n      \"gridPos\": {\n        \"h\": 4,\n\
+    \        \"w\": 6,\n        \"x\": 18,\n        \"y\": 54\n      },\n      \"\
+    datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\
+    \n      },\n      \"targets\": [\n        {\n          \"refId\": \"A\",\n   \
+    \       \"expr\": \"avg(k6_http_req_failed_rate)\",\n          \"datasource\"\
+    : {\n            \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\
+    \n          }\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"unit\": \"percentunit\",\n          \"color\": {\n          \
+    \  \"mode\": \"thresholds\"\n          },\n          \"thresholds\": {\n     \
+    \       \"mode\": \"absolute\",\n            \"steps\": [\n              {\n \
+    \               \"value\": null,\n                \"color\": \"green\"\n     \
+    \         },\n              {\n                \"value\": 0.05,\n            \
+    \    \"color\": \"yellow\"\n              },\n              {\n              \
+    \  \"value\": 0.3,\n                \"color\": \"red\"\n              }\n    \
+    \        ]\n          }\n        },\n        \"overrides\": []\n      },\n   \
+    \   \"options\": {\n        \"graphMode\": \"area\",\n        \"colorMode\": \"\
+    value\",\n        \"justifyMode\": \"auto\",\n        \"textMode\": \"auto\"\n\
+    \      }\n    },\n    {\n      \"type\": \"timeseries\",\n      \"id\": 23,\n\
+    \      \"title\": \"k6 HTTP Request Duration\",\n      \"gridPos\": {\n      \
+    \  \"h\": 8,\n        \"w\": 24,\n        \"x\": 0,\n        \"y\": 58\n     \
+    \ },\n      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\"\
+    : \"prometheus\"\n      },\n      \"targets\": [\n        {\n          \"refId\"\
+    : \"A\",\n          \"expr\": \"avg(k6_http_req_duration_avg)\",\n          \"\
+    legendFormat\": \"avg\",\n          \"datasource\": {\n            \"type\": \"\
+    prometheus\",\n            \"uid\": \"prometheus\"\n          }\n        },\n\
+    \        {\n          \"refId\": \"B\",\n          \"expr\": \"avg(k6_http_req_duration_p95)\"\
+    ,\n          \"legendFormat\": \"p95\",\n          \"datasource\": {\n       \
+    \     \"type\": \"prometheus\",\n            \"uid\": \"prometheus\"\n       \
+    \   }\n        },\n        {\n          \"refId\": \"C\",\n          \"expr\"\
+    : \"avg(k6_http_req_duration_p99)\",\n          \"legendFormat\": \"p99\",\n \
+    \         \"datasource\": {\n            \"type\": \"prometheus\",\n         \
+    \   \"uid\": \"prometheus\"\n          }\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"unit\": \"ms\",\n          \"custom\"\
+    : {\n            \"lineWidth\": 2,\n            \"fillOpacity\": 10,\n       \
+    \     \"showPoints\": \"never\"\n          },\n          \"color\": {\n      \
+    \      \"mode\": \"palette-classic\"\n          }\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"legend\": {\n          \"displayMode\"\
+    : \"list\",\n          \"placement\": \"bottom\"\n        },\n        \"tooltip\"\
+    : {\n          \"mode\": \"multi\"\n        }\n      }\n    },\n    {\n      \"\
+    type\": \"logs\",\n      \"id\": 24,\n      \"title\": \"Recent service logs (trace_id\
+    \ included)\",\n      \"gridPos\": {\n        \"h\": 12,\n        \"w\": 24,\n\
+    \        \"x\": 0,\n        \"y\": 66\n      },\n      \"datasource\": {\n   \
+    \     \"type\": \"loki\",\n        \"uid\": \"loki\"\n      },\n      \"targets\"\
+    : [\n        {\n          \"refId\": \"A\",\n          \"expr\": \"{app=~\\\"\
+    service-.*\\\"}\",\n          \"datasource\": {\n            \"type\": \"loki\"\
+    ,\n            \"uid\": \"loki\"\n          }\n        }\n      ],\n      \"options\"\
+    : {\n        \"showLabels\": false,\n        \"showTime\": true,\n        \"wrapLogMessage\"\
+    : true,\n        \"enableLogDetails\": true,\n        \"dedupStrategy\": \"none\"\
+    \n      }\n    }\n  ]\n}"
 kind: ConfigMap
 metadata:
+  creationTimestamp: null
+  labels:
+    grafana_dashboard: '1'
   name: grafana-dashboard-ecommerce-overview
   namespace: monitoring
-  labels:
-    grafana_dashboard: "1"
-data:
-  ecommerce-overview.json: |
-    {
-      "uid": "ecommerce-overview",
-      "title": "Ecommerce Overview",
-      "tags": [
-        "ecommerce",
-        "custom"
-      ],
-      "timezone": "browser",
-      "schemaVersion": 39,
-      "version": 2,
-      "editable": true,
-      "graphTooltip": 1,
-      "refresh": "30s",
-      "time": {
-        "from": "now-15m",
-        "to": "now"
-      },
-      "panels": [
-        {
-          "type": "stat",
-          "id": 1,
-          "title": "JVM UP (services scraped)",
-          "gridPos": {
-            "h": 4,
-            "w": 4,
-            "x": 0,
-            "y": 0
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "count(count by (pod) (jvm_memory_used_bytes{app=~\"service-.*\"}))",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "stat",
-          "id": 2,
-          "title": "Kafka Brokers",
-          "gridPos": {
-            "h": 4,
-            "w": 4,
-            "x": 4,
-            "y": 0
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "kafka_brokers",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "stat",
-          "id": 3,
-          "title": "MySQL Up",
-          "gridPos": {
-            "h": 4,
-            "w": 4,
-            "x": 8,
-            "y": 0
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "mysql_up",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "stat",
-          "id": 4,
-          "title": "MySQL QPS",
-          "gridPos": {
-            "h": 4,
-            "w": 4,
-            "x": 12,
-            "y": 0
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "rate(mysql_global_status_queries[5m])",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "stat",
-          "id": 5,
-          "title": "Active DB Connections",
-          "gridPos": {
-            "h": 4,
-            "w": 4,
-            "x": 16,
-            "y": 0
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum(hikaricp_connections_active{app=~\"service-.*\"})",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "stat",
-          "id": 6,
-          "title": "Kafka Topic Partitions",
-          "gridPos": {
-            "h": 4,
-            "w": 4,
-            "x": 20,
-            "y": 0
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum(kafka_topic_partition_in_sync_replica)",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 7,
-          "title": "JVM Heap Used (per service)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 4
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum by (app) (jvm_memory_used_bytes{app=~\"service-.*\",area=\"heap\"})",
-              "legendFormat": "{{app}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "bytes",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 8,
-          "title": "HTTP Request Rate (per service, via OTLP)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 4
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum by (job) (rate(http_server_request_duration_seconds_count{job=~\"ecommerce/service-.*\"}[10m]))",
-              "legendFormat": "{{job}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 9,
-          "title": "JVM Live Threads (per service)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 12
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "jvm_threads_live_threads{app=~\"service-.*\"}",
-              "legendFormat": "{{app}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 10,
-          "title": "Process CPU Usage (per service)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 12
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "process_cpu_usage{app=~\"service-.*\"}",
-              "legendFormat": "{{app}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percentunit",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 11,
-          "title": "Container CPU (cores, per container)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 20
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum by (container) (rate(container_cpu_usage_seconds_total{container!=\"\"}[10m]))",
-              "legendFormat": "{{container}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 12,
-          "title": "Container Memory WSS (per container)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 20
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum by (container) (container_memory_working_set_bytes{pod=~\"service-.*|kafka-.*|mysql-.*|alloy-.*|grafana-.*|prometheus-.*|tempo-.*|loki-.*|mysqld-.*\"})",
-              "legendFormat": "{{container}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "bytes",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 13,
-          "title": "Kafka Latest Offset (per topic)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 28
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "max by (topic) (kafka_topic_partition_current_offset)",
-              "legendFormat": "{{topic}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 14,
-          "title": "Kafka ISR (min per topic, should be >=1)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 28
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "min by (topic) (kafka_topic_partition_in_sync_replica)",
-              "legendFormat": "{{topic}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 15,
-          "title": "MySQL Commands/sec (top 5)",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 36
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "topk(5, rate(mysql_global_status_commands_total[5m]))",
-              "legendFormat": "{{command}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 16,
-          "title": "MySQL Connections",
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 36
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "mysql_global_status_threads_connected",
-              "legendFormat": "connected",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            },
-            {
-              "refId": "B",
-              "expr": "mysql_global_status_threads_running",
-              "legendFormat": "running",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            },
-            {
-              "refId": "C",
-              "expr": "mysql_global_variables_max_connections",
-              "legendFormat": "max",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "nodeGraph",
-          "id": 17,
-          "title": "Service Graph (from Tempo metrics_generator)",
-          "gridPos": {
-            "h": 10,
-            "w": 12,
-            "x": 0,
-            "y": 44
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "format": "table",
-              "expr": "sum by (client, server) (rate(traces_service_graph_request_total[1h]))",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ]
-        },
-        {
-          "type": "timeseries",
-          "id": 18,
-          "title": "Span Call Rate (per service)",
-          "gridPos": {
-            "h": 10,
-            "w": 12,
-            "x": 12,
-            "y": 44
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum by (service_name) (rate(traces_spanmetrics_calls_total[5m]))",
-              "legendFormat": "{{service_name}}",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "stat",
-          "id": 19,
-          "title": "k6 VUs",
-          "gridPos": {
-            "h": 4,
-            "w": 6,
-            "x": 0,
-            "y": 54
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "k6_vus",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "stat",
-          "id": 20,
-          "title": "k6 iterations/s",
-          "gridPos": {
-            "h": 4,
-            "w": 6,
-            "x": 6,
-            "y": 54
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum(rate(k6_iterations_total[5m]))",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "reqps",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "stat",
-          "id": 21,
-          "title": "k6 HTTP p95 (ms)",
-          "gridPos": {
-            "h": 4,
-            "w": 6,
-            "x": 12,
-            "y": 54
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "avg(k6_http_req_duration_p95)",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ms",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "stat",
-          "id": 22,
-          "title": "k6 HTTP failure rate",
-          "gridPos": {
-            "h": 4,
-            "w": 6,
-            "x": 18,
-            "y": 54
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "avg(k6_http_req_failed_rate)",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "percentunit",
-              "color": {
-                "mode": "thresholds"
-              },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "value": null,
-                    "color": "green"
-                  }
-                ]
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "graphMode": "area",
-            "colorMode": "value",
-            "justifyMode": "auto",
-            "textMode": "auto"
-          }
-        },
-        {
-          "type": "timeseries",
-          "id": 23,
-          "title": "k6 HTTP Request Duration",
-          "gridPos": {
-            "h": 8,
-            "w": 24,
-            "x": 0,
-            "y": 58
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "avg(k6_http_req_duration_avg)",
-              "legendFormat": "avg",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            },
-            {
-              "refId": "B",
-              "expr": "avg(k6_http_req_duration_p95)",
-              "legendFormat": "p95",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            },
-            {
-              "refId": "C",
-              "expr": "avg(k6_http_req_duration_p99)",
-              "legendFormat": "p99",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              }
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "ms",
-              "custom": {
-                "lineWidth": 2,
-                "fillOpacity": 10,
-                "showPoints": "never"
-              },
-              "color": {
-                "mode": "palette-classic"
-              }
-            },
-            "overrides": []
-          },
-          "options": {
-            "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
-            },
-            "tooltip": {
-              "mode": "multi"
-            }
-          }
-        },
-        {
-          "type": "logs",
-          "id": 24,
-          "title": "Recent service logs (trace_id included)",
-          "gridPos": {
-            "h": 12,
-            "w": 24,
-            "x": 0,
-            "y": 66
-          },
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "{app=~\"service-.*\"}",
-              "datasource": {
-                "type": "loki",
-                "uid": "loki"
-              }
-            }
-          ],
-          "options": {
-            "showLabels": false,
-            "showTime": true,
-            "wrapLogMessage": true,
-            "enableLogDetails": true,
-            "dedupStrategy": "none"
-          }
-        }
-      ]
-    }

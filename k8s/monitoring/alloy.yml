@@ -54,7 +54,10 @@ data:
 
     otelcol.processor.batch "traces" {
       output {
-        traces = [otelcol.exporter.otlp.tempo.input]
+        traces = [
+          otelcol.exporter.otlp.tempo.input,
+          otelcol.exporter.otlp.jaeger.input,
+        ]
       }
     }
     otelcol.processor.batch "metrics" {
@@ -71,6 +74,13 @@ data:
     otelcol.exporter.otlp "tempo" {
       client {
         endpoint = "tempo.monitoring.svc.cluster.local:4317"
+        tls { insecure = true }
+      }
+    }
+
+    otelcol.exporter.otlp "jaeger" {
+      client {
+        endpoint = "jaeger.monitoring.svc.cluster.local:4317"
         tls { insecure = true }
       }
     }
@@ -206,9 +216,7 @@ data:
     prometheus.exporter.kafka "cluster" {
       instance = "ecommerce-kafka"
       kafka_uris = [
-        "kafka-0.kafka-service.ecommerce.svc.cluster.local:9092",
-        "kafka-1.kafka-service.ecommerce.svc.cluster.local:9092",
-        "kafka-2.kafka-service.ecommerce.svc.cluster.local:9092",
+        "kafka-service.ecommerce.svc.cluster.local:9092",
       ]
       kafka_version              = "3.8.1"
       use_sasl                   = false

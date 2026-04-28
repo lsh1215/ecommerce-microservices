@@ -54,6 +54,21 @@ data:
           spanBar:
             type: "Tag"
             tag: "http.target"
+
+      - name: Jaeger
+        type: jaeger
+        uid: jaeger
+        url: http://jaeger.monitoring.svc.cluster.local:16686
+        access: proxy
+        editable: false
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+            filterByTraceID: true
+            tags:
+              - { key: "service.name", value: "service_name" }
+          nodeGraph:
+            enabled: true
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -175,14 +190,14 @@ spec:
             - name: sc-dashboards
               mountPath: /tmp/dashboards
           resources:
-            requests: { cpu: 100m, memory: 128Mi }
-            limits:   { cpu: 500m, memory: 256Mi }
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 1000m, memory: 512Mi }
           readinessProbe:
             httpGet: { path: /api/health, port: 3000 }
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
           livenessProbe:
             httpGet: { path: /api/health, port: 3000 }
-            initialDelaySeconds: 60
+            initialDelaySeconds: 90
         # Sidecar: watches ConfigMaps with label grafana_dashboard=1
         # and drops their JSON into /tmp/dashboards for Grafana to pick up.
         - name: sidecar-dashboards
@@ -204,8 +219,8 @@ spec:
             - name: sc-dashboards
               mountPath: /tmp/dashboards
           resources:
-            requests: { cpu: 20m, memory: 32Mi }
-            limits:   { cpu: 100m, memory: 64Mi }
+            requests: { cpu: 20m, memory: 64Mi }
+            limits:   { cpu: 200m, memory: 192Mi }
       volumes:
         - name: storage
           persistentVolumeClaim:
