@@ -79,7 +79,7 @@ spec:
         app: tempo
     spec:
       nodeSelector:
-        role: monitoring
+        role: server
 
       containers:
         - name: tempo

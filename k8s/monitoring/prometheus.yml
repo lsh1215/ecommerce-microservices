@@ -59,7 +59,7 @@ spec:
     spec:
       serviceAccountName: prometheus
       nodeSelector:
-        role: monitoring
+        role: server
 
       containers:
         - name: prometheus
