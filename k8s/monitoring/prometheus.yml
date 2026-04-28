@@ -81,8 +81,8 @@ spec:
             - name: data
               mountPath: /prometheus
           resources:
-            requests: { cpu: 100m, memory: 256Mi }
-            limits:   { cpu: 800m, memory: 512Mi }
+            requests: { cpu: 100m, memory: 512Mi }
+            limits:   { cpu: 1500m, memory: 1536Mi }
           readinessProbe:
             httpGet: { path: /-/ready, port: 9090 }
             initialDelaySeconds: 20
