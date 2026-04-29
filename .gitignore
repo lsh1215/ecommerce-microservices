@@ -130,3 +130,6 @@ frontend/scripts/
 logs/
 tmp/
 .gstack/
+
+# Evidence is captured locally per run; never committed.
+docs/evidence/
