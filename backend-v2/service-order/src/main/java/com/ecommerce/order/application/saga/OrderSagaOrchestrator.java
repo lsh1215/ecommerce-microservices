@@ -1,164 +1,105 @@
 package com.ecommerce.order.application.saga;
 
-import com.ecommerce.common.exception.BusinessException;
-import com.ecommerce.order.OrderErrorCode;
 import com.ecommerce.order.application.dto.CreateOrderCommand;
+import com.ecommerce.order.application.dto.ItemSnapshot;
 import com.ecommerce.order.application.dto.OrderItemCommand;
 import com.ecommerce.order.application.dto.ProductSnapshotDto;
-import com.ecommerce.order.application.dto.ShippingAddressCommand;
 import com.ecommerce.order.application.dto.StockReservation;
-import com.ecommerce.order.domain.event.OrderCreatedEvent;
 import com.ecommerce.order.domain.model.Order;
-import com.ecommerce.order.domain.model.OrderItem;
-import com.ecommerce.order.domain.model.SagaInstance;
-import com.ecommerce.order.domain.model.ShippingAddress;
-import com.ecommerce.order.domain.model.VariantSnapshot;
-import com.ecommerce.order.domain.repository.OrderRepository;
-import com.ecommerce.order.domain.repository.SagaInstanceRepository;
 import com.ecommerce.order.domain.service.ProductCatalogPort;
-import com.github.f4b6a3.ulid.UlidCreator;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Coordinates the order SAGA. RestClient calls to service-product (stock
+ * reservation, fetch snapshots, release on compensation) happen here
+ * <em>outside</em> any DB transaction; DB persistence and event publishing
+ * are delegated to {@link OrderPersistenceService}, whose
+ * {@code @Transactional} methods are kept as short as possible.
+ *
+ * <p>The previous design wrapped the entire startSaga in a single
+ * {@code @Transactional} that included RestClient and Kafka I/O. Under
+ * concurrent load this caused HikariCP connection pool exhaustion: every
+ * VU held its DB connection for the duration of cross-service network
+ * round-trips, blocking other requests at {@code getConnection()}. Real
+ * MySQL recommends keeping external I/O strictly outside DB transactions
+ * for exactly this reason.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class OrderSagaOrchestrator {
 
-    private final OrderRepository orderRepository;
-    private final SagaInstanceRepository sagaRepository;
     private final ProductCatalogPort productCatalog;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OrderPersistenceService persistenceService;
 
     /**
-     * SAGA 시작: 주문 생성 -> 재고 예약(동기) -> 이벤트 발행(비동기 결제 트리거).
-     * Payment 서비스가 다운이어도 주문은 PENDING으로 생성됨.
+     * SAGA 시작 — 외부 RestClient 호출(재고 스냅샷/예약)을 먼저 끝낸 뒤
+     * 좁은 DB 트랜잭션에서 Order + SagaInstance 를 영속화한다. 트랜잭션
+     * 안에서는 RestClient/Kafka 등 외부 I/O 를 호출하지 않는다.
      */
-    @Transactional
     public Order startSaga(CreateOrderCommand command) {
-        // 고객 검증은 Traefik forwardAuth middleware가 service-customer로
-        // 위임하여 ingress 단계에서 끝남. 여기서는 X-Customer-Id 헤더로
-        // 전달된 customerId를 trust하고 곧장 주문 Aggregate 생성으로 진입.
-
-        // 주문 Aggregate 생성
-        Order order = Order.create(
-                command.customerId(),
-                generateOrderNumber(),
-                mapShippingAddress(command.shippingAddress()),
-                command.memo()
-        );
-
-        // 3단계: 재고 예약 (동기 - Product 서비스, 즉시 일관성 필요)
+        // 1. 외부 I/O — DB 트랜잭션 없음. 재고 스냅샷 + 비관적 락 예약.
         List<StockReservation> reservations = new ArrayList<>();
+        List<ItemSnapshot> itemSnapshots = new ArrayList<>();
         try {
             for (OrderItemCommand item : command.items()) {
                 ProductSnapshotDto snapshot = productCatalog.fetchSnapshot(item.productVariantId());
                 productCatalog.reserveStock(item.productVariantId(), item.quantity());
                 reservations.add(new StockReservation(item.productVariantId(), item.quantity()));
-
-                VariantSnapshot vs = new VariantSnapshot(
-                        snapshot.productId(),
-                        snapshot.productVariantId(),
-                        snapshot.productName(),
-                        snapshot.size(),
-                        snapshot.color(),
-                        snapshot.unitPrice()
-                );
-                order.addItem(OrderItem.create(vs, item.quantity()));
+                itemSnapshots.add(new ItemSnapshot(snapshot, item.quantity()));
             }
         } catch (Exception e) {
             releaseAllStock(reservations);
             throw e;
         }
 
-        orderRepository.save(order);
-
-        // 4단계: SAGA 인스턴스 생성
-        SagaInstance saga = SagaInstance.create(order.getId(), order.getOrderNumber());
-        sagaRepository.save(saga);
-
-        // 5단계: 결제 요청 이벤트 발행 (비동기 - Kafka)
-        // Payment 서비스가 다운이어도 Kafka에 메시지가 쌓여서 복구 시 처리됨
-        eventPublisher.publishEvent(new OrderCreatedEvent(
-                order.getId(), order.getOrderNumber(),
-                command.customerId(), order.getTotalAmount()));
-
-        saga.moveToPaymentProcessing();
-
-        return order;
-        // 주문은 PENDING 상태로 즉시 반환. 결제는 비동기로 처리됨.
+        // 2. 좁은 DB 트랜잭션 — order + saga INSERT + outbox row(via @TransactionalEventListener).
+        try {
+            return persistenceService.persistOrderAndStartSaga(command, itemSnapshots);
+        } catch (Exception e) {
+            // 트랜잭션 commit 실패: 이미 예약된 재고를 보상으로 풀어준다.
+            releaseAllStock(reservations);
+            throw e;
+        }
     }
 
     /**
-     * 결제 완료 이벤트 수신 -> 주문 상태를 CONFIRMED -> PAID로 전이.
+     * 결제 완료 이벤트 처리 — Kafka consumer 에서 호출. DB only 작업이라
+     * persistenceService 에 위임.
      */
-    @Transactional
     public void handlePaymentCompleted(String orderNumber, Long orderId, Long paymentId,
                                        String transactionId, BigDecimal amount) {
-        SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
-        Order order = orderRepository.findById(saga.getOrderId())
-                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
-
-        // FSM: PENDING -> CONFIRMED -> PAID (두 단계를 한 트랜잭션에서 실행)
-        order.markConfirmed();
-        order.markPaid();
-        saga.moveToCompleted();
-
+        persistenceService.handlePaymentCompleted(orderNumber);
         log.info("SAGA 완료: orderNumber={}, paymentId={}, transactionId={}",
                 orderNumber, paymentId, transactionId);
     }
 
     /**
-     * 결제 실패 이벤트 수신 -> 주문 취소 + 재고 해제 (보상 트랜잭션).
+     * 결제 실패 이벤트 처리 — 보상 트랜잭션. DB 상태 전이 + 재고 release
+     * RestClient 호출 사이에 트랜잭션을 분리한다.
      */
-    @Transactional
     public void handlePaymentFailed(String orderNumber, Long orderId, String reason) {
-        SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
-        Order order = orderRepository.findById(saga.getOrderId())
-                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+        // 1. 좁은 트랜잭션: SAGA -> COMPENSATING, Order cancel, 풀어줄 재고 목록 리턴.
+        List<StockReservation> toRelease = persistenceService.beginCompensation(orderNumber);
 
-        saga.moveToCompensating();
-
-        // 보상: 주문 취소
-        order.cancel();
-
-        // 보상: 예약된 재고 해제 (동기 - Product 서비스)
-        for (OrderItem item : order.getItems()) {
+        // 2. 트랜잭션 밖: 재고 해제 (RestClient).
+        for (StockReservation res : toRelease) {
             try {
-                productCatalog.releaseStock(
-                        item.getVariantSnapshot().getProductVariantId(),
-                        item.getQuantity());
+                productCatalog.releaseStock(res.variantId(), res.quantity());
             } catch (Exception e) {
                 log.warn("재고 해제 실패: variantId={}, qty={}",
-                        item.getVariantSnapshot().getProductVariantId(), item.getQuantity(), e);
+                        res.variantId(), res.quantity(), e);
             }
         }
 
-        saga.moveToCompensated();
-
+        // 3. 좁은 트랜잭션: SAGA -> COMPENSATED.
+        persistenceService.markCompensated(orderNumber);
         log.info("SAGA 보상 완료: orderNumber={}, reason={}", orderNumber, reason);
-    }
-
-    private String generateOrderNumber() {
-        return UlidCreator.getMonotonicUlid().toString();
-    }
-
-    private ShippingAddress mapShippingAddress(ShippingAddressCommand dto) {
-        return new ShippingAddress(
-                dto.recipientName(),
-                dto.phone(),
-                dto.zipCode(),
-                dto.address1(),
-                dto.address2()
-        );
     }
 
     private void releaseAllStock(List<StockReservation> reservations) {
