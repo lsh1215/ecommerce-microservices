@@ -13,13 +13,14 @@ import com.ecommerce.common.outbox.OutboxEvent;
 import com.ecommerce.common.outbox.OutboxEventRepository;
 import com.ecommerce.common.outbox.OutboxEventStatus;
 import com.ecommerce.common.outbox.OutboxPollingPublisher;
+import io.micrometer.observation.ObservationRegistry;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -35,8 +36,15 @@ class OutboxPollingPublisherTest {
     @Mock
     KafkaTemplate<String, String> stringKafkaTemplate;
 
-    @InjectMocks
     OutboxPollingPublisher publisher;
+
+    @BeforeEach
+    void setUp() {
+        // ObservationRegistry.NOOP runs the lambda passed to observeChecked but
+        // emits no metrics or spans — exactly what unit tests need (the publish
+        // logic still executes, the observation hooks just do nothing).
+        publisher = new OutboxPollingPublisher(outboxRepository, stringKafkaTemplate, ObservationRegistry.NOOP);
+    }
 
     @Test
     @DisplayName("미발행 이벤트가 있으면 Kafka로 전송하고 markPublished를 호출한다")
