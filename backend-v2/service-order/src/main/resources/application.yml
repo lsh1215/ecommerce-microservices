@@ -40,13 +40,20 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,circuitbreakers,circuitbreakerevents,metrics
+        include: health,info,circuitbreakers,circuitbreakerevents,metrics,prometheus
   health:
     circuitbreakers:
       enabled: true
   endpoint:
     health:
       show-details: always
+  metrics:
+    distribution:
+      # Emit Prometheus histogram buckets for the outbox publish Observation timer
+      # so dashboard panel 2 (outbox.publish p95/p99) can run histogram_quantile().
+      # Without this only _count / _sum / _max are emitted.
+      percentiles-histogram:
+        outbox.publish: true
 
 # Resilience4j Circuit Breaker (Phase 4)
 # - Order 서비스의 동기 RestClient 호출(Product)에 적용.

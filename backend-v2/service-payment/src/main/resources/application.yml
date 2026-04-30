@@ -31,3 +31,19 @@ springdoc:
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    distribution:
+      # Emit Prometheus histogram buckets for the outbox publish Observation timer
+      # so dashboard panel 2 (outbox.publish p95/p99) can run histogram_quantile().
+      percentiles-histogram:
+        outbox.publish: true
+        spring.kafka.listener: true
