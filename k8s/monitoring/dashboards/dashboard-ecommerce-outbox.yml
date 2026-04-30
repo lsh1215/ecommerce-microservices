@@ -61,20 +61,20 @@ data:
         {
           "id": 2,
           "type": "timeseries",
-          "title": "2. outbox.publish duration — Observation-emitted timer (per Kafka send round-trip)",
-          "description": "Auto-emitted by Observation.observe() in OutboxPollingPublisher. p99 should stay within Kafka producer timeout (5s configured). Spikes during broker outage. Tempo trace span 'outbox.publish' is exemplar-linked.",
+          "title": "2. outbox.publish duration — Observation-emitted timer (mean + max per Kafka send round-trip)",
+          "description": "Auto-emitted by Observation.observe() in OutboxPollingPublisher. Mean derived from rate(_sum)/rate(_count) over 1m; max from the per-interval _max gauge. The classic histogram _bucket series are not scraped on this cluster because the same Observation emits a sibling LongTaskTimer (gaugehistogram type) under the outbox.publish.active prefix that confuses Alloy's OpenMetrics parser — using sum/count/max sidesteps the parser issue while still showing publish-duration trends. Tempo trace span 'outbox.publish' is exemplar-linked.",
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "targets": [
             {
               "refId": "A",
-              "expr": "histogram_quantile(0.95, sum by (le) (rate(outbox_publish_seconds_bucket{app=~\"$service\"}[1m])))",
-              "legendFormat": "p95"
+              "expr": "sum(rate(outbox_publish_seconds_sum{app=~\"$service\"}[1m])) / sum(rate(outbox_publish_seconds_count{app=~\"$service\"}[1m]))",
+              "legendFormat": "mean (1m)"
             },
             {
               "refId": "B",
-              "expr": "histogram_quantile(0.99, sum by (le) (rate(outbox_publish_seconds_bucket{app=~\"$service\"}[1m])))",
-              "legendFormat": "p99"
+              "expr": "max(outbox_publish_seconds_max{app=~\"$service\"})",
+              "legendFormat": "max (per scrape interval)"
             }
           ],
           "fieldConfig": {"defaults": {"unit": "s"}}
