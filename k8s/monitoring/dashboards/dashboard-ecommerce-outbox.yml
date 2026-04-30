@@ -105,12 +105,12 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"ecommerce/service-order\", uri=\"/api/orders\", http_response_status_code=~\"2..\"}[1m]))",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\", method=\"POST\", status=~\"2..\"}[1m]))",
               "legendFormat": "orders created /s (POST 2xx)"
             },
             {
               "refId": "B",
-              "expr": "sum(rate(spring_kafka_listener_seconds_count{job=\"ecommerce/service-payment\", result=\"success\"}[1m]))",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error=\"none\"}[1m]))",
               "legendFormat": "payments processed /s (Kafka consumer success)"
             }
           ],
