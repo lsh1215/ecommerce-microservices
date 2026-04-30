@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-outbox
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-outbox.json: |
+    {
+      "uid": "ecommerce-outbox",
+      "title": "Ecommerce Outbox / Dual-Write Health",
+      "tags": ["ecommerce", "outbox", "custom"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "30s",
+      "time": {"from": "now-15m", "to": "now"},
+      "templating": {
+        "list": [
+          {
+            "name": "service",
+            "type": "query",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "query": {"query": "label_values(outbox_events_pending, app)", "refId": "var-service"},
+            "refresh": 2,
+            "includeAll": true,
+            "multi": true,
+            "current": {"selected": false, "text": "All", "value": "$__all"}
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "1. Outbox PENDING depth — should drain to 0 in steady state",
+          "description": "Domain gauge cached every 5s. During Kafka outage solution leg shows backlog rise then drain. Problem leg without outbox stays flat at 0 — absence is the signal.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "outbox_events_pending{app=~\"$service\"}", "legendFormat": "{{app}}"}
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {"value": null, "color": "green"},
+                  {"value": 10, "color": "yellow"},
+                  {"value": 100, "color": "red"}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "2. outbox.publish duration — Observation-emitted timer (per Kafka send round-trip)",
+          "description": "Auto-emitted by Observation.observe() in OutboxPollingPublisher. p99 should stay within Kafka producer timeout (5s configured). Spikes during broker outage. Tempo trace span 'outbox.publish' is exemplar-linked.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(outbox_publish_seconds_bucket{app=~\"$service\"}[1m])))",
+              "legendFormat": "p95"
+            },
+            {
+              "refId": "B",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(outbox_publish_seconds_bucket{app=~\"$service\"}[1m])))",
+              "legendFormat": "p99"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "s"}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "3. Kafka producer error rate (auto-emitted via MicrometerProducerListener)",
+          "description": "kafka_producer_record_error_total — supersedes hand-rolled outbox publish failure counter. Both legs spike during chaos; solution leg drops to 0 after recovery (poller retries from durable outbox); problem leg never recovers.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (app) (rate(kafka_producer_record_error_total{app=~\"$service\"}[1m]))",
+              "legendFormat": "{{app}} error rate"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "4. Order vs Payment convergence (the dual-write divergence panel)",
+          "description": "Headline panel. orders/s (POST 2xx) vs payments/s (consumer success). Problem leg lines diverge during outage and never converge — permanent loss. Solution leg diverges briefly then converges as poller drains outbox — at-least-once delivery proven.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_request_duration_seconds_count{job=\"ecommerce/service-order\", uri=\"/api/orders\", http_response_status_code=~\"2..\"}[1m]))",
+              "legendFormat": "orders created /s (POST 2xx)"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{job=\"ecommerce/service-payment\", result=\"success\"}[1m]))",
+              "legendFormat": "payments processed /s (Kafka consumer success)"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 5,
+          "type": "logs",
+          "title": "5. Retry exhaustion log — alert on count_over_time({app=~\"service-.*\"} |~ \"outbox.retry.exhausted\" [5m]) > 0",
+          "description": "Single-digit-frequency events stay as structured WARN log (Stripe canonical-log-line pattern). LogQL filter shown above. Drill into Loki to see eventId / aggregate_type / error.",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {"refId": "A", "expr": "{app=~\"service-.*\"} |~ \"outbox.retry.exhausted\""}
+          ],
+          "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"}
+        }
+      ]
+    }
