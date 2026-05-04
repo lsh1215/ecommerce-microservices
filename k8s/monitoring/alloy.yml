@@ -104,6 +104,18 @@ data:
 
     discovery.relabel "pod_logs" {
       targets = discovery.kubernetes.pods.targets
+      // Drop alloy's own logs to break the self-feedback loop: every line
+      // alloy writes about tailing a pod becomes a new line in alloy's own
+      // log, which alloy then tails again. With ~7 alloy pods cross-tailing
+      // each other this compounds geometrically and OOM-kills the
+      // DaemonSet within hours. PR55 unblocked an unrelated crashloop;
+      // this drop rule fixes the second root cause that surfaced after.
+      rule {
+        source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_label_app"]
+        separator     = "/"
+        regex         = "monitoring/alloy"
+        action        = "drop"
+      }
       rule {
         source_labels = ["__meta_kubernetes_namespace"]
         target_label  = "namespace"
@@ -292,8 +304,8 @@ spec:
               mountPath: /var/lib/docker/containers
               readOnly: true
           resources:
-            requests: { cpu: 50m,  memory: 128Mi }
-            limits:   { cpu: 300m, memory: 256Mi }
+            requests: { cpu: 50m,  memory: 256Mi }
+            limits:   { cpu: 300m, memory: 768Mi }
           readinessProbe:
             httpGet: { path: /-/ready, port: 12345 }
             initialDelaySeconds: 15
