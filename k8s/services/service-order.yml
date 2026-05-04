@@ -54,6 +54,11 @@ spec:
               value: "service-order"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "service.namespace=ecommerce,deployment.environment=gce,k8s.cluster.name=ecommerce-k3s"
+            # Inject traceId / spanId into every log line so Loki can join
+            # log lines to Tempo traces and cross-service queries can pivot
+            # on a single business identifier.
+            - name: LOGGING_PATTERN_CONSOLE
+              value: "%d{ISO8601} %-5level [%thread] [traceId=%X{trace_id:-},spanId=%X{span_id:-}] %logger{36} - %msg%n"
           resources:
             requests:
               memory: "256Mi"
@@ -61,13 +66,16 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "500m"
+          # 90 × 5s = 7.5 min budget. OTel javaagent's first OTLP export to
+          # Alloy can stall for ~1-2 min on cold start; default 30 fails when
+          # a chaos cycle happens to coincide with Alloy restart.
           startupProbe:
             httpGet:
               path: /actuator/health
               port: 8082
             initialDelaySeconds: 30
             periodSeconds: 5
-            failureThreshold: 30
+            failureThreshold: 90
           readinessProbe:
             httpGet:
               path: /actuator/health
