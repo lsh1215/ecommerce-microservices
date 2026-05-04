@@ -114,6 +114,10 @@ docs/phase-3-results/
 docs/phase-4-results/
 docs/phase-5-results/
 docs/portfolio-screenshots/
+docs/evidence/
+
+# === Vendored Playwright (used by capture scripts; local-only ~150MB) ===
+scripts/visual-audit/
 
 # === Frontend Local-Only (MSW, instrumentation, scripts) ===
 frontend/src/mocks/
