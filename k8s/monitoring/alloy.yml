@@ -54,7 +54,14 @@ data:
 
     otelcol.processor.batch "traces" {
       output {
-        traces = [otelcol.exporter.otlp.tempo.input]
+        // Forward to Tempo for the durable backend, and to Jaeger for the
+        // visual UI used in evidence captures (Jaeger's flame graph
+        // renders the cross-service span tree better than Grafana's
+        // Tempo Explore for portfolio screenshots).
+        traces = [
+          otelcol.exporter.otlp.tempo.input,
+          otelcol.exporter.otlp.jaeger.input,
+        ]
       }
     }
     otelcol.processor.batch "metrics" {
@@ -71,6 +78,13 @@ data:
     otelcol.exporter.otlp "tempo" {
       client {
         endpoint = "tempo.monitoring.svc.cluster.local:4317"
+        tls { insecure = true }
+      }
+    }
+
+    otelcol.exporter.otlp "jaeger" {
+      client {
+        endpoint = "jaeger.monitoring.svc.cluster.local:4317"
         tls { insecure = true }
       }
     }
@@ -203,25 +217,17 @@ data:
     }
 
     // ── Kafka exporter (built-in) ───────────────────────────────────────────
-    prometheus.exporter.kafka "cluster" {
-      instance = "ecommerce-kafka"
-      kafka_uris = [
-        "kafka-0.kafka-service.ecommerce.svc.cluster.local:9092",
-        "kafka-1.kafka-service.ecommerce.svc.cluster.local:9092",
-        "kafka-2.kafka-service.ecommerce.svc.cluster.local:9092",
-      ]
-      kafka_version              = "3.8.1"
-      use_sasl                   = false
-      allow_auto_topic_creation  = false
-      metadata_refresh_interval  = "30s"
-    }
-
-    prometheus.scrape "kafka" {
-      targets    = prometheus.exporter.kafka.cluster.targets
-      forward_to = [prometheus.remote_write.local.receiver]
-      scrape_interval = "30s"
-      job_name   = "kafka-exporter"
-    }
+    // Disabled: built-in kafka exporter does a strict-init Sarama dial that
+    // fail-fasts on broker outage. Any chaos cycle that scales kafka to 0
+    // for more than the pod's restart backoff puts Alloy into permanent
+    // CrashLoopBackOff. The standalone kafka-exporter Deployment in
+    // monitoring/ already covers consumer-group lag + broker counts; this
+    // block is redundant. Restore only after wiring the in-Alloy exporter
+    // behind a tolerant retry/init guard (Alloy >=1.5 supports lazy init
+    // via component-level `optional = true` extensions).
+    //
+    // prometheus.exporter.kafka "cluster" { ... }
+    // prometheus.scrape "kafka" { ... }
 
     // ── Remote write to Prometheus ──────────────────────────────────────────
     prometheus.remote_write "local" {

@@ -1,0 +1,176 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-mysql-per-db
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-mysql-per-db.json: |
+    {
+      "uid": "ecommerce-mysql-per-db",
+      "title": "Ecommerce MySQL — per-DB",
+      "tags": ["ecommerce", "mysql", "custom"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "30s",
+      "time": { "from": "now-30m", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "db",
+            "type": "query",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(mysql_up{job=\"mysqld-exporter\"}, db)",
+            "refresh": 2,
+            "multi": true,
+            "includeAll": true,
+            "current": { "selected": true, "text": "All", "value": "$__all" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "id": 1,
+          "title": "Connections per DB",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "mysql_global_status_threads_connected{job=\"mysqld-exporter\", db=~\"$db\"}",
+              "legendFormat": "{{db}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short", "decimals": 0 },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 2,
+          "title": "Queries / s per DB",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (db) (rate(mysql_global_status_queries{job=\"mysqld-exporter\", db=~\"$db\"}[1m]))",
+              "legendFormat": "{{db}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "qps", "decimals": 1 },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 3,
+          "title": "InnoDB Buffer Pool Hit Ratio",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "1 - (sum by (db) (rate(mysql_global_status_innodb_buffer_pool_reads{job=\"mysqld-exporter\", db=~\"$db\"}[5m])) / clamp_min(sum by (db) (rate(mysql_global_status_innodb_buffer_pool_read_requests{job=\"mysqld-exporter\", db=~\"$db\"}[5m])), 1))",
+              "legendFormat": "{{db}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "decimals": 4,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 0.95 },
+                  { "color": "green", "value": 0.99 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "min"] }
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 4,
+          "title": "Slow Queries / min per DB",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (db) (increase(mysql_global_status_slow_queries{job=\"mysqld-exporter\", db=~\"$db\"}[1m]))",
+              "legendFormat": "{{db}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short", "decimals": 0 },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }
+          }
+        },
+        {
+          "type": "bargauge",
+          "id": 5,
+          "title": "Table rows per schema",
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (db, schema) (mysql_info_schema_table_rows{job=\"mysqld-exporter\", db=~\"$db\", schema!~\"information_schema|performance_schema|mysql|sys\"})",
+              "legendFormat": "{{db}} / {{schema}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short", "decimals": 0 },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true
+          }
+        },
+        {
+          "type": "timeseries",
+          "id": 6,
+          "title": "Processlist threads (by command)",
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 16 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (db, command) (mysql_info_schema_processlist_threads{job=\"mysqld-exporter\", db=~\"$db\"})",
+              "legendFormat": "{{db}} / {{command}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short", "decimals": 0 },
+            "overrides": []
+          },
+          "options": {
+            "legend": { "displayMode": "table", "placement": "right", "calcs": ["lastNotNull", "max"] }
+          }
+        }
+      ]
+    }

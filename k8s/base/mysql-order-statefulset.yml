@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-order
+  namespace: ecommerce
+spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: mysql-order
+  serviceName: mysql-order-service
+  template:
+    metadata:
+      labels:
+        app: mysql-order
+    spec:
+      containers:
+      - env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: DB_ROOT_PASSWORD
+              name: ecommerce-secrets
+        image: mysql:8.0
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          failureThreshold: 3
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: mysql
+        ports:
+        - containerPort: 3306
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 500m
+            memory: 768Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: mysql-data
+        - mountPath: /docker-entrypoint-initdb.d
+          name: init
+      nodeSelector:
+        role: svc-order
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: mysql-order-init
+        name: init
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: mysql-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 3Gi
+      volumeMode: Filesystem
+---
+apiVersion: v1
+data:
+  01-init.sql: 'CREATE DATABASE IF NOT EXISTS ecommerce_order CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+    CREATE USER IF NOT EXISTS ''sa''@''%'' IDENTIFIED BY ''changeme'';
+
+    GRANT ALL PRIVILEGES ON ecommerce_order.* TO ''sa''@''%'';
+
+    FLUSH PRIVILEGES;
+
+    '
+kind: ConfigMap
+metadata:
+  name: mysql-order-init
+  namespace: ecommerce
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-order-service
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  clusterIPs:
+  - None
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app: mysql-order
+  sessionAffinity: None
+  type: ClusterIP

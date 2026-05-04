@@ -1,0 +1,311 @@
+# Per-database mysqld-exporter Deployments. The cluster runs four
+# independent MySQL StatefulSets (mysql-customer / mysql-order /
+# mysql-payment / mysql-product) — one exporter per instance lets us
+# attribute resource use, connections, and innodb stats per service DB.
+#
+# Each exporter authenticates as root using DB_ROOT_PASSWORD from the
+# shared `ecommerce-secrets` Secret (same password seeded into each
+# StatefulSet at init). The .my.cnf is rendered at container start so
+# the password never lands on disk in the image.
+#
+# Prometheus discovers these via a dedicated `mysqld-exporter` scrape
+# job in `k8s/monitoring/prometheus.yml` that uses kubernetes_sd_configs
+# role=endpoints and lifts the `db` Service label onto every metric.
+# No `prometheus.io/scrape` annotation here — that path would lose the
+# `db` label because Alloy's pod_metrics relabel only preserves `app`.
+
+# --- mysql-customer ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqld-exporter-customer
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+    db: customer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysqld-exporter
+      db: customer
+  template:
+    metadata:
+      labels:
+        app: mysqld-exporter
+        db: customer
+    spec:
+      containers:
+        - name: exporter
+          image: prom/mysqld-exporter:v0.15.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat > /tmp/.my.cnf <<EOF
+              [client]
+              user=root
+              password=${DB_ROOT_PASSWORD}
+              host=mysql-customer-service
+              port=3306
+              EOF
+              exec /bin/mysqld_exporter \
+                --config.my-cnf=/tmp/.my.cnf \
+                --collect.info_schema.innodb_metrics \
+                --collect.info_schema.tables \
+                --collect.engine_innodb_status \
+                --collect.info_schema.processlist
+          env:
+            - name: DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: DB_ROOT_PASSWORD
+          ports:
+            - containerPort: 9104
+              name: metrics
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+          readinessProbe:
+            tcpSocket: { port: 9104 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqld-exporter-customer
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+    db: customer
+spec:
+  selector:
+    app: mysqld-exporter
+    db: customer
+  ports:
+    - name: metrics
+      port: 9104
+      targetPort: 9104
+---
+# --- mysql-order ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqld-exporter-order
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+    db: order
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysqld-exporter
+      db: order
+  template:
+    metadata:
+      labels:
+        app: mysqld-exporter
+        db: order
+    spec:
+      containers:
+        - name: exporter
+          image: prom/mysqld-exporter:v0.15.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat > /tmp/.my.cnf <<EOF
+              [client]
+              user=root
+              password=${DB_ROOT_PASSWORD}
+              host=mysql-order-service
+              port=3306
+              EOF
+              exec /bin/mysqld_exporter \
+                --config.my-cnf=/tmp/.my.cnf \
+                --collect.info_schema.innodb_metrics \
+                --collect.info_schema.tables \
+                --collect.engine_innodb_status \
+                --collect.info_schema.processlist
+          env:
+            - name: DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: DB_ROOT_PASSWORD
+          ports:
+            - containerPort: 9104
+              name: metrics
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+          readinessProbe:
+            tcpSocket: { port: 9104 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqld-exporter-order
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+    db: order
+spec:
+  selector:
+    app: mysqld-exporter
+    db: order
+  ports:
+    - name: metrics
+      port: 9104
+      targetPort: 9104
+---
+# --- mysql-payment ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqld-exporter-payment
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+    db: payment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysqld-exporter
+      db: payment
+  template:
+    metadata:
+      labels:
+        app: mysqld-exporter
+        db: payment
+    spec:
+      containers:
+        - name: exporter
+          image: prom/mysqld-exporter:v0.15.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat > /tmp/.my.cnf <<EOF
+              [client]
+              user=root
+              password=${DB_ROOT_PASSWORD}
+              host=mysql-payment-service
+              port=3306
+              EOF
+              exec /bin/mysqld_exporter \
+                --config.my-cnf=/tmp/.my.cnf \
+                --collect.info_schema.innodb_metrics \
+                --collect.info_schema.tables \
+                --collect.engine_innodb_status \
+                --collect.info_schema.processlist
+          env:
+            - name: DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: DB_ROOT_PASSWORD
+          ports:
+            - containerPort: 9104
+              name: metrics
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+          readinessProbe:
+            tcpSocket: { port: 9104 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqld-exporter-payment
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+    db: payment
+spec:
+  selector:
+    app: mysqld-exporter
+    db: payment
+  ports:
+    - name: metrics
+      port: 9104
+      targetPort: 9104
+---
+# --- mysql-product ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysqld-exporter-product
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+    db: product
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysqld-exporter
+      db: product
+  template:
+    metadata:
+      labels:
+        app: mysqld-exporter
+        db: product
+    spec:
+      containers:
+        - name: exporter
+          image: prom/mysqld-exporter:v0.15.1
+          command:
+            - /bin/sh
+            - -c
+            - |
+              cat > /tmp/.my.cnf <<EOF
+              [client]
+              user=root
+              password=${DB_ROOT_PASSWORD}
+              host=mysql-product-service
+              port=3306
+              EOF
+              exec /bin/mysqld_exporter \
+                --config.my-cnf=/tmp/.my.cnf \
+                --collect.info_schema.innodb_metrics \
+                --collect.info_schema.tables \
+                --collect.engine_innodb_status \
+                --collect.info_schema.processlist
+          env:
+            - name: DB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: DB_ROOT_PASSWORD
+          ports:
+            - containerPort: 9104
+              name: metrics
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+          readinessProbe:
+            tcpSocket: { port: 9104 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysqld-exporter-product
+  namespace: ecommerce
+  labels:
+    app: mysqld-exporter
+    db: product
+spec:
+  selector:
+    app: mysqld-exporter
+    db: product
+  ports:
+    - name: metrics
+      port: 9104
+      targetPort: 9104
