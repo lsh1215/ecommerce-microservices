@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-dualwrite-flow
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-dualwrite-flow.json: |
+    {
+      "uid": "ecommerce-dualwrite-flow",
+      "title": "Ecommerce Dual-Write Flow (Order → Kafka → Payment)",
+      "tags": ["ecommerce", "outbox", "custom"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "10s",
+      "time": {"from": "now-15m", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "1. Order POST 성공률 (= 발행 의도)",
+          "description": "service-order 에 들어온 POST /api/orders 의 2xx 비율. 부하가 들어가는 동안 1 에 가까워야 정상. 이게 곧 '주문이 DB 에 commit 되었다 = 다운스트림에 알릴 의도가 생겼다' 의 발생률이다.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\", method=\"POST\", status=~\"2..\"}[1m]))",
+              "legendFormat": "orders POST 2xx /s"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\", method=\"POST\", status=~\"5..\"}[1m]))",
+              "legendFormat": "orders POST 5xx /s"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "2. Kafka producer 결과 (= 실제 발행)",
+          "description": "MicrometerProducerListener 가 자동 emit. send_total - error_total = 실제 broker 까지 전달된 record 수. error_total 이 0 이 아니면 그만큼은 publish 단계에서 실패한 것 = dual-write 손실 후보.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(kafka_producer_record_send_total{app=\"service-order\"}[1m]))",
+              "legendFormat": "send_total /s"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(kafka_producer_record_error_total{app=\"service-order\"}[1m]))",
+              "legendFormat": "error_total /s"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "3. Consumer 처리 결과 (= 실제 도달)",
+          "description": "service-payment 의 @KafkaListener 처리 카운트. 이 라인이 곧 '결제 행이 만들어진 비율' 이다. 위 1번 / 2번 라인과 시간대별로 같이 봐야 dual-write 의 어느 단계에서 손실이 났는지 알 수 있다.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error=\"none\"}[1m]))",
+              "legendFormat": "consumer success /s"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error!=\"none\"}[1m]))",
+              "legendFormat": "consumer failure /s"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "4. Dual-write 흐름 한 화면 비교 (의도 → 발행 → 도달)",
+          "description": "헤드라인. 같은 시간 축에서 (a) order POST 성공, (b) kafka send 성공, (c) consumer 처리 성공 세 라인을 겹쳐본다. (a) 가 (b) 보다 크면 발행 단계 손실, (b) 가 (c) 보다 크면 consume 단계 손실. outbox 가 들어오면 (b) 와 (c) 모두 (a) 와 시간차를 두고 따라잡아야 한다.",
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 16},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\", method=\"POST\", status=~\"2..\"}[1m]))",
+              "legendFormat": "(a) order POST 2xx — 발행 의도"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(kafka_producer_record_send_total{app=\"service-order\"}[1m]))",
+              "legendFormat": "(b) kafka send_total — 실제 발행"
+            },
+            {
+              "refId": "C",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error=\"none\"}[1m]))",
+              "legendFormat": "(c) consumer success — 실제 도달"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "5. Outbox PENDING (solution leg only)",
+          "description": "OutboxMetrics 가 5초마다 refresh 하는 gauge. baseline 에는 0, chaos 동안 broker 미가용으로 누적, recovery 후 poller 가 drain 하면서 다시 0 으로 떨어진다. problem leg 에서는 outbox 자체가 없어 평평한 0.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "max by (app) (outbox_events_pending{app=\"service-order\"})",
+              "legendFormat": "{{app}} PENDING"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "id": 6,
+          "type": "logs",
+          "title": "6. Lost-event / retry-exhausted 로그 (problem 과 solution 의 흔적이 다르다)",
+          "description": "problem 이미지: '[no-outbox] OrderCreated send failed; event lost' — silent loss 의 유일한 흔적. solution 이미지: 'outbox.retry.exhausted' — durable 행 + 알람 가능한 라인. 두 패턴을 한 panel 에 나란히 보면 dual-write 와 outbox 의 운영적 차이가 직접 드러난다.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{app=\"service-order\"} |~ \"\\\\[no-outbox\\\\] OrderCreated send failed|outbox\\\\.retry\\\\.exhausted\""
+            }
+          ],
+          "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"}
+        }
+      ]
+    }

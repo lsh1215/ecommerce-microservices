@@ -127,6 +127,18 @@ data:
             {"refId": "A", "expr": "{app=~\"service-.*\"} |~ \"outbox.retry.exhausted\""}
           ],
           "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"}
+        },
+        {
+          "id": 6,
+          "type": "logs",
+          "title": "6. outbox.publish trace lookup — click traceId to jump to Tempo",
+          "description": "Loki-driven trace surface. Each line is an outbox.publish log entry; the traceId substring is rendered as a derived field that links into Tempo. Replaces a histogram exemplar (Alloy's OpenMetrics parser drops the bucket series under LongTaskTimer collision). Belt-and-suspenders: a static Tempo PNG is also captured at solution/tempo-outbox-publish-trace.png (B.AC4).",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {"refId": "A", "expr": "{app=~\"service-.*\"} |~ \"outbox.publish\""}
+          ],
+          "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"}
         }
       ]
     }
