@@ -11,6 +11,16 @@ data:
       external_labels:
         cluster: ecommerce-k3s
 
+    # Accept out-of-order samples within a 10-minute window. The 7 alloy
+    # DaemonSet pods all remote_write the same kube-state / cadvisor /
+    # etcd / apiserver series, and their per-pod scrape phases drift by
+    # seconds — without this the strict-monotonic check rejects every
+    # late arrival, which costs CPU + memory on the rejection path.
+    # No effect on query correctness; OOO chunks are merged on read.
+    storage:
+      tsdb:
+        out_of_order_time_window: 10m
+
     scrape_configs:
       - job_name: prometheus
         static_configs: [{ targets: ['localhost:9090'] }]
@@ -99,8 +109,18 @@ spec:
             - name: data
               mountPath: /prometheus
           resources:
-            requests: { cpu: 100m, memory: 256Mi }
-            limits:   { cpu: 800m, memory: 512Mi }
+            # Prometheus head-block memory grows with active series count.
+            # On this cluster the scrape graph (7 nodes × kubelet + cadvisor
+            # + node-exporter + 7 alloy remote_write feeds + 4 mysqld-exporter
+            # + 12 application pods + kube-state-metrics) drives ingest
+            # comfortably past the old 512Mi ceiling, producing a ~30-min
+            # OOMKill cycle (exit 137, 254 restarts in 5 days). 2Gi limit
+            # gives ~3× the observed steady state working set on the
+            # 8 GiB monitoring node, which is still only ~25% of node
+            # memory and leaves coresident grafana/loki/tempo/jaeger
+            # untouched.
+            requests: { cpu: 100m,  memory: 1Gi }
+            limits:   { cpu: 1500m, memory: 2Gi }
           readinessProbe:
             httpGet: { path: /-/ready, port: 9090 }
             initialDelaySeconds: 20
