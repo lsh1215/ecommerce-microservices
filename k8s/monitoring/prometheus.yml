@@ -121,12 +121,26 @@ spec:
             # untouched.
             requests: { cpu: 100m,  memory: 1Gi }
             limits:   { cpu: 1500m, memory: 2Gi }
+          # Prometheus replays the WAL + head block on every cold start;
+          # with a 3d retention / 2GB TSDB this regularly takes 60–180 s
+          # and the process is CPU-bound (single-digit second responses
+          # but no `/-/healthy` 200 yet). The previous setup (no startupProbe,
+          # liveness initialDelaySeconds=60) killed the pod mid-replay
+          # with reason=Completed exit=0 — kubelet's liveness fail looked
+          # like a clean shutdown in the logs ("See you next time!"),
+          # masking the real cause as something else. startupProbe is
+          # the correct primitive: liveness/readiness only start once
+          # startup says the process is up.
+          startupProbe:
+            httpGet: { path: /-/ready, port: 9090 }
+            failureThreshold: 30
+            periodSeconds: 10
           readinessProbe:
             httpGet: { path: /-/ready, port: 9090 }
-            initialDelaySeconds: 20
+            periodSeconds: 10
           livenessProbe:
             httpGet: { path: /-/healthy, port: 9090 }
-            initialDelaySeconds: 60
+            periodSeconds: 30
       volumes:
         - name: config
           configMap:

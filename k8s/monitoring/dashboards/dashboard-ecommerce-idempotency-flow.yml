@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-idempotency-flow
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-idempotency-flow.json: |
+    {
+      "uid": "ecommerce-idempotency-flow",
+      "title": "Ecommerce Idempotency Flow (At-least-once → Exactly-once)",
+      "tags": ["ecommerce", "idempotency", "custom"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 2,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "10s",
+      "time": {"from": "now-15m", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "1. Order POST 성공률 (= 발행 의도)",
+          "description": "service-order 에 들어온 POST /api/orders 의 2xx 비율. 양 leg 모두 ≈동일 패턴이어야 함 (통제 변수).",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\", method=\"POST\", status=~\"2..\"}[1m]))",
+              "legendFormat": "orders POST 2xx /s"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "2. Consumer 처리 율 — service-payment 의 KafkaListener (실측 라벨 사용)",
+          "description": "spring_kafka_listener_seconds_count{app='service-payment', result='success'}. 실제 emit 되는 라벨은 messaging_source_name 이 아니라 result/exception 임. 양 leg 모두 dup-inject 시점에 receive spike (consumer 가 메시지를 받는 사실은 동일). 실제 결제로 이어지는가는 Panel 3 와 비교.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", result=\"success\"}[1m]))",
+              "legendFormat": "listener success /s"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", result=\"failure\"}[1m]))",
+              "legendFormat": "listener failure /s"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "3. Payment DB INSERT 율 (= 진짜 결제 처리)",
+          "description": "mysql_info_schema_innodb_metrics_dml_dml_inserts_total{db='payment'} 의 분당 rate. mysqld-exporter 가 InnoDB metric subsystem 에서 직접 카운트하는 INSERT 횟수. dup-inject chaos 동안 problem leg 는 6x spike (= 중복 결제 6건/orderNumber), solution leg 는 1x (= dedup 작동, payment 1건/orderNumber).",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(mysql_info_schema_innodb_metrics_dml_dml_inserts_total{db=\"payment\"}[1m]))",
+              "legendFormat": "payment DB INSERTs /s"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "4. Idempotency 흐름 한 화면 비교 (의도 → 수신 → 결제)",
+          "description": "헤드라인. (a) order POST 2xx (= 정상 부하), (b) consumer listener success (= 메시지 도달, dup 포함), (c) payment INSERT (= 실제 결제). problem leg: chaos 동안 (b) 와 (c) 가 함께 spike — 받는 족족 결제로 이어짐 (중복 결제). solution leg: (b) 는 spike 해도 (c) 는 거의 변화 없음 — Layer 1 dedup 의 시각적 증명.",
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\", method=\"POST\", status=~\"2..\"}[1m]))",
+              "legendFormat": "(a) order POST 2xx — 정상 발행"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", result=\"success\"}[1m]))",
+              "legendFormat": "(b) listener success — dup 포함"
+            },
+            {
+              "refId": "C",
+              "expr": "sum(rate(mysql_info_schema_innodb_metrics_dml_dml_inserts_total{db=\"payment\"}[1m]))",
+              "legendFormat": "(c) payment DB INSERT — 실 결제"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "5. Layer 1 dedup count over time (Loki LogQL count_over_time)",
+          "description": "헤드라인 차이를 가장 직접적으로 보여주는 panel. problem leg (idempotency=false): 0 line — IdempotentEventHandler 가 env 로 단락. solution leg (idempotency=true): chaos window 에 spike — 중복 eventId 재도달이 dedup 으로 차단된 횟수.",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 17},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(count_over_time({app=\"service-payment\"} |~ \"중복 이벤트 감지, 건너뜀\" [1m]))",
+              "legendFormat": "Layer 1 dedup hits /min"
+            },
+            {
+              "refId": "B",
+              "expr": "sum(count_over_time({app=\"service-payment\"} |~ \"동시 중복 이벤트 감지\" [1m]))",
+              "legendFormat": "Layer 2 DB race hits /min"
+            },
+            {
+              "refId": "C",
+              "expr": "sum(count_over_time({app=\"service-order\"} |~ \"이미 다른 인스턴스에서 발행됨\" [1m]))",
+              "legendFormat": "Publisher OptLock hits /min"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "id": 6,
+          "type": "logs",
+          "title": "6. Live tail — service-payment dedup 흔적",
+          "description": "solution leg: '중복 이벤트 감지, 건너뜀' 라인 + '이벤트 수신' 라인이 같이 보임 — 받기는 받았는데 dedup 으로 안 들어간 시간순 흐름. problem leg: '이벤트 수신' 만 있고 dedup 라인 0 — env 단락의 직접 증거.",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 25},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {"refId": "A", "expr": "{app=\"service-payment\"} |~ \"중복 이벤트 감지|order.created 이벤트 수신|동시 중복 이벤트|idempotency disabled\""}
+          ],
+          "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"}
+        }
+      ]
+    }
