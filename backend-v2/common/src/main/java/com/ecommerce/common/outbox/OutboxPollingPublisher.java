@@ -7,24 +7,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Outer poll loop: scan PENDING outbox rows, dispatch each to a
  * per-row publisher that owns its own transaction.
  *
- * <p>Critically the loop itself runs OUTSIDE a write transaction.
- * The previous shape (one {@code @Transactional} over the whole loop)
- * meant JPA's flush — and therefore any {@code OptimisticLockException}
- * — happened only after the loop returned, so the per-row try/catch
- * could never see it. Now {@link OutboxRowPublisher#publishOne(Long)}
- * runs in its own {@code REQUIRES_NEW} transaction, the lock collision
- * fires at that transaction's commit, and we can react row-by-row.
+ * <p>Critically the loop itself runs OUTSIDE a write transaction. The
+ * scheduled invocation arrives with no transactional context, the only
+ * read here is {@code findTop100ByStatusOrderByCreatedAtAsc} (Spring Data
+ * JPA opens its own short read transaction for that one query), and
+ * the per-row write happens inside
+ * {@link OutboxRowPublisher#publishOne(Long)}'s {@code REQUIRES_NEW}
+ * transaction.
  *
- * <p>{@code @Transactional(propagation = SUPPORTS, readOnly = true)} on
- * the scan keeps the read inside the scheduler's own (lightweight) read
- * transaction without forcing one for write semantics.
+ * <p>The previous shape (one {@code @Transactional} over the whole loop)
+ * meant JPA's flush — and therefore any {@code OptimisticLockException} —
+ * happened only after the loop returned, so the per-row try/catch could
+ * never see it. With the per-row transaction in {@link OutboxRowPublisher},
+ * the lock collision fires at that transaction's commit and we react
+ * row-by-row.
  */
 @Component
 @RequiredArgsConstructor
@@ -34,10 +35,7 @@ public class OutboxPollingPublisher {
     private final OutboxEventRepository outboxRepository;
     private final OutboxRowPublisher outboxRowPublisher;
 
-    static final int MAX_RETRIES = 5;
-
     @Scheduled(fixedDelay = 500)
-    @Transactional(propagation = Propagation.SUPPORTS, readOnly = true)
     public void publishPendingEvents() {
         List<OutboxEvent> events = outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING);
 
@@ -53,18 +51,23 @@ public class OutboxPollingPublisher {
                 // duplicate from this side. Skip and continue to next row.
                 log.info("이벤트 {} 이미 다른 인스턴스에서 발행됨, 건너뜀", eventId);
             } catch (Exception e) {
-                int newCount = event.getRetryCount() + 1;
-                if (newCount >= MAX_RETRIES) {
-                    // Single-digit-frequency event, alerted via LogQL:
-                    //   count_over_time({app=~"service-.*"} |~ "outbox.retry.exhausted" [5m])
-                    outboxRowPublisher.markFailed(outboxId, e.getMessage());
-                    continue;
-                }
-                outboxRowPublisher.recordRetry(outboxId, e.getMessage());
-                // Bail out of this poll cycle — backoff is implicit via
-                // @Scheduled fixedDelay. Next cycle will try this row again.
-                break;
+                handleRetryOrFail(outboxId, eventId, e);
             }
+        }
+    }
+
+    /**
+     * Atomically (per-row) decide retry vs markFailed in a fresh transaction.
+     * Wrapped here in try/catch on optimistic-lock collisions because two
+     * pollers can race on the same row's retryCount increment — losing one
+     * increment is acceptable (the next poll cycle reconciles), but we don't
+     * want the OptLock to bubble up and kill the whole batch.
+     */
+    private void handleRetryOrFail(Long outboxId, String eventId, Exception cause) {
+        try {
+            outboxRowPublisher.recordRetryOrMarkFailed(outboxId, cause.getMessage());
+        } catch (OptimisticLockException | ObjectOptimisticLockingFailureException lockEx) {
+            log.debug("retry-count update for eventId={} lost the race; next poll will retry", eventId);
         }
     }
 }

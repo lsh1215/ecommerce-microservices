@@ -34,11 +34,20 @@ import org.springframework.transaction.annotation.Transactional;
  *     already moved the row to {@code PUBLISHED} in the gap between scan
  *     and publish, we skip the broker send entirely instead of relying
  *     on the lock collision to abort it.
+ *
+ * <p>Note on roles: the status pre-check and the @Version optimistic lock
+ * are NOT redundant — they cover different windows. The pre-check skips
+ * the broker send when another instance has already finished publishing
+ * (a best-effort optimization). The optimistic lock guarantees
+ * single-writer semantics when two instances both pass the pre-check
+ * concurrently and reach flush — only one UPDATE succeeds.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class OutboxRowPublisher {
+
+    private static final int MAX_RETRIES = 5;
 
     private final OutboxEventRepository outboxRepository;
     private final KafkaTemplate<String, String> stringKafkaTemplate;
@@ -74,23 +83,36 @@ public class OutboxRowPublisher {
         // exception propagates to the caller.
     }
 
+    /**
+     * Increment retryCount in a fresh transaction. If the count crosses
+     * {@link #MAX_RETRIES} the row is marked {@code FAILED} in the same
+     * transaction and an alert-friendly WARN log is emitted. Caller can
+     * catch the resulting {@code OptimisticLockException} (rare; happens
+     * only when two pollers race on the same row's increment) — the lost
+     * increment is benign since the next poll cycle will retry.
+     *
+     * <p>Single-method API instead of separate {@code recordRetry} +
+     * {@code markFailed} avoids a stale-counter race at the caller side
+     * (caller's outer-loop {@code event.getRetryCount()} reflects scan-time
+     * state and may be off-by-one if another instance already incremented).
+     * The decision is made authoritatively here, against the freshly-loaded
+     * row.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordRetry(Long outboxId, String errorMessage) {
+    public void recordRetryOrMarkFailed(Long outboxId, String errorMessage) {
         outboxRepository.findById(outboxId).ifPresent(event -> {
             event.incrementRetryCount();
-            log.warn("Outbox event publish failed (retry {}/{}): eventId={}, error={}",
-                event.getRetryCount(), OutboxPollingPublisher.MAX_RETRIES, event.getEventId(), errorMessage);
-        });
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markFailed(Long outboxId, String errorMessage) {
-        outboxRepository.findById(outboxId).ifPresent(event -> {
-            event.incrementRetryCount();
-            event.markFailed();
-            log.warn("outbox.retry.exhausted event_id={} event_type={} aggregate_type={} retry_count={} error={}",
-                event.getEventId(), event.getEventType(), event.getAggregateType(),
-                OutboxPollingPublisher.MAX_RETRIES, errorMessage);
+            if (event.getRetryCount() >= MAX_RETRIES) {
+                event.markFailed();
+                // Single-digit-frequency event, alerted via LogQL:
+                //   count_over_time({app=~"service-.*"} |~ "outbox.retry.exhausted" [5m])
+                log.warn("outbox.retry.exhausted event_id={} event_type={} aggregate_type={} retry_count={} error={}",
+                    event.getEventId(), event.getEventType(), event.getAggregateType(),
+                    MAX_RETRIES, errorMessage);
+            } else {
+                log.warn("Outbox event publish failed (retry {}/{}): eventId={}, error={}",
+                    event.getRetryCount(), MAX_RETRIES, event.getEventId(), errorMessage);
+            }
         });
     }
 }
