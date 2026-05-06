@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import com.ecommerce.common.config.KafkaTopics;
 import com.ecommerce.common.idempotency.IdempotentEventHandler;
 import com.ecommerce.order.application.saga.OrderSagaOrchestrator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
@@ -38,7 +39,7 @@ class PaymentEventConsumerTest {
 
     @Test
     @DisplayName("유효한 payment.completed 메시지 수신 시 IdempotentEventHandler를 통해 orchestrator를 호출한다")
-    void handlePaymentCompleted_validMessage_delegatesToOrchestratorViaIdempotencyHandler() {
+    void handlePaymentCompleted_validMessage_delegatesToOrchestratorViaIdempotencyHandler() throws Exception {
         // Given
         String json = paymentCompletedJson("evt-1", "ORD-001", 1L, 10L, "TX-001", "100.00");
         given(idempotentEventHandler.tryProcess(eq("evt-1"), eq(KafkaTopics.PAYMENT_COMPLETED), any(Runnable.class)))
@@ -58,7 +59,7 @@ class PaymentEventConsumerTest {
 
     @Test
     @DisplayName("유효한 payment.failed 메시지 수신 시 IdempotentEventHandler를 통해 orchestrator를 호출한다")
-    void handlePaymentFailed_validMessage_delegatesToOrchestratorViaIdempotencyHandler() {
+    void handlePaymentFailed_validMessage_delegatesToOrchestratorViaIdempotencyHandler() throws Exception {
         // Given
         String json = paymentFailedJson("evt-2", "ORD-001", 1L, "stub rejection");
         given(idempotentEventHandler.tryProcess(eq("evt-2"), eq(KafkaTopics.PAYMENT_FAILED), any(Runnable.class)))
@@ -76,7 +77,7 @@ class PaymentEventConsumerTest {
 
     @Test
     @DisplayName("중복 payment.completed 이벤트는 orchestrator를 호출하지 않는다")
-    void handlePaymentCompleted_duplicateEvent_orchestratorNotCalled() {
+    void handlePaymentCompleted_duplicateEvent_orchestratorNotCalled() throws Exception {
         // Given
         String json = paymentCompletedJson("evt-1", "ORD-001", 1L, 10L, "TX-001", "100.00");
         given(idempotentEventHandler.tryProcess(any(), any(), any())).willReturn(false);
@@ -89,12 +90,12 @@ class PaymentEventConsumerTest {
     }
 
     @Test
-    @DisplayName("JSON 파싱 실패 시 RuntimeException을 던진다")
-    void handlePaymentCompleted_malformedJson_throwsRuntimeException() {
-        // When / Then
+    @DisplayName("JSON 파싱 실패 시 JsonProcessingException 을 그대로 propagate 한다 (Spring Kafka DefaultErrorHandler 가 DLT 처리)")
+    void handlePaymentCompleted_malformedJson_propagatesJsonProcessingException() {
+        // Listener 가 RuntimeException 으로 wrapping 하지 않고 원본 exception 을 그대로 던지므로,
+        // 호출자(Spring Kafka) 의 ErrorHandler 가 type 을 보고 retry 또는 DLT 결정할 수 있다.
         assertThatThrownBy(() -> consumer.handlePaymentCompleted("not-json"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to process payment.completed event");
+                .isInstanceOf(JsonProcessingException.class);
     }
 
     // --- JSON helper methods ---

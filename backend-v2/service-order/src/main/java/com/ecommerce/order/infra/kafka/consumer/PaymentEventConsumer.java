@@ -3,6 +3,7 @@ package com.ecommerce.order.infra.kafka.consumer;
 import com.ecommerce.common.config.KafkaTopics;
 import com.ecommerce.common.idempotency.IdempotentEventHandler;
 import com.ecommerce.order.application.saga.OrderSagaOrchestrator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -25,23 +26,18 @@ public class PaymentEventConsumer {
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "stringKafkaListenerContainerFactory"
     )
-    public void handlePaymentCompleted(String message) {
-        try {
-            JsonNode node = objectMapper.readTree(message);
-            String eventId = node.get("eventId").asText();
-            String orderNumber = node.get("orderNumber").asText();
-            Long orderId = node.get("orderId").asLong();
-            Long paymentId = node.get("paymentId").asLong();
-            String transactionId = node.get("transactionId").asText();
-            BigDecimal amount = new BigDecimal(node.get("amount").asText());
+    public void handlePaymentCompleted(String message) throws JsonProcessingException {
+        JsonNode node = objectMapper.readTree(message);
+        String eventId = node.get("eventId").asText();
+        String orderNumber = node.get("orderNumber").asText();
+        Long orderId = node.get("orderId").asLong();
+        Long paymentId = node.get("paymentId").asLong();
+        String transactionId = node.get("transactionId").asText();
+        BigDecimal amount = new BigDecimal(node.get("amount").asText());
 
-            log.info("payment.completed 이벤트 수신: orderNumber={}, paymentId={}", orderNumber, paymentId);
-            idempotentEventHandler.tryProcess(eventId, KafkaTopics.PAYMENT_COMPLETED,
-                    () -> sagaOrchestrator.handlePaymentCompleted(orderNumber, orderId, paymentId, transactionId, amount));
-        } catch (Exception e) {
-            log.error("payment.completed 이벤트 처리 실패: {}", message, e);
-            throw new RuntimeException("Failed to process payment.completed event", e);
-        }
+        log.info("payment.completed 이벤트 수신: orderNumber={}, paymentId={}", orderNumber, paymentId);
+        idempotentEventHandler.tryProcess(eventId, KafkaTopics.PAYMENT_COMPLETED,
+                () -> sagaOrchestrator.handlePaymentCompleted(orderNumber, orderId, paymentId, transactionId, amount));
     }
 
     @KafkaListener(
@@ -49,20 +45,15 @@ public class PaymentEventConsumer {
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "stringKafkaListenerContainerFactory"
     )
-    public void handlePaymentFailed(String message) {
-        try {
-            JsonNode node = objectMapper.readTree(message);
-            String eventId = node.get("eventId").asText();
-            String orderNumber = node.get("orderNumber").asText();
-            Long orderId = node.get("orderId").asLong();
-            String reason = node.get("reason").asText();
+    public void handlePaymentFailed(String message) throws JsonProcessingException {
+        JsonNode node = objectMapper.readTree(message);
+        String eventId = node.get("eventId").asText();
+        String orderNumber = node.get("orderNumber").asText();
+        Long orderId = node.get("orderId").asLong();
+        String reason = node.get("reason").asText();
 
-            log.info("payment.failed 이벤트 수신: orderNumber={}, reason={}", orderNumber, reason);
-            idempotentEventHandler.tryProcess(eventId, KafkaTopics.PAYMENT_FAILED,
-                    () -> sagaOrchestrator.handlePaymentFailed(orderNumber, orderId, reason));
-        } catch (Exception e) {
-            log.error("payment.failed 이벤트 처리 실패: {}", message, e);
-            throw new RuntimeException("Failed to process payment.failed event", e);
-        }
+        log.info("payment.failed 이벤트 수신: orderNumber={}, reason={}", orderNumber, reason);
+        idempotentEventHandler.tryProcess(eventId, KafkaTopics.PAYMENT_FAILED,
+                () -> sagaOrchestrator.handlePaymentFailed(orderNumber, orderId, reason));
     }
 }

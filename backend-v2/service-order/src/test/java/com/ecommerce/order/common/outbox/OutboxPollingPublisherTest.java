@@ -1,10 +1,12 @@
 package com.ecommerce.order.common.outbox;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -13,20 +15,25 @@ import com.ecommerce.common.outbox.OutboxEvent;
 import com.ecommerce.common.outbox.OutboxEventRepository;
 import com.ecommerce.common.outbox.OutboxEventStatus;
 import com.ecommerce.common.outbox.OutboxPollingPublisher;
-import io.micrometer.observation.ObservationRegistry;
+import com.ecommerce.common.outbox.OutboxRowPublisher;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
+/**
+ * Outer loop is now thin: scan PENDING rows, dispatch each to
+ * {@link OutboxRowPublisher#publishOne(Long)} which owns its own transaction.
+ * The Kafka send / markPublished assertions live in OutboxRowPublisher's own
+ * test (this module's `service-order` doesn't reach into common's tests, so
+ * those assertions are verified at integration time).
+ */
 @ExtendWith(MockitoExtension.class)
 class OutboxPollingPublisherTest {
 
@@ -34,126 +41,111 @@ class OutboxPollingPublisherTest {
     OutboxEventRepository outboxRepository;
 
     @Mock
-    KafkaTemplate<String, String> stringKafkaTemplate;
+    OutboxRowPublisher outboxRowPublisher;
 
+    @InjectMocks
     OutboxPollingPublisher publisher;
 
-    @BeforeEach
-    void setUp() {
-        // ObservationRegistry.NOOP runs the lambda passed to observeChecked but
-        // emits no metrics or spans — exactly what unit tests need (the publish
-        // logic still executes, the observation hooks just do nothing).
-        publisher = new OutboxPollingPublisher(outboxRepository, stringKafkaTemplate, ObservationRegistry.NOOP);
-    }
-
     @Test
-    @DisplayName("미발행 이벤트가 있으면 Kafka로 전송하고 markPublished를 호출한다")
-    void publishPendingEvents_singleEvent_publishesSuccessfullyAndMarksPublished() {
-        // Given
-        OutboxEvent event = OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001");
+    @DisplayName("미발행 이벤트마다 OutboxRowPublisher.publishOne 을 호출한다")
+    void publishPendingEvents_dispatchesEachRowToRowPublisher() throws Exception {
+        OutboxEvent event1 = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
+        OutboxEvent event2 = withId(OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002"), 2L);
         given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
-                .willReturn(List.of(event));
+                .willReturn(List.of(event1, event2));
+        doNothing().when(outboxRowPublisher).publishOne(any());
 
-        @SuppressWarnings("unchecked")
-        CompletableFuture<SendResult<String, String>> future =
-                CompletableFuture.completedFuture(mock(SendResult.class));
-        given(stringKafkaTemplate.send(anyString(), anyString(), anyString())).willReturn(future);
-
-        // When
         publisher.publishPendingEvents();
 
-        // Then
-        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
-        assertThat(event.isPublished()).isTrue();
-        assertThat(event.getRetryCount()).isEqualTo(0);
+        verify(outboxRowPublisher, times(2)).publishOne(any());
     }
 
     @Test
-    @DisplayName("Kafka 전송 실패 시 retryCount를 1 증가시키고 다음 이벤트는 처리하지 않는다")
-    void publishPendingEvents_kafkaSendFails_incrementsRetryCountAndBreaks() {
-        // Given
-        OutboxEvent event1 = OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001");
-        OutboxEvent event2 = OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002");
+    @DisplayName("OptimisticLockException 발생 시 해당 row 는 건너뛰고 다음 row 를 계속 처리한다")
+    void publishPendingEvents_optimisticLock_skipsRowAndContinues() throws Exception {
+        OutboxEvent event1 = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
+        OutboxEvent event2 = withId(OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002"), 2L);
         given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event1, event2));
 
-        CompletableFuture<SendResult<String, String>> failedFuture = new CompletableFuture<>();
-        failedFuture.completeExceptionally(new RuntimeException("Kafka unavailable"));
-        given(stringKafkaTemplate.send(anyString(), anyString(), anyString())).willReturn(failedFuture);
+        // event1 의 publishOne 이 ObjectOptimisticLockingFailureException 을 던짐
+        // (다른 인스턴스가 같은 row 의 @Version 을 먼저 올려버린 케이스)
+        doThrow(new ObjectOptimisticLockingFailureException("OutboxEvent", event1.getId()))
+                .when(outboxRowPublisher).publishOne(eq(event1.getId()));
+        doNothing().when(outboxRowPublisher).publishOne(eq(event2.getId()));
 
-        // When
         publisher.publishPendingEvents();
 
-        // Then
-        assertThat(event1.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
-        assertThat(event1.isPublished()).isFalse();
-        assertThat(event1.getRetryCount()).isEqualTo(1);
-        verify(stringKafkaTemplate, times(1)).send(anyString(), anyString(), anyString());
+        // event1 은 OptLock 으로 skip, event2 는 정상 처리 — 두 row 모두 publishOne 호출됨
+        verify(outboxRowPublisher).publishOne(eq(event1.getId()));
+        verify(outboxRowPublisher).publishOne(eq(event2.getId()));
+        // markFailed/recordRetry 는 OptLock 에서 호출되지 않아야 함 (다른 인스턴스가 publish 성공한 것이라 retry 불필요)
+        verify(outboxRowPublisher, never()).markFailed(anyLong(), anyString());
+        verify(outboxRowPublisher, never()).recordRetry(anyLong(), anyString());
     }
 
     @Test
-    @DisplayName("최대 재시도 횟수 초과 시 이벤트를 FAILED로 표시하고 다음 이벤트를 처리한다")
-    void publishPendingEvents_maxRetriesExceeded_marksEventFailed() {
-        // Given
-        OutboxEvent event = OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001");
+    @DisplayName("Kafka 전송 실패 등 일반 예외 시 recordRetry 호출 후 break (다음 폴 cycle 에서 재시도)")
+    void publishPendingEvents_kafkaSendFails_recordsRetryAndBreaks() throws Exception {
+        OutboxEvent event1 = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
+        OutboxEvent event2 = withId(OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002"), 2L);
+        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
+                .willReturn(List.of(event1, event2));
+
+        doThrow(new RuntimeException("Kafka unavailable"))
+                .when(outboxRowPublisher).publishOne(eq(event1.getId()));
+
+        publisher.publishPendingEvents();
+
+        verify(outboxRowPublisher).publishOne(eq(event1.getId()));
+        verify(outboxRowPublisher).recordRetry(eq(event1.getId()), anyString());
+        // event2 는 처리되지 않음 (break) — 이번 cycle 에서 backoff
+        verify(outboxRowPublisher, never()).publishOne(eq(event2.getId()));
+    }
+
+    @Test
+    @DisplayName("최대 재시도 횟수 도달 시 markFailed 호출 후 다음 row 처리")
+    void publishPendingEvents_maxRetriesReached_marksFailedAndContinues() throws Exception {
+        OutboxEvent event = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
         for (int i = 0; i < 4; i++) {
             event.incrementRetryCount();
         }
         given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event));
 
-        CompletableFuture<SendResult<String, String>> failedFuture = new CompletableFuture<>();
-        failedFuture.completeExceptionally(new RuntimeException("Kafka unavailable"));
-        given(stringKafkaTemplate.send(anyString(), anyString(), anyString())).willReturn(failedFuture);
+        doThrow(new RuntimeException("still down"))
+                .when(outboxRowPublisher).publishOne(eq(event.getId()));
 
-        // When
         publisher.publishPendingEvents();
 
-        // Then
-        assertThat(event.getRetryCount()).isEqualTo(5);
-        assertThat(event.getStatus()).isEqualTo(OutboxEventStatus.FAILED);
-        assertThat(event.isPublished()).isFalse();
+        verify(outboxRowPublisher).markFailed(eq(event.getId()), anyString());
+        verify(outboxRowPublisher, never()).recordRetry(eq(event.getId()), anyString());
     }
 
     @Test
-    @DisplayName("OptimisticLockException 발생 시 해당 이벤트를 건너뛰고 다음 이벤트를 처리한다")
-    void publishPendingEvents_optimisticLockException_skipsEventAndContinues() {
-        // Given
-        OutboxEvent event1 = OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001");
-        OutboxEvent event2 = OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002");
-        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
-                .willReturn(List.of(event1, event2));
-
-        given(stringKafkaTemplate.send(eq("order.created"), eq("ORD-001"), anyString()))
-                .willThrow(new ObjectOptimisticLockingFailureException("OutboxEvent", "1"));
-
-        @SuppressWarnings("unchecked")
-        CompletableFuture<SendResult<String, String>> successFuture =
-                CompletableFuture.completedFuture(mock(SendResult.class));
-        given(stringKafkaTemplate.send(eq("order.created"), eq("ORD-002"), anyString()))
-                .willReturn(successFuture);
-
-        // When
-        publisher.publishPendingEvents();
-
-        // Then
-        assertThat(event1.getStatus()).isEqualTo(OutboxEventStatus.PENDING);
-        assertThat(event1.isPublished()).isFalse();
-        assertThat(event2.getStatus()).isEqualTo(OutboxEventStatus.PUBLISHED);
-        assertThat(event2.isPublished()).isTrue();
-    }
-
-    @Test
-    @DisplayName("미발행 이벤트가 없으면 Kafka와 상호작용하지 않는다")
-    void publishPendingEvents_emptyQueue_doesNotInteractWithKafka() {
-        // Given
+    @DisplayName("미발행 이벤트가 없으면 RowPublisher 와 상호작용하지 않는다")
+    void publishPendingEvents_emptyQueue_doesNotInvokeRowPublisher() throws Exception {
         given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(Collections.emptyList());
 
-        // When
         publisher.publishPendingEvents();
 
-        // Then
-        verify(stringKafkaTemplate, never()).send(anyString(), anyString(), anyString());
+        verify(outboxRowPublisher, never()).publishOne(any());
+    }
+
+    /**
+     * BaseEntity 의 {@code id} 는 JPA 가 persist 시 채워주는 {@link jakarta.persistence.GeneratedValue}
+     * 라 newly-created 객체의 id 는 null 이다. 테스트에서는 publish dispatch 가 id 기반이라
+     * reflection 으로 id 를 강제 주입한다.
+     */
+    private static OutboxEvent withId(OutboxEvent event, Long id) {
+        try {
+            Field idField = event.getClass().getSuperclass().getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(event, id);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Failed to set id via reflection", e);
+        }
+        return event;
     }
 }

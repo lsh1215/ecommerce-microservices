@@ -56,7 +56,7 @@ class OrderEventConsumerTest {
 
     @Test
     @DisplayName("유효한 order.created 메시지 수신 시 PaymentService.processFromEvent를 호출한다")
-    void handleOrderCreated_validMessage_delegatesToPaymentService() {
+    void handleOrderCreated_validMessage_delegatesToPaymentService() throws Exception {
         // Given
         given(idempotentEventHandler.tryProcess(eq("evt-1"), eq(KafkaTopics.ORDER_CREATED), any(Runnable.class)))
                 .willAnswer(invocation -> {
@@ -78,7 +78,7 @@ class OrderEventConsumerTest {
 
     @Test
     @DisplayName("유효한 order.cancelled 메시지 수신 시 PaymentService.cancelFromEvent를 호출한다")
-    void handleOrderCancelled_validMessage_delegatesToPaymentService() {
+    void handleOrderCancelled_validMessage_delegatesToPaymentService() throws Exception {
         // Given
         given(idempotentEventHandler.tryProcess(eq("evt-2"), eq(KafkaTopics.ORDER_CANCELLED), any(Runnable.class)))
                 .willAnswer(invocation -> {
@@ -97,7 +97,7 @@ class OrderEventConsumerTest {
 
     @Test
     @DisplayName("중복 order.created 이벤트는 PaymentService를 호출하지 않는다")
-    void handleOrderCreated_duplicateEvent_skipped() {
+    void handleOrderCreated_duplicateEvent_skipped() throws Exception {
         // Given — idempotentEventHandler가 false를 반환하며 Runnable을 실행하지 않음
         given(idempotentEventHandler.tryProcess(anyString(), anyString(), any(Runnable.class)))
                 .willReturn(false);
@@ -110,11 +110,9 @@ class OrderEventConsumerTest {
     }
 
     @Test
-    @DisplayName("JSON 파싱 실패 시 RuntimeException을 던진다")
-    void handleOrderCreated_malformedJson_throwsRuntimeException() {
-        // When / Then
+    @DisplayName("JSON 파싱 실패 시 JsonProcessingException 을 그대로 propagate 한다 (Spring Kafka DefaultErrorHandler 가 DLT 처리)")
+    void handleOrderCreated_malformedJson_propagatesJsonProcessingException() {
         assertThatThrownBy(() -> consumer.handleOrderCreated("not-json"))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to process order.created event");
+                .isInstanceOf(com.fasterxml.jackson.core.JsonProcessingException.class);
     }
 }
