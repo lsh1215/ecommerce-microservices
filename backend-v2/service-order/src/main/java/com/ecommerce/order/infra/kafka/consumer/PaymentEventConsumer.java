@@ -1,6 +1,8 @@
 package com.ecommerce.order.infra.kafka.consumer;
 
 import com.ecommerce.common.config.KafkaTopics;
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.common.exception.CommonErrorCode;
 import com.ecommerce.common.idempotency.IdempotentEventHandler;
 import com.ecommerce.order.application.saga.OrderSagaOrchestrator;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -26,8 +28,8 @@ public class PaymentEventConsumer {
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "stringKafkaListenerContainerFactory"
     )
-    public void handlePaymentCompleted(String message) throws JsonProcessingException {
-        JsonNode node = objectMapper.readTree(message);
+    public void handlePaymentCompleted(String message) {
+        JsonNode node = parsePayload(message);
         String eventId = node.get("eventId").asText();
         String orderNumber = node.get("orderNumber").asText();
         Long orderId = node.get("orderId").asLong();
@@ -45,8 +47,8 @@ public class PaymentEventConsumer {
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "stringKafkaListenerContainerFactory"
     )
-    public void handlePaymentFailed(String message) throws JsonProcessingException {
-        JsonNode node = objectMapper.readTree(message);
+    public void handlePaymentFailed(String message) {
+        JsonNode node = parsePayload(message);
         String eventId = node.get("eventId").asText();
         String orderNumber = node.get("orderNumber").asText();
         Long orderId = node.get("orderId").asLong();
@@ -55,5 +57,14 @@ public class PaymentEventConsumer {
         log.info("payment.failed 이벤트 수신: orderNumber={}, reason={}", orderNumber, reason);
         idempotentEventHandler.tryProcess(eventId, KafkaTopics.PAYMENT_FAILED,
                 () -> sagaOrchestrator.handlePaymentFailed(orderNumber, orderId, reason));
+    }
+
+    private JsonNode parsePayload(String message) {
+        try {
+            return objectMapper.readTree(message);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(CommonErrorCode.INVALID_INPUT,
+                    "malformed kafka payload: " + e.getOriginalMessage());
+        }
     }
 }

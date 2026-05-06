@@ -3,6 +3,7 @@ package com.ecommerce.customer.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.ecommerce.common.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
 class EmailTest {
@@ -22,31 +23,31 @@ class EmailTest {
     @Test
     void nullEmailThrows() {
         assertThatThrownBy(() -> new Email(null))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void blankEmailThrows() {
         assertThatThrownBy(() -> new Email("  "))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void invalidFormatNoAtThrows() {
         assertThatThrownBy(() -> new Email("foo"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void invalidFormatNoLocalPartThrows() {
         assertThatThrownBy(() -> new Email("@bar.com"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void invalidFormatNoDomainThrows() {
         assertThatThrownBy(() -> new Email("foo@"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test

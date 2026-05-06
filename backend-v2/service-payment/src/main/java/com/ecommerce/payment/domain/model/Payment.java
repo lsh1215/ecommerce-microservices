@@ -50,16 +50,20 @@ public class Payment extends BaseEntity {
 
     public static Payment create(Long orderId, String orderNumber, BigDecimal amount, PaymentMethod paymentMethod) {
         if (orderId == null) {
-            throw new IllegalArgumentException("orderId must not be null");
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_DATA,
+                    "orderId must not be null");
         }
         if (orderNumber == null || orderNumber.isBlank()) {
-            throw new IllegalArgumentException("orderNumber must not be blank");
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_DATA,
+                    "orderNumber must not be blank");
         }
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("amount must be greater than zero");
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_DATA,
+                    "amount must be greater than zero");
         }
         if (paymentMethod == null) {
-            throw new IllegalArgumentException("paymentMethod must not be null");
+            throw new BusinessException(PaymentErrorCode.INVALID_PAYMENT_DATA,
+                    "paymentMethod must not be null");
         }
         Payment payment = new Payment();
         payment.orderId = orderId;

@@ -1,5 +1,7 @@
 package com.ecommerce.customer.domain.model;
 
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.customer.CustomerErrorCode;
 import java.util.regex.Pattern;
 
 public record Email(String value) {
@@ -9,10 +11,12 @@ public record Email(String value) {
 
     public Email {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("Email must not be blank");
+            throw new BusinessException(CustomerErrorCode.INVALID_EMAIL_FORMAT,
+                    "Email must not be blank");
         }
         if (!EMAIL_PATTERN.matcher(value).matches()) {
-            throw new IllegalArgumentException("Invalid email format: " + value);
+            throw new BusinessException(CustomerErrorCode.INVALID_EMAIL_FORMAT,
+                    "Invalid email format: " + value);
         }
     }
 

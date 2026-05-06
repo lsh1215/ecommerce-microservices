@@ -10,11 +10,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.ecommerce.common.config.KafkaTopics;
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.common.exception.CommonErrorCode;
 import com.ecommerce.common.idempotency.IdempotentEventHandler;
 import com.ecommerce.payment.application.service.PaymentService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,8 +59,7 @@ class OrderEventConsumerTest {
 
     @Test
     @DisplayName("유효한 order.created 메시지 수신 시 PaymentService.processFromEvent를 호출한다")
-    void handleOrderCreated_validMessage_delegatesToPaymentService() throws Exception {
-        // Given
+    void handleOrderCreated_validMessage_delegatesToPaymentService() {
         given(idempotentEventHandler.tryProcess(eq("evt-1"), eq(KafkaTopics.ORDER_CREATED), any(Runnable.class)))
                 .willAnswer(invocation -> {
                     Runnable processor = invocation.getArgument(2);
@@ -65,10 +67,8 @@ class OrderEventConsumerTest {
                     return true;
                 });
 
-        // When
         consumer.handleOrderCreated(orderCreatedJson("evt-1", 1L, "ORD-001", "100.00"));
 
-        // Then
         verify(idempotentEventHandler).tryProcess(eq("evt-1"), eq(KafkaTopics.ORDER_CREATED), any());
         verify(paymentService).processFromEvent(
                 eq(1L),
@@ -78,8 +78,7 @@ class OrderEventConsumerTest {
 
     @Test
     @DisplayName("유효한 order.cancelled 메시지 수신 시 PaymentService.cancelFromEvent를 호출한다")
-    void handleOrderCancelled_validMessage_delegatesToPaymentService() throws Exception {
-        // Given
+    void handleOrderCancelled_validMessage_delegatesToPaymentService() {
         given(idempotentEventHandler.tryProcess(eq("evt-2"), eq(KafkaTopics.ORDER_CANCELLED), any(Runnable.class)))
                 .willAnswer(invocation -> {
                     Runnable processor = invocation.getArgument(2);
@@ -87,32 +86,29 @@ class OrderEventConsumerTest {
                     return true;
                 });
 
-        // When
         consumer.handleOrderCancelled(orderCancelledJson("evt-2", 1L, "ORD-001"));
 
-        // Then
         verify(idempotentEventHandler).tryProcess(eq("evt-2"), eq(KafkaTopics.ORDER_CANCELLED), any());
         verify(paymentService).cancelFromEvent(eq(1L));
     }
 
     @Test
     @DisplayName("중복 order.created 이벤트는 PaymentService를 호출하지 않는다")
-    void handleOrderCreated_duplicateEvent_skipped() throws Exception {
-        // Given — idempotentEventHandler가 false를 반환하며 Runnable을 실행하지 않음
+    void handleOrderCreated_duplicateEvent_skipped() {
         given(idempotentEventHandler.tryProcess(anyString(), anyString(), any(Runnable.class)))
                 .willReturn(false);
 
-        // When
         consumer.handleOrderCreated(orderCreatedJson("evt-1", 1L, "ORD-001", "100.00"));
 
-        // Then
         verify(paymentService, never()).processFromEvent(any(), anyString(), any());
     }
 
     @Test
-    @DisplayName("JSON 파싱 실패 시 JsonProcessingException 을 그대로 propagate 한다 (Spring Kafka DefaultErrorHandler 가 DLT 처리)")
-    void handleOrderCreated_malformedJson_propagatesJsonProcessingException() {
+    @DisplayName("malformed JSON 은 BusinessException(INVALID_INPUT) 으로 변환되어 DefaultErrorHandler 가 DLT 로 라우팅한다")
+    void handleOrderCreated_malformedJson_throwsBusinessExceptionInvalidInput() {
         assertThatThrownBy(() -> consumer.handleOrderCreated("not-json"))
-                .isInstanceOf(com.fasterxml.jackson.core.JsonProcessingException.class);
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> Assertions.assertThat(((BusinessException) ex).getErrorCode())
+                        .isEqualTo(CommonErrorCode.INVALID_INPUT));
     }
 }

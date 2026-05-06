@@ -64,7 +64,8 @@ public class ProductVariant extends BaseEntity {
 
     public void releaseStock(int quantity) {
         if (quantity <= 0) {
-            throw new IllegalArgumentException("Release quantity must be positive");
+            throw new BusinessException(ProductErrorCode.INVALID_VARIANT_OPERATION,
+                    "Release quantity must be positive");
         }
         this.stockQuantity += quantity;
     }

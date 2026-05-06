@@ -34,22 +34,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(message));
     }
 
-    /**
-     * Domain-layer argument validation. Aggregates and value objects
-     * fail-fast on bad input via {@code IllegalArgumentException}, which is
-     * Java's standard contract for "this argument is wrong". We translate
-     * that to HTTP 400 here so callers see a meaningful response instead
-     * of falling through to the catch-all {@code Exception} handler and
-     * getting a 500.
-     */
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException e) {
-        log.warn("Illegal argument: {}", e.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error(e.getMessage()));
-    }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Unexpected error", e);

@@ -25,19 +25,19 @@ class PaymentTest {
     @Test
     void create_withNullOrderId_throwsIllegalArgument() {
         assertThatThrownBy(() -> Payment.create(null, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void create_withNonPositiveAmount_throwsIllegalArgument() {
         assertThatThrownBy(() -> Payment.create(1L, "ORD-001", BigDecimal.ZERO, PaymentMethod.CARD))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void create_withNullMethod_throwsIllegalArgument() {
         assertThatThrownBy(() -> Payment.create(1L, "ORD-001", new BigDecimal("100.00"), null))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test

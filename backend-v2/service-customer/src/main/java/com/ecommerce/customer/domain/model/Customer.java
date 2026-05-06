@@ -1,6 +1,8 @@
 package com.ecommerce.customer.domain.model;
 
 import com.ecommerce.common.entity.BaseEntity;
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.customer.CustomerErrorCode;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,13 +37,16 @@ public class Customer extends BaseEntity {
 
     public static Customer create(Email email, String rawPassword, String name, String phone) {
         if (email == null) {
-            throw new IllegalArgumentException("Email must not be null");
+            throw new BusinessException(CustomerErrorCode.INVALID_CUSTOMER_DATA,
+                    "Email must not be null");
         }
         if (rawPassword == null || rawPassword.length() < 8) {
-            throw new IllegalArgumentException("Password must be at least 8 characters");
+            throw new BusinessException(CustomerErrorCode.INVALID_CUSTOMER_DATA,
+                    "Password must be at least 8 characters");
         }
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Name must not be blank");
+            throw new BusinessException(CustomerErrorCode.INVALID_CUSTOMER_DATA,
+                    "Name must not be blank");
         }
 
         Customer customer = new Customer();
@@ -67,7 +72,8 @@ public class Customer extends BaseEntity {
 
     public void changePassword(String newRaw) {
         if (newRaw == null || newRaw.length() < 8) {
-            throw new IllegalArgumentException("Password must be at least 8 characters");
+            throw new BusinessException(CustomerErrorCode.INVALID_CUSTOMER_DATA,
+                    "Password must be at least 8 characters");
         }
         this.passwordHash = BCrypt.hashpw(newRaw, BCrypt.gensalt());
     }

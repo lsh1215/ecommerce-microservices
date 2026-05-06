@@ -1,6 +1,8 @@
 package com.ecommerce.customer.domain.model;
 
 import com.ecommerce.common.entity.BaseEntity;
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.customer.CustomerErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -49,13 +51,16 @@ public class CustomerAddress extends BaseEntity {
                                          String zipCode, String address1,
                                          String address2, boolean isDefault) {
         if (customer == null) {
-            throw new IllegalArgumentException("Customer must not be null");
+            throw new BusinessException(CustomerErrorCode.INVALID_ADDRESS_DATA,
+                    "Customer must not be null");
         }
         if (label == null) {
-            throw new IllegalArgumentException("Label must not be null");
+            throw new BusinessException(CustomerErrorCode.INVALID_ADDRESS_DATA,
+                    "Label must not be null");
         }
         if (recipientName == null || recipientName.isBlank()) {
-            throw new IllegalArgumentException("Recipient name must not be blank");
+            throw new BusinessException(CustomerErrorCode.INVALID_ADDRESS_DATA,
+                    "Recipient name must not be blank");
         }
 
         CustomerAddress address = new CustomerAddress();
