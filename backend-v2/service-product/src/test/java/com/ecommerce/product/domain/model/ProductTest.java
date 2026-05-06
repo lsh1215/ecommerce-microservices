@@ -3,6 +3,7 @@ package com.ecommerce.product.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.ecommerce.common.exception.BusinessException;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
@@ -33,13 +34,13 @@ class ProductTest {
         Brand brand = createBrand();
 
         assertThatThrownBy(() -> Product.create(brand, "", "desc", BigDecimal.TEN, "shirts"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void create_withNullBrand_throwsException() {
         assertThatThrownBy(() -> Product.create(null, "Shirt", "desc", BigDecimal.TEN, "shirts"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
@@ -48,7 +49,7 @@ class ProductTest {
 
         assertThatThrownBy(() -> Product.create(brand, "Shirt", "desc",
                 BigDecimal.valueOf(-1), "shirts"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test

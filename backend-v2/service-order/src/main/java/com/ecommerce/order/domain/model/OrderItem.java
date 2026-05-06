@@ -1,6 +1,8 @@
 package com.ecommerce.order.domain.model;
 
 import com.ecommerce.common.entity.BaseEntity;
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.order.OrderErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -32,7 +34,8 @@ public class OrderItem extends BaseEntity {
 
     public static OrderItem create(VariantSnapshot snapshot, int quantity) {
         if (quantity < 1) {
-            throw new IllegalArgumentException("Quantity must be at least 1");
+            throw new BusinessException(OrderErrorCode.INVALID_ORDER_ITEM,
+                    "Quantity must be at least 1");
         }
         OrderItem item = new OrderItem();
         item.variantSnapshot = snapshot;

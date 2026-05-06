@@ -65,7 +65,7 @@ class ProductVariantTest {
         ProductVariant variant = product.addVariant("SKU-001", "M", "Black", 10, null);
 
         assertThatThrownBy(() -> variant.releaseStock(0))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test

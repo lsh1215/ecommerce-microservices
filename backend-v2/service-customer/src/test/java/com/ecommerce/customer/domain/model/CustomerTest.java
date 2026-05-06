@@ -3,6 +3,7 @@ package com.ecommerce.customer.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.ecommerce.common.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
 class CustomerTest {
@@ -62,24 +63,24 @@ class CustomerTest {
     void changePasswordTooShortThrows() {
         Customer customer = Customer.create(Email.of("a@b.com"), "password123", "Test", null);
         assertThatThrownBy(() -> customer.changePassword("short"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void createWithNullEmailThrows() {
         assertThatThrownBy(() -> Customer.create(null, "password123", "Name", null))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void createWithShortPasswordThrows() {
         assertThatThrownBy(() -> Customer.create(Email.of("a@b.com"), "short", "Name", null))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void createWithBlankNameThrows() {
         assertThatThrownBy(() -> Customer.create(Email.of("a@b.com"), "password123", "  ", null))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 }

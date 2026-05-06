@@ -1,6 +1,8 @@
 package com.ecommerce.product.domain.model;
 
 import com.ecommerce.common.entity.BaseEntity;
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.product.ProductErrorCode;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -53,13 +55,16 @@ public class Product extends BaseEntity {
     public static Product create(Brand brand, String name, String description,
                                  BigDecimal price, String category) {
         if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Product name must not be blank");
+            throw new BusinessException(ProductErrorCode.INVALID_PRODUCT_DATA,
+                    "Product name must not be blank");
         }
         if (brand == null) {
-            throw new IllegalArgumentException("Brand must not be null");
+            throw new BusinessException(ProductErrorCode.INVALID_PRODUCT_DATA,
+                    "Brand must not be null");
         }
         if (price == null || price.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Price must be >= 0");
+            throw new BusinessException(ProductErrorCode.INVALID_PRODUCT_DATA,
+                    "Price must be >= 0");
         }
         Product product = new Product();
         product.brand = brand;

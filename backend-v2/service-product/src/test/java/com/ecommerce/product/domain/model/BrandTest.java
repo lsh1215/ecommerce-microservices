@@ -3,6 +3,7 @@ package com.ecommerce.product.domain.model;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.ecommerce.common.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 
 class BrandTest {
@@ -20,13 +21,13 @@ class BrandTest {
     @Test
     void create_withBlankName_throwsException() {
         assertThatThrownBy(() -> Brand.create("", "desc", null, "US"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
     void create_withNullName_throwsException() {
         assertThatThrownBy(() -> Brand.create(null, "desc", null, "US"))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(BusinessException.class);
     }
 
     @Test
