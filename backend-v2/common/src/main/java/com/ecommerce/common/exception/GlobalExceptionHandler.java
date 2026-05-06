@@ -50,23 +50,6 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(e.getMessage()));
     }
 
-    /**
-     * Domain-layer state-machine violation (e.g., transitioning a Payment
-     * to COMPLETED from a non-PENDING state). 409 Conflict signals "the
-     * resource exists but its state forbids this operation", which fits
-     * better than 400 (request was well-formed) or 500 (server bug).
-     * Specific business rules with errorCode should still throw
-     * {@link BusinessException}; this is the catch-all for plain
-     * {@code IllegalStateException}.
-     */
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ApiResponse<Void>> handleIllegalState(IllegalStateException e) {
-        log.warn("Illegal state: {}", e.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(e.getMessage()));
-    }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Unexpected error", e);

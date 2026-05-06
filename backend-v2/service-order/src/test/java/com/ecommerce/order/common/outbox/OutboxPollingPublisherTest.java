@@ -79,14 +79,13 @@ class OutboxPollingPublisherTest {
         // event1 은 OptLock 으로 skip, event2 는 정상 처리 — 두 row 모두 publishOne 호출됨
         verify(outboxRowPublisher).publishOne(eq(event1.getId()));
         verify(outboxRowPublisher).publishOne(eq(event2.getId()));
-        // markFailed/recordRetry 는 OptLock 에서 호출되지 않아야 함 (다른 인스턴스가 publish 성공한 것이라 retry 불필요)
-        verify(outboxRowPublisher, never()).markFailed(anyLong(), anyString());
-        verify(outboxRowPublisher, never()).recordRetry(anyLong(), anyString());
+        // recordRetryOrMarkFailed 는 OptLock 에서 호출되지 않음 (다른 인스턴스가 publish 성공한 것이라 retry 불필요)
+        verify(outboxRowPublisher, never()).recordRetryOrMarkFailed(anyLong(), anyString());
     }
 
     @Test
-    @DisplayName("Kafka 전송 실패 등 일반 예외 시 recordRetry 호출 후 break (다음 폴 cycle 에서 재시도)")
-    void publishPendingEvents_kafkaSendFails_recordsRetryAndBreaks() throws Exception {
+    @DisplayName("Kafka 전송 실패 등 일반 예외 시 recordRetryOrMarkFailed 호출, 다음 row 도 계속 처리")
+    void publishPendingEvents_kafkaSendFails_recordsRetryAndContinues() throws Exception {
         OutboxEvent event1 = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
         OutboxEvent event2 = withId(OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002"), 2L);
         given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
@@ -98,28 +97,28 @@ class OutboxPollingPublisherTest {
         publisher.publishPendingEvents();
 
         verify(outboxRowPublisher).publishOne(eq(event1.getId()));
-        verify(outboxRowPublisher).recordRetry(eq(event1.getId()), anyString());
-        // event2 는 처리되지 않음 (break) — 이번 cycle 에서 backoff
-        verify(outboxRowPublisher, never()).publishOne(eq(event2.getId()));
+        verify(outboxRowPublisher).recordRetryOrMarkFailed(eq(event1.getId()), anyString());
+        // 새로운 동작: event2 도 publishOne 호출됨 (이전엔 break 했지만 row 별 transaction 분리되어 있어 outer 의 break 불필요)
+        verify(outboxRowPublisher).publishOne(eq(event2.getId()));
     }
 
     @Test
-    @DisplayName("최대 재시도 횟수 도달 시 markFailed 호출 후 다음 row 처리")
-    void publishPendingEvents_maxRetriesReached_marksFailedAndContinues() throws Exception {
+    @DisplayName("recordRetryOrMarkFailed 가 OptimisticLockException 던지면 outer loop 는 swallow 후 다음 row 진행")
+    void publishPendingEvents_recordRetryRaceLost_swallowedAndContinues() throws Exception {
         OutboxEvent event = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
-        for (int i = 0; i < 4; i++) {
-            event.incrementRetryCount();
-        }
         given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event));
 
-        doThrow(new RuntimeException("still down"))
+        doThrow(new RuntimeException("Kafka unavailable"))
                 .when(outboxRowPublisher).publishOne(eq(event.getId()));
+        doThrow(new ObjectOptimisticLockingFailureException("OutboxEvent", event.getId()))
+                .when(outboxRowPublisher).recordRetryOrMarkFailed(eq(event.getId()), anyString());
 
+        // OptLock on retry-count update 가 outer 로 던지지 않아야 함
         publisher.publishPendingEvents();
 
-        verify(outboxRowPublisher).markFailed(eq(event.getId()), anyString());
-        verify(outboxRowPublisher, never()).recordRetry(eq(event.getId()), anyString());
+        verify(outboxRowPublisher).publishOne(eq(event.getId()));
+        verify(outboxRowPublisher).recordRetryOrMarkFailed(eq(event.getId()), anyString());
     }
 
     @Test
