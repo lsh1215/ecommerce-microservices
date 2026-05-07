@@ -2,33 +2,45 @@ package com.ecommerce.common.idempotency;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Public API for idempotent Kafka event processing.
+ *
+ * <p>This class is intentionally <strong>not</strong> {@code @Transactional}. The
+ * transactional scope is owned entirely by {@link InternalIdempotentExecutor}, which is
+ * injected as a Spring bean so the AOP proxy is effective (no self-invocation bypass).
+ *
+ * <p>Duplicate detection relies exclusively on the DB unique constraint on
+ * {@code processed_event.event_id}. The {@link InternalIdempotentExecutor} inserts the
+ * marker <em>before</em> running the processor, so both commit atomically. A concurrent
+ * duplicate triggers a {@link DuplicateEventException} inside the (still-open but empty)
+ * transaction; that exception is caught here — outside the tx boundary — which keeps
+ * Spring's transaction infrastructure clean and prevents {@code UnexpectedRollbackException}.
+ *
+ * <p>{@code application.idempotency.enabled=false} bypasses dedup entirely (evidence
+ * harness use only — never use in production).
+ */
 @Component
 @Slf4j
 public class IdempotentEventHandler {
 
-    private final ProcessedEventRepository processedEventRepository;
+    private final InternalIdempotentExecutor executor;
     private final boolean idempotencyEnabled;
 
     public IdempotentEventHandler(
-            ProcessedEventRepository processedEventRepository,
+            InternalIdempotentExecutor executor,
             @Value("${application.idempotency.enabled:true}") boolean idempotencyEnabled) {
-        this.processedEventRepository = processedEventRepository;
+        this.executor = executor;
         this.idempotencyEnabled = idempotencyEnabled;
     }
 
     /**
-     * 이벤트를 멱등하게 처리한다.
-     * 이미 처리된 eventId면 skip, 아니면 processor 실행 후 처리 완료 기록.
-     * DB unique constraint가 동시 처리 시 최종 안전장치 역할을 한다.
+     * Processes {@code processor} exactly once per {@code eventId}.
      *
-     * application.idempotency.enabled=false 면 멱등성 가드를 건너뛰고 processor를 항상 실행한다
-     * (Phase 3 Before evidence harness 전용 — 운영에서는 사용 금지).
+     * @return {@code true} if the processor was executed, {@code false} if the event was
+     *         already recorded (duplicate skipped)
      */
-    @Transactional
     public boolean tryProcess(String eventId, String eventType, Runnable processor) {
         if (!idempotencyEnabled) {
             log.warn("idempotency disabled — running processor without dedup check: eventId={}", eventId);
@@ -36,20 +48,12 @@ public class IdempotentEventHandler {
             return true;
         }
 
-        if (processedEventRepository.existsByEventId(eventId)) {
-            log.info("중복 이벤트 감지, 건너뜀: eventId={}, type={}", eventId, eventType);
+        try {
+            executor.execute(eventId, eventType, processor);
+            return true;
+        } catch (DuplicateEventException e) {
+            log.info("Duplicate event skipped: eventId={}, type={}", eventId, eventType);
             return false;
         }
-
-        processor.run();
-
-        try {
-            processedEventRepository.saveAndFlush(ProcessedEvent.of(eventId, eventType));
-        } catch (DataIntegrityViolationException e) {
-            // 다른 인스턴스가 동시에 같은 이벤트를 처리함
-            // processor는 이미 실행됐지만, 비즈니스 로직 자체에 멱등성 체크가 있으므로 안전
-            log.info("동시 중복 이벤트 감지 (DB constraint): eventId={}", eventId);
-        }
-        return true;
     }
 }

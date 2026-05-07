@@ -4,15 +4,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.ecommerce.common.idempotency.DuplicateEventException;
 import com.ecommerce.common.idempotency.IdempotentEventHandler;
+import com.ecommerce.common.idempotency.InternalIdempotentExecutor;
 import com.ecommerce.common.idempotency.ProcessedEvent;
 import com.ecommerce.common.idempotency.ProcessedEventRepository;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -23,104 +30,148 @@ import org.springframework.dao.DataIntegrityViolationException;
 class IdempotentEventHandlerTest {
 
     @Mock
+    InternalIdempotentExecutor executor;
+
+    @Mock
     ProcessedEventRepository processedEventRepository;
 
     private IdempotentEventHandler enabledHandler() {
-        return new IdempotentEventHandler(processedEventRepository, true);
+        return new IdempotentEventHandler(executor, true);
     }
 
     private IdempotentEventHandler disabledHandler() {
-        return new IdempotentEventHandler(processedEventRepository, false);
+        return new IdempotentEventHandler(executor, false);
     }
 
-    @Test
-    @DisplayName("새 이벤트 처리 시 processor를 실행하고 ProcessedEvent를 저장한다")
-    void tryProcess_newEvent_processesAndRecords() {
-        AtomicBoolean processorInvoked = new AtomicBoolean(false);
-        Runnable processor = () -> processorInvoked.set(true);
+    // -----------------------------------------------------------------------
+    // IdempotentEventHandler (outer wrapper) tests
+    // -----------------------------------------------------------------------
 
-        given(processedEventRepository.existsByEventId("evt-1")).willReturn(false);
-        given(processedEventRepository.saveAndFlush(any(ProcessedEvent.class)))
-                .willAnswer(inv -> inv.getArgument(0));
+    @Nested
+    @DisplayName("IdempotentEventHandler")
+    class HandlerTests {
 
-        boolean result = enabledHandler().tryProcess("evt-1", "ORDER_CREATED", processor);
+        @Test
+        @DisplayName("새 이벤트 처리 시 executor를 호출하고 true를 반환한다")
+        void tryProcess_newEvent_delegatesToExecutorAndReturnsTrue() {
+            AtomicBoolean processorInvoked = new AtomicBoolean(false);
+            Runnable processor = () -> processorInvoked.set(true);
 
-        assertThat(result).isTrue();
-        assertThat(processorInvoked).isTrue();
-        verify(processedEventRepository).saveAndFlush(
-                argThat(e -> e.getEventId().equals("evt-1")
-                        && e.getEventType().equals("ORDER_CREATED")));
+            // executor does nothing by default (no exception) — processor is invoked inside executor
+            // in production; here we just verify delegation
+            boolean result = enabledHandler().tryProcess("evt-1", "ORDER_CREATED", processor);
+
+            assertThat(result).isTrue();
+            verify(executor).execute(eq("evt-1"), eq("ORDER_CREATED"), any(Runnable.class));
+        }
+
+        @Test
+        @DisplayName("DuplicateEventException 수신 시 processor를 실행하지 않고 false를 반환한다")
+        void tryProcess_duplicateEvent_returnsFalse() {
+            AtomicBoolean processorInvoked = new AtomicBoolean(false);
+            Runnable processor = () -> processorInvoked.set(true);
+
+            doThrow(new DuplicateEventException("evt-1"))
+                    .when(executor).execute(eq("evt-1"), eq("ORDER_CREATED"), any());
+
+            boolean result = enabledHandler().tryProcess("evt-1", "ORDER_CREATED", processor);
+
+            assertThat(result).isFalse();
+            // processor never reached because executor threw before running it
+            assertThat(processorInvoked).isFalse();
+        }
+
+        @Test
+        @DisplayName("idempotency=false 일 때 executor를 거치지 않고 processor를 직접 실행한다")
+        void tryProcess_idempotencyDisabled_runsProcessorDirectlyWithoutExecutor() {
+            AtomicBoolean processorInvoked = new AtomicBoolean(false);
+            Runnable processor = () -> processorInvoked.set(true);
+
+            boolean result = disabledHandler().tryProcess("evt-1", "ORDER_CREATED", processor);
+
+            assertThat(result).isTrue();
+            assertThat(processorInvoked).isTrue();
+            verify(executor, never()).execute(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("idempotency=false 일 때 동일 eventId를 여러 번 주입하면 processor가 매번 실행된다")
+        void tryProcess_idempotencyDisabled_allowsMultipleInvocationsForSameEventId() {
+            AtomicBoolean invoked1 = new AtomicBoolean(false);
+            AtomicBoolean invoked2 = new AtomicBoolean(false);
+
+            IdempotentEventHandler handler = disabledHandler();
+            handler.tryProcess("evt-dup", "ORDER_CREATED", () -> invoked1.set(true));
+            handler.tryProcess("evt-dup", "ORDER_CREATED", () -> invoked2.set(true));
+
+            assertThat(invoked1).isTrue();
+            assertThat(invoked2).isTrue();
+            verify(executor, never()).execute(any(), any(), any());
+        }
     }
 
-    @Test
-    @DisplayName("이미 처리된 eventId면 processor를 실행하지 않고 false를 반환한다")
-    void tryProcess_duplicateEvent_skipsProcessing() {
-        AtomicBoolean processorInvoked = new AtomicBoolean(false);
-        Runnable processor = () -> processorInvoked.set(true);
+    // -----------------------------------------------------------------------
+    // InternalIdempotentExecutor tests
+    // -----------------------------------------------------------------------
 
-        given(processedEventRepository.existsByEventId("evt-1")).willReturn(true);
+    @Nested
+    @DisplayName("InternalIdempotentExecutor")
+    class ExecutorTests {
 
-        boolean result = enabledHandler().tryProcess("evt-1", "ORDER_CREATED", processor);
+        private InternalIdempotentExecutor executor() {
+            return new InternalIdempotentExecutor(processedEventRepository);
+        }
 
-        assertThat(result).isFalse();
-        assertThat(processorInvoked).isFalse();
-        verify(processedEventRepository, never()).saveAndFlush(any());
-    }
+        @Test
+        @DisplayName("새 이벤트: marker를 먼저 저장한 뒤 processor를 실행한다")
+        void execute_newEvent_savesMarkerThenRunsProcessor() {
+            AtomicBoolean processorInvoked = new AtomicBoolean(false);
+            Runnable processor = () -> processorInvoked.set(true);
 
-    @Test
-    @DisplayName("processor에서 예외 발생 시 ProcessedEvent를 저장하지 않고 예외를 전파한다")
-    void tryProcess_processorThrows_doesNotRecordAsProcessed() {
-        given(processedEventRepository.existsByEventId(any())).willReturn(false);
-        Runnable failingProcessor = () -> { throw new RuntimeException("processing failed"); };
+            given(processedEventRepository.saveAndFlush(any(ProcessedEvent.class)))
+                    .willAnswer(inv -> inv.getArgument(0));
 
-        assertThatThrownBy(() -> enabledHandler().tryProcess("evt-1", "ORDER_CREATED", failingProcessor))
-                .isInstanceOf(RuntimeException.class);
-        verify(processedEventRepository, never()).saveAndFlush(any());
-    }
+            executor().execute("evt-1", "ORDER_CREATED", processor);
 
-    @Test
-    @DisplayName("동시에 같은 이벤트를 처리할 때 DataIntegrityViolationException이 발생해도 true를 반환한다")
-    void tryProcess_concurrentDuplicate_handlesGracefully() {
-        AtomicBoolean processorInvoked = new AtomicBoolean(false);
-        Runnable processor = () -> processorInvoked.set(true);
+            assertThat(processorInvoked).isTrue();
+            verify(processedEventRepository).saveAndFlush(
+                    argThat(e -> e.getEventId().equals("evt-1")
+                            && e.getEventType().equals("ORDER_CREATED")));
+        }
 
-        given(processedEventRepository.existsByEventId("evt-1")).willReturn(false);
-        given(processedEventRepository.saveAndFlush(any()))
-                .willThrow(DataIntegrityViolationException.class);
+        @Test
+        @DisplayName("DB unique constraint 위반 시 DuplicateEventException을 던지고 processor를 실행하지 않는다")
+        void execute_concurrentDuplicate_throwsDuplicateEventExceptionWithoutRunningProcessor() {
+            AtomicBoolean processorInvoked = new AtomicBoolean(false);
+            Runnable processor = () -> processorInvoked.set(true);
 
-        boolean result = enabledHandler().tryProcess("evt-1", "ORDER_CREATED", processor);
+            given(processedEventRepository.saveAndFlush(any()))
+                    .willThrow(DataIntegrityViolationException.class);
 
-        assertThat(result).isTrue();
-        assertThat(processorInvoked).isTrue();
-    }
+            assertThatThrownBy(() -> executor().execute("evt-1", "ORDER_CREATED", processor))
+                    .isInstanceOf(DuplicateEventException.class);
 
-    @Test
-    @DisplayName("idempotency=false 일 때 existsByEventId 체크를 건너뛰고 processor를 항상 실행한다")
-    void tryProcess_idempotencyDisabled_alwaysRunsProcessorAndSkipsRecord() {
-        AtomicBoolean processorInvoked = new AtomicBoolean(false);
-        Runnable processor = () -> processorInvoked.set(true);
+            // Processor must NOT have been invoked — marker failed so we never owned the event
+            assertThat(processorInvoked).isFalse();
+        }
 
-        boolean result = disabledHandler().tryProcess("evt-1", "ORDER_CREATED", processor);
+        @Test
+        @DisplayName("processor 예외 발생 시 marker가 커밋되지 않는다 (atomicity)")
+        void execute_processorThrows_markerNotCommitted() {
+            given(processedEventRepository.saveAndFlush(any(ProcessedEvent.class)))
+                    .willAnswer(inv -> inv.getArgument(0));
 
-        assertThat(result).isTrue();
-        assertThat(processorInvoked).isTrue();
-        verify(processedEventRepository, never()).existsByEventId(any());
-        verify(processedEventRepository, never()).saveAndFlush(any());
-    }
+            Runnable failingProcessor = () -> { throw new RuntimeException("processing failed"); };
 
-    @Test
-    @DisplayName("idempotency=false 일 때 동일 eventId를 여러번 주입하면 processor가 매번 실행된다 (중복 허용)")
-    void tryProcess_idempotencyDisabled_allowsMultipleInvocationsForSameEventId() {
-        AtomicBoolean processorInvoked1 = new AtomicBoolean(false);
-        AtomicBoolean processorInvoked2 = new AtomicBoolean(false);
+            assertThatThrownBy(() -> executor().execute("evt-1", "ORDER_CREATED", failingProcessor))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("processing failed");
 
-        IdempotentEventHandler handler = disabledHandler();
-
-        handler.tryProcess("evt-dup", "ORDER_CREATED", () -> processorInvoked1.set(true));
-        handler.tryProcess("evt-dup", "ORDER_CREATED", () -> processorInvoked2.set(true));
-
-        assertThat(processorInvoked1).isTrue();
-        assertThat(processorInvoked2).isTrue();
-        verify(processedEventRepository, never()).existsByEventId(any());
+            // saveAndFlush was called but the @Transactional method threw, so the tx rolls back.
+            // In this unit test we verify saveAndFlush was called (marker was attempted) and
+            // the exception propagates — the rollback itself is enforced by Spring's tx proxy
+            // which is not active in this unit test.
+            verify(processedEventRepository).saveAndFlush(any());
+        }
     }
 }
