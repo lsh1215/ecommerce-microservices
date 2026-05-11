@@ -35,7 +35,9 @@ export default async function OrderConfirmationPage({ params }: ConfirmationPage
   const deadlineIso = va?.expiresAt ?? order.expiresAt;
   const deadlineLabel = formatDeadline(deadlineIso);
   const isExpired =
-    !!deadlineIso && order.status === 'PENDING' && new Date(deadlineIso).getTime() < Date.now();
+    !!deadlineIso &&
+    order.status === 'PENDING' &&
+    new Date(deadlineIso).getTime() < new Date().getTime();
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 md:px-6">
