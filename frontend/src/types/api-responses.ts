@@ -83,6 +83,14 @@ export interface ShippingAddressResponse {
   address2?: string;
 }
 
+export interface VirtualAccountResponse {
+  bank: string;
+  accountNumber: string;
+  holderName: string;
+  amount: number;
+  expiresAt: string;
+}
+
 export interface OrderResponse {
   id: number;
   orderNumber: string;
@@ -92,6 +100,8 @@ export interface OrderResponse {
   shippingAddress: ShippingAddressResponse;
   memo?: string;
   items: OrderItemResponse[];
+  expiresAt?: string;
+  virtualAccount?: VirtualAccountResponse | null;
   createdAt: string;
   updatedAt: string;
 }

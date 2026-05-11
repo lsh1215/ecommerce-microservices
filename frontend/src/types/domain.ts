@@ -83,6 +83,14 @@ export interface OrderItem {
   totalPrice: number;
 }
 
+export interface VirtualAccount {
+  bank: string;
+  accountNumber: string;
+  holderName: string;
+  amount: number;
+  expiresAt: string;
+}
+
 export interface Order {
   id: string;
   orderNumber: string;
@@ -90,6 +98,8 @@ export interface Order {
   items: OrderItem[];
   shippingAddress: ShippingAddress;
   totalAmount: number;
+  expiresAt?: string;
+  virtualAccount?: VirtualAccount;
   createdAt: string;
   updatedAt: string;
 }
