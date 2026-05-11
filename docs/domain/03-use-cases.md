@@ -87,12 +87,12 @@
   1. 고객이 주문 항목(variantId, 수량), 배송지, 메모를 입력한다.
   2. 시스템이 Customer Context에 고객 존재 여부를 검증한다.
   3. 시스템이 Product Context에 각 항목의 재고를 예약한다.
-  4. 시스템이 Order를 생성한다 (상태: PENDING).
+  4. 시스템이 Order를 생성한다 (상태: PENDING, expiresAt = now + 7d, 가상계좌 입금 안내 발급).
   5. `order.created` 이벤트를 Kafka로 발행한다.
 - **대안 흐름**:
   - 고객이 존재하지 않으면 CUSTOMER_NOT_FOUND 오류를 반환한다.
   - 재고 예약 실패 시 이미 예약된 재고를 해제하고 INSUFFICIENT_STOCK 오류를 반환한다.
-- **결과**: 생성된 Order (상태 PENDING, 결제 대기)
+- **결과**: 생성된 Order (상태 PENDING, 입금 대기). 응답에 가상계좌(은행/계좌번호/금액/입금기한) inline 포함.
 
 ### UC-O2: 주문 상세 조회
 
@@ -128,12 +128,12 @@
 
 ### UC-PM1: 결제 처리
 
-- **Actor**: 시스템 (Kafka consumer) 또는 API 호출
+- **Actor**: 시스템 (Kafka consumer)
 - **선행 조건**: 해당 Order가 존재
 - **주요 흐름**:
-  1. `order.created` 이벤트를 수신하거나, API로 결제 요청을 받는다.
+  1. `order.created` 이벤트를 수신한다.
   2. Payment를 생성한다 (상태: PENDING).
-  3. 결제를 처리한다 (stub: 시뮬레이션).
+  3. 가상계좌 입금 처리를 시뮬레이션한다 (실제 은행 webhook 연동 없음 — Payment 서비스 내부 로직으로 성공/실패 결정).
   4. 성공 시 상태를 COMPLETED로 변경하고 `payment.completed` 이벤트를 발행한다.
 - **대안 흐름**:
   - 결제 실패 시 상태를 FAILED로 변경하고 `payment.failed` 이벤트를 발행한다.
@@ -153,7 +153,7 @@
 - **선행 조건**: 해당 Order에 대한 Payment가 존재
 - **주요 흐름**:
   1. orderId로 결제 정보를 조회한다.
-  2. 결제 상태, 금액, 결제 수단, 거래 ID를 반환한다.
+  2. 결제 상태, 금액, 거래 ID를 반환한다.
 
 ---
 
