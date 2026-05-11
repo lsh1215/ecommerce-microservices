@@ -84,7 +84,7 @@ Payment (Aggregate Root, 단일 Entity)
 
 - **Root**: `Payment`
 - **불변식**:
-  - Payment.orderId와 PaymentMethod 조합은 하나의 활성 결제만 가질 수 있다.
+  - Payment.orderId 당 활성 결제(COMPLETED 가 아닌 결제)는 최대 1건이다. (단일 결제수단 — 가상계좌 — 시나리오)
   - Payment.amount는 0보다 커야 한다.
   - PaymentStatus 전이는 허용된 경로만 가능하다:
     - PENDING → COMPLETED
