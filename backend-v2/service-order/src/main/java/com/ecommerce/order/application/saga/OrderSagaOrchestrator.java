@@ -16,6 +16,7 @@ import com.ecommerce.order.domain.model.VariantSnapshot;
 import com.ecommerce.order.domain.repository.OrderRepository;
 import com.ecommerce.order.domain.repository.SagaInstanceRepository;
 import com.ecommerce.order.domain.service.ProductCatalogPort;
+import com.ecommerce.order.domain.service.VirtualAccountIssuer;
 import com.github.f4b6a3.ulid.UlidCreator;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ public class OrderSagaOrchestrator {
     private final SagaInstanceRepository sagaRepository;
     private final ProductCatalogPort productCatalog;
     private final ApplicationEventPublisher eventPublisher;
+    private final VirtualAccountIssuer virtualAccountIssuer;
 
     /**
      * SAGA 시작: 주문 생성 -> 재고 예약(동기) -> 이벤트 발행(비동기 결제 트리거).
@@ -76,6 +78,8 @@ public class OrderSagaOrchestrator {
             releaseAllStock(reservations);
             throw e;
         }
+
+        order.assignVirtualAccount(virtualAccountIssuer);
 
         orderRepository.save(order);
 

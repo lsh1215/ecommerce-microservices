@@ -6,6 +6,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.order.OrderErrorCode;
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
 class OrderTest {
@@ -138,5 +140,18 @@ class OrderTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.DELIVERED);
         assertThat(order.getTotalAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
+    }
+
+    @Test
+    void create_setsExpiresAtToNowPlusDefaultDuration() {
+        LocalDateTime before = LocalDateTime.now();
+        Order order = Order.create(1L, "ORDER-001", defaultAddress(), null);
+        LocalDateTime after = LocalDateTime.now();
+
+        LocalDateTime lowerBound = before.plus(Order.DEFAULT_EXPIRATION_DURATION);
+        LocalDateTime upperBound = after.plus(Order.DEFAULT_EXPIRATION_DURATION);
+
+        assertThat(order.getExpiresAt()).isBetween(lowerBound, upperBound);
+        assertThat(Order.DEFAULT_EXPIRATION_DURATION).isEqualTo(Duration.ofDays(7));
     }
 }
