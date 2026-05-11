@@ -27,10 +27,13 @@ import com.ecommerce.order.domain.model.SagaInstance;
 import com.ecommerce.order.domain.model.SagaState;
 import com.ecommerce.order.domain.model.ShippingAddress;
 import com.ecommerce.order.domain.model.VariantSnapshot;
+import com.ecommerce.order.domain.model.VirtualAccountInstruction;
 import com.ecommerce.order.domain.repository.OrderRepository;
 import com.ecommerce.order.domain.repository.SagaInstanceRepository;
 import com.ecommerce.order.domain.service.ProductCatalogPort;
+import com.ecommerce.order.domain.service.VirtualAccountIssuer;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -57,6 +60,9 @@ class OrderSagaOrchestratorTest {
     @Mock
     ApplicationEventPublisher eventPublisher;
 
+    @Mock
+    VirtualAccountIssuer virtualAccountIssuer;
+
     @InjectMocks
     OrderSagaOrchestrator orchestrator;
 
@@ -70,6 +76,7 @@ class OrderSagaOrchestratorTest {
         willDoNothing().given(productCatalog).reserveStock(anyLong(), anyInt());
         given(orderRepository.save(any(Order.class))).willAnswer(inv -> inv.getArgument(0));
         given(sagaRepository.save(any(SagaInstance.class))).willAnswer(inv -> inv.getArgument(0));
+        given(virtualAccountIssuer.issue(any(), any(), any())).willReturn(stubInstruction());
 
         // When
         Order result = orchestrator.startSaga(validCommand());
@@ -167,6 +174,11 @@ class OrderSagaOrchestratorTest {
     private OrderItemCommand itemCommand(Long variantId, int qty) {
         return new OrderItemCommand(variantId, variantId, "Test Product", "M", "White",
                 BigDecimal.valueOf(50000), qty);
+    }
+
+    private VirtualAccountInstruction stubInstruction() {
+        return new VirtualAccountInstruction("KB", "12345678901234", "ECOMMERCE STORE",
+                BigDecimal.valueOf(50000), LocalDateTime.now().plusDays(7));
     }
 
     private ProductSnapshotDto snapshotDto(Long variantId) {
