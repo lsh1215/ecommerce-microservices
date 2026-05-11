@@ -13,14 +13,6 @@ import { useToastStore } from '@/stores/toast-store';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { OrderAPI } from '@/features/orders/api/order-api';
 
-type PaymentMethod = 'CARD' | 'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT';
-
-const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
-  { value: 'CARD', label: 'Credit / Debit Card' },
-  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
-  { value: 'VIRTUAL_ACCOUNT', label: 'Virtual Account' },
-];
-
 const FREE_SHIPPING_THRESHOLD = 50000;
 
 export default function CheckoutPage() {
@@ -30,7 +22,6 @@ export default function CheckoutPage() {
   const user = useAuthStore((s) => s.user);
   const addToast = useToastStore((s) => s.addToast);
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CARD');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState({
@@ -235,27 +226,12 @@ export default function CheckoutPage() {
 
           <section className="border-t border-border pt-8">
             <h2 className="text-lg font-bold text-foreground">Payment Method</h2>
-            <div className="mt-4 space-y-3">
-              {PAYMENT_METHODS.map((method) => (
-                <label
-                  key={method.value}
-                  className={`flex cursor-pointer items-center gap-3 rounded-md border p-4 transition-colors ${
-                    paymentMethod === method.value
-                      ? 'border-primary bg-primary-light'
-                      : 'border-border hover:border-muted-foreground'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="payment"
-                    value={method.value}
-                    checked={paymentMethod === method.value}
-                    onChange={() => setPaymentMethod(method.value)}
-                    className="accent-primary"
-                  />
-                  <span className="text-sm font-medium text-foreground">{method.label}</span>
-                </label>
-              ))}
+            <div className="mt-4 rounded-md border border-primary/40 bg-primary/5 p-4">
+              <p className="text-sm font-medium text-foreground">Virtual Account (Bank Deposit)</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                A virtual account will be issued after you submit the order. Transfer the exact
+                amount before the deposit deadline to confirm your order.
+              </p>
             </div>
           </section>
 
@@ -271,7 +247,7 @@ export default function CheckoutPage() {
                   Processing...
                 </>
               ) : (
-                `Place Order — ${formatKRW(total)}`
+                `Issue Virtual Account — ${formatKRW(total)}`
               )}
             </button>
           </div>
