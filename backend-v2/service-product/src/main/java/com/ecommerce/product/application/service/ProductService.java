@@ -79,32 +79,47 @@ public class ProductService {
         productRepository.delete(product);
     }
 
-    /** 서비스 간 스냅샷 제공을 위해 부모 상품 정보를 포함한 Variant를 조회한다. */
+    /** Loads a variant with parent product data for inter-service snapshots. */
     public ProductVariant getVariantDetail(Long variantId) {
         return productVariantRepository.findWithProductAndBrandById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 
     /**
-     * 비관적 락을 사용하여 Variant의 재고를 예약한다.
-     * 주문 생성 시 초과 판매 방지를 위해 호출된다.
+     * Reserves variant stock with one guarded UPDATE statement.
      */
     @Transactional
     public ProductVariant reserveStock(Long variantId, int quantity) {
-        ProductVariant variant = productVariantRepository.findWithLockById(variantId)
+        if (quantity <= 0) {
+            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
+                    "Reserve quantity must be positive");
+        }
+        int affected = productVariantRepository.decreaseStock(variantId, quantity);
+        if (affected == 0) {
+            ProductVariant variant = productVariantRepository.findById(variantId)
+                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
+                    String.format("Requested %d but only %d available",
+                            quantity, variant.getStockQuantity()));
+        }
+        return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-        variant.reserveStock(quantity);
-        return variant;
     }
 
     /**
-     * 이전에 예약된 재고를 해제한다 (주문 실패 시 보상 처리).
+     * Releases previously reserved stock for order compensation.
      */
     @Transactional
     public ProductVariant releaseStock(Long variantId, int quantity) {
-        ProductVariant variant = productVariantRepository.findWithLockById(variantId)
+        if (quantity <= 0) {
+            throw new BusinessException(ProductErrorCode.INVALID_VARIANT_OPERATION,
+                    "Release quantity must be positive");
+        }
+        int affected = productVariantRepository.increaseStock(variantId, quantity);
+        if (affected == 0) {
+            throw new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND);
+        }
+        return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-        variant.releaseStock(quantity);
-        return variant;
     }
 }
