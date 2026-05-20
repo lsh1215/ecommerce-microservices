@@ -38,7 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * 1. 정상 응답이 반복되면 CLOSED 상태 유지
  * 2. 연속 5xx 실패 시 OPEN으로 전이
  * 3. OPEN 상태에서는 fallback이 즉시 실행됨 (fast-fail)
- * 4. releaseStock의 fallback은 예외를 삼켜 보상 트랜잭션을 막지 않음
+ * 4. releaseStock의 fallback은 보상 재시도 판단을 위해 예외를 전파
  */
 class ProductCatalogRestClientCircuitBreakerTest {
 
@@ -132,6 +132,38 @@ class ProductCatalogRestClientCircuitBreakerTest {
     }
 
     @Test
+    @DisplayName("existsVariant는 4xx 응답을 false로 반환하고 Circuit Breaker 실패로 기록하지 않는다")
+    void existsVariant_clientError_returnsFalseAndKeepsCircuitClosed() {
+        // Given
+        stubFactory.respondWith(HttpStatus.NOT_FOUND, "{\"success\":false}");
+
+        // When
+        for (int i = 0; i < 5; i++) {
+            assertThat(proxiedClient.existsVariant(404L)).isFalse();
+        }
+
+        // Then
+        assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
+    @DisplayName("재고 부족 같은 4xx 비즈니스 실패는 Circuit Breaker를 OPEN시키지 않는다")
+    void reserveStock_clientError_doesNotOpenCircuit() {
+        // Given
+        stubFactory.respondWith(HttpStatus.BAD_REQUEST, "{\"success\":false}");
+
+        // When
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> proxiedClient.reserveStock(1L, 1))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.STOCK_RESERVATION_FAILED);
+        }
+
+        // Then
+        assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
     @DisplayName("Circuit이 OPEN이면 실제 HTTP 호출 없이 fallback이 즉시 실행된다 (fast-fail)")
     void openCircuit_invokesFallbackImmediately_noHttpCall() {
         // Given: CB를 강제로 OPEN 상태로 전환
@@ -161,14 +193,15 @@ class ProductCatalogRestClientCircuitBreakerTest {
     }
 
     @Test
-    @DisplayName("OPEN 상태의 releaseStock은 fallback에서 예외를 삼켜 보상 트랜잭션을 방해하지 않는다")
-    void openCircuit_releaseStock_swallowsException() {
+    @DisplayName("OPEN 상태의 releaseStock은 보상 재시도 판단을 위해 PRODUCT_SERVICE_UNAVAILABLE을 전파한다")
+    void openCircuit_releaseStock_throwsServiceUnavailable() {
         // Given
         circuitBreaker.transitionToOpenState();
 
-        // When & Then: 예외 없이 정상 반환되어야 함
-        proxiedClient.releaseStock(1L, 1);
-        // 예외가 발생하면 테스트 실패 — 보상 트랜잭션 안정성 보장
+        // When & Then
+        assertThatThrownBy(() -> proxiedClient.releaseStock(1L, 1))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE);
     }
 
     // === Test helpers ===
