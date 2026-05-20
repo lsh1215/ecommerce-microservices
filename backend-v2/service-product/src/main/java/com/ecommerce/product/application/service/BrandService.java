@@ -18,13 +18,9 @@ public class BrandService {
 
     private final BrandRepository brandRepository;
 
-    /**
-     * 새로운 헤리티지 웨어 브랜드를 등록한다.
-     * 애플리케이션 레벨에서 브랜드명 중복 제약을 강제한다.
-     */
+    /** Creates a brand after checking name uniqueness at the application boundary. */
     @Transactional
     public Brand createBrand(CreateBrandCommand command) {
-        // 가드: 브랜드명 중복 방지
         if (brandRepository.existsByName(command.name())) {
             throw new BusinessException(ProductErrorCode.DUPLICATE_BRAND);
         }

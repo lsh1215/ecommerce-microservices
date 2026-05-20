@@ -28,10 +28,7 @@ public class ProductService {
     private final ProductQueryRepository productQueryRepository;
     private final BrandRepository brandRepository;
 
-    /**
-     * 지정한 브랜드 하위에 신규 상품을 생성한다.
-     * 생성 전 브랜드 존재 여부를 검증한다.
-     */
+    /** Creates a product under an existing brand. */
     @Transactional
     public Product createProduct(CreateProductCommand command) {
         Brand brand = brandRepository.findById(command.brandId())
@@ -41,9 +38,7 @@ public class ProductService {
         return productRepository.save(product);
     }
 
-    /**
-     * 상품 정보를 수정하고, 필요 시 상품 상태를 전이한다.
-     */
+    /** Updates product details and applies a requested status transition. */
     @Transactional
     public Product updateProduct(Long id, UpdateProductCommand command) {
         Product product = findProduct(id);

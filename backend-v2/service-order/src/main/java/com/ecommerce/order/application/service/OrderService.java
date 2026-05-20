@@ -22,10 +22,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderSagaOrchestrator sagaOrchestrator;
 
-    /**
-     * 주문 생성 - SAGA Orchestrator에 위임.
-     * Phase 0의 동기 try-catch 보상을 이벤트 기반 SAGA로 교체.
-     */
+    /** Delegates order creation to the saga orchestrator. */
     @Transactional
     public Order createOrder(CreateOrderCommand command) {
         return sagaOrchestrator.startSaga(command);
@@ -47,7 +44,7 @@ public class OrderService {
         return order;
     }
 
-    /** 주문을 PAID 상태로 전이한다 (Payment 서비스 콜백 시 호출). */
+    /** Marks an order as paid. */
     @Transactional
     public Order markPaid(Long id) {
         Order order = getOrder(id);
@@ -55,7 +52,7 @@ public class OrderService {
         return order;
     }
 
-    /** 주문을 CONFIRMED 상태로 전이한다 (결제 검증 후 호출). */
+    /** Marks an order as confirmed. */
     @Transactional
     public Order markConfirmed(Long id) {
         Order order = getOrder(id);

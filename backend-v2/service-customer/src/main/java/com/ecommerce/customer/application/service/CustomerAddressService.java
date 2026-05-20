@@ -25,16 +25,12 @@ public class CustomerAddressService {
         return customerAddressRepository.findByCustomerId(customerId);
     }
 
-    /**
-     * 고객의 새로운 배송지를 추가한다.
-     * 기본 배송지로 지정된 경우, 기존 기본 배송지를 먼저 해제한다.
-     */
+    /** Adds an address and keeps at most one default address for the customer. */
     @Transactional
     public CustomerAddress addAddress(Long customerId, CreateAddressCommand command) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new BusinessException(CustomerErrorCode.CUSTOMER_NOT_FOUND));
 
-        // 고객당 기본 배송지는 하나만 허용
         if (command.isDefault()) {
             customerAddressRepository.findByCustomerIdAndIsDefaultTrue(customerId)
                     .ifPresent(CustomerAddress::unmarkDefault);
@@ -66,10 +62,7 @@ public class CustomerAddressService {
         customerAddressRepository.delete(address);
     }
 
-    /**
-     * 특정 배송지를 고객의 기본 배송지로 설정한다.
-     * 기존 기본 배송지를 해제한 후 새로운 배송지를 기본으로 지정한다.
-     */
+    /** Marks one customer address as default after clearing the previous default. */
     @Transactional
     public void setDefault(Long customerId, Long addressId) {
         CustomerAddress address = customerAddressRepository.findById(addressId)

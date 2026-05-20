@@ -38,18 +38,13 @@ public class PaymentService {
         this.businessGuardEnabled = businessGuardEnabled;
     }
 
-    /**
-     * 주어진 주문에 대한 결제를 처리한다.
-     * Payment를 PENDING 상태로 생성하고, 스텁 프로세서를 실행한 뒤 COMPLETED 또는 FAILED로 전이한다.
-     */
+    /** Processes a payment command and records the stub processor outcome. */
     @Transactional
     public Payment process(ProcessPaymentCommand command) {
-        // 가드: 동일 주문에 대한 중복 결제 방지
         if (paymentRepository.existsByOrderIdAndStatus(command.orderId(), PaymentStatus.COMPLETED)) {
             throw new BusinessException(PaymentErrorCode.DUPLICATE_PAYMENT);
         }
 
-        // PENDING 상태로 Payment 생성
         Payment payment = Payment.create(
                 command.orderId(),
                 command.orderNumber(),
@@ -58,10 +53,8 @@ public class PaymentService {
         );
         paymentRepository.save(payment);
 
-        // 외부 PG사 연동을 가상으로 대체 (90% 성공, 10% 실패 시뮬레이션)
         PaymentStubProcessor.Result result = stubProcessor.attempt(command.amount());
 
-        // 프로세서 결과에 따라 상태 전이
         if (result.success()) {
             payment.markCompleted(result.transactionId());
         } else {
@@ -71,10 +64,7 @@ public class PaymentService {
         return payment;
     }
 
-    /**
-     * 완료된 결제를 환불 처리한다.
-     * 제공된 사유와 관계없이 Payment를 REFUNDED 상태로 전이한다.
-     */
+    /** Refunds a completed payment. */
     @Transactional
     public Payment refund(Long paymentId, RefundPaymentCommand command) {
         Payment payment = paymentRepository.findById(paymentId)
@@ -95,15 +85,9 @@ public class PaymentService {
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
     }
 
-    /**
-     * Kafka 이벤트를 통해 비동기로 결제를 처리한다.
-     * order.created 이벤트를 수신한 OrderEventConsumer가 호출.
-     */
+    /** Processes an order-created event from Kafka. */
     @Transactional
     public void processFromEvent(Long orderId, String orderNumber, BigDecimal amount) {
-        // 비즈니스 멱등성 가드: 이미 완료된 결제가 있으면 중복 생성 방지.
-        // application.business-idempotency-guard.enabled=false 일 때 건너뛴다
-        // (Phase 3 Before evidence harness 전용 — 운영에서는 사용 금지).
         if (businessGuardEnabled) {
             if (paymentRepository.existsByOrderIdAndStatus(orderId, PaymentStatus.COMPLETED)) {
                 log.info("이미 완료된 결제 무시: orderId={}", orderId);
@@ -116,7 +100,6 @@ public class PaymentService {
         Payment payment = Payment.create(orderId, orderNumber, amount, PaymentMethod.CARD);
         paymentRepository.save(payment);
 
-        // 외부 PG사 연동을 가상으로 대체 (90% 성공, 10% 실패 시뮬레이션)
         PaymentStubProcessor.Result result = stubProcessor.attempt(amount);
 
         if (result.success()) {
@@ -130,10 +113,7 @@ public class PaymentService {
         }
     }
 
-    /**
-     * 주문 취소 이벤트 수신 시 결제를 취소하거나 환불 처리한다.
-     * COMPLETED 상태면 환불, PENDING 상태면 실패 처리.
-     */
+    /** Applies payment cancellation or refund after an order-cancelled event. */
     @Transactional
     public void cancelFromEvent(Long orderId) {
         Optional<Payment> optionalPayment = paymentRepository.findByOrderId(orderId);

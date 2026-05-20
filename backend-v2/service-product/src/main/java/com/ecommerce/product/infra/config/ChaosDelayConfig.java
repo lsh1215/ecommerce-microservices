@@ -12,12 +12,9 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Chaos Engineering 지연 주입 설정 (Phase 4 테스트 전용).
+ * Injects artificial delay into Product internal endpoints when explicitly enabled.
  *
- * <p>`app.chaos.enabled=true` 이면 Internal 엔드포인트(/api/internal/products/**)에
- * 인위적 지연을 추가한다. Circuit Breaker의 slow call detection을 검증하기 위함.
- *
- * <p>운영에서는 절대 활성화하지 않음.
+ * <p>This is intended for local or controlled resilience testing only.
  */
 @Configuration
 @ConditionalOnProperty(name = "app.chaos.enabled", havingValue = "true")

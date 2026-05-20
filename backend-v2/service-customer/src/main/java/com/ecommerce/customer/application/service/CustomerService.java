@@ -19,14 +19,10 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
 
-    /**
-     * 새로운 고객 계정을 등록한다.
-     * 저장 전 이메일 중복 여부를 검증한다.
-     */
+    /** Registers a customer after checking email uniqueness. */
     @Transactional
     public Customer register(RegisterCustomerCommand command) {
         Email email = new Email(command.email());
-        // 가드: 이메일 중복 등록 방지
         if (customerRepository.existsByEmail(email)) {
             throw new BusinessException(CustomerErrorCode.DUPLICATE_EMAIL);
         }
@@ -34,10 +30,7 @@ public class CustomerService {
         return customerRepository.save(customer);
     }
 
-    /**
-     * 이메일과 비밀번호로 고객을 인증한다.
-     * 성공 시 Customer 엔티티를 반환하고, 자격 증명이 유효하지 않으면 예외를 발생시킨다.
-     */
+    /** Authenticates a customer by email and password. */
     public Customer login(LoginCommand command) {
         Email email = new Email(command.email());
         Customer customer = customerRepository.findByEmail(email)

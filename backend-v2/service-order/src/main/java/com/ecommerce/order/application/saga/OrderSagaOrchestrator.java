@@ -38,17 +38,11 @@ public class OrderSagaOrchestrator {
     private final ApplicationEventPublisher eventPublisher;
     private final VirtualAccountIssuer virtualAccountIssuer;
 
-    /**
-     * SAGA 시작: 주문 생성 -> 재고 예약(동기) -> 이벤트 발행(비동기 결제 트리거).
-     * Payment 서비스가 다운이어도 주문은 PENDING으로 생성됨.
-     */
+    /** Starts order creation, stock reservation, and asynchronous payment request publishing. */
     @Transactional
     public Order startSaga(CreateOrderCommand command) {
-        // 고객 검증은 Traefik forwardAuth middleware가 service-customer로
-        // 위임하여 ingress 단계에서 끝남. 여기서는 X-Customer-Id 헤더로
-        // 전달된 customerId를 trust하고 곧장 주문 Aggregate 생성으로 진입.
+        // Customer identity has already been validated by the ingress forward-auth layer.
 
-        // 주문 Aggregate 생성
         Order order = Order.create(
                 command.customerId(),
                 generateOrderNumber(),
@@ -56,7 +50,6 @@ public class OrderSagaOrchestrator {
                 command.memo()
         );
 
-        // 3단계: 재고 예약 (동기 - Product 서비스, 즉시 일관성 필요)
         List<StockReservation> reservations = new ArrayList<>();
         try {
             for (OrderItemCommand item : command.items()) {
@@ -83,12 +76,9 @@ public class OrderSagaOrchestrator {
 
         orderRepository.save(order);
 
-        // 4단계: SAGA 인스턴스 생성
         SagaInstance saga = SagaInstance.create(order.getId(), order.getOrderNumber());
         sagaRepository.save(saga);
 
-        // 5단계: 결제 요청 이벤트 발행 (비동기 - Kafka)
-        // Payment 서비스가 다운이어도 Kafka에 메시지가 쌓여서 복구 시 처리됨
         eventPublisher.publishEvent(new OrderCreatedEvent(
                 order.getId(), order.getOrderNumber(),
                 command.customerId(), order.getTotalAmount()));
@@ -96,12 +86,9 @@ public class OrderSagaOrchestrator {
         saga.moveToPaymentProcessing();
 
         return order;
-        // 주문은 PENDING 상태로 즉시 반환. 결제는 비동기로 처리됨.
     }
 
-    /**
-     * 결제 완료 이벤트 수신 -> 주문 상태를 CONFIRMED -> PAID로 전이.
-     */
+    /** Handles a completed payment event and advances the order and saga state. */
     @Transactional
     public void handlePaymentCompleted(String orderNumber, Long orderId, Long paymentId,
                                        String transactionId, BigDecimal amount) {
@@ -110,7 +97,6 @@ public class OrderSagaOrchestrator {
         Order order = orderRepository.findById(saga.getOrderId())
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
 
-        // FSM: PENDING -> CONFIRMED -> PAID (두 단계를 한 트랜잭션에서 실행)
         order.markConfirmed();
         order.markPaid();
         saga.moveToCompleted();
@@ -119,9 +105,7 @@ public class OrderSagaOrchestrator {
                 orderNumber, paymentId, transactionId);
     }
 
-    /**
-     * 결제 실패 이벤트 수신 -> 주문 취소 + 재고 해제 (보상 트랜잭션).
-     */
+    /** Handles a failed payment event with order cancellation and stock release compensation. */
     @Transactional
     public void handlePaymentFailed(String orderNumber, Long orderId, String reason) {
         SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
@@ -131,10 +115,8 @@ public class OrderSagaOrchestrator {
 
         saga.moveToCompensating();
 
-        // 보상: 주문 취소
         order.cancel();
 
-        // 보상: 예약된 재고 해제 (동기 - Product 서비스)
         for (OrderItem item : order.getItems()) {
             try {
                 productCatalog.releaseStock(

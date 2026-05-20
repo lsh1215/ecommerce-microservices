@@ -31,7 +31,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>References:
  * <ul>
- *   <li><a href="https://ridicorp.com/story/transactional-outbox-pattern-ridi/">리디 — Transactional Outbox 패턴</a> (PENDING row count + lag = 2 monitored signals)</li>
+ *   <li><a href="https://ridicorp.com/story/transactional-outbox-pattern-ridi/">RIDI transactional outbox write-up</a> (PENDING row count + lag = 2 monitored signals)</li>
  *   <li><a href="https://docs.spring.io/spring-kafka/reference/appendix/micrometer.html">Spring Kafka Micrometer Observation</a> (observation supersedes manual Timer)</li>
  * </ul>
  */
