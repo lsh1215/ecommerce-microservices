@@ -40,11 +40,7 @@ class PaymentServiceTest {
 
     @BeforeEach
     void setUp() {
-        paymentService = new PaymentService(paymentRepository, stubProcessor, eventPublisher, true);
-    }
-
-    private PaymentService withGuard(boolean enabled) {
-        return new PaymentService(paymentRepository, stubProcessor, eventPublisher, enabled);
+        paymentService = new PaymentService(paymentRepository, stubProcessor, eventPublisher);
     }
 
     // --- processFromEvent tests ---
@@ -52,9 +48,8 @@ class PaymentServiceTest {
     @Test
     @DisplayName("PG 결제 성공 시 Payment를 COMPLETED로 저장하고 PaymentCompletedEvent를 발행한다")
     void processFromEvent_success_completesPaymentAndPublishesEvent() {
-        // Given — PG 스텁이 성공을 반환하고 저장소는 아직 처리된 결제가 없음
-        given(paymentRepository.existsByOrderIdAndStatus(1L, PaymentStatus.COMPLETED)).willReturn(false);
-        given(paymentRepository.save(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
+        given(paymentRepository.findByOrderId(1L)).willReturn(Optional.empty());
+        given(paymentRepository.saveAndFlush(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
         given(stubProcessor.attempt(any())).willReturn(new PaymentStubProcessor.Result(true, "TXN-001"));
 
         // When
@@ -62,7 +57,7 @@ class PaymentServiceTest {
 
         // Then — Payment가 COMPLETED 상태로 저장되고 완료 이벤트가 발행됨
         ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
-        verify(paymentRepository).save(paymentCaptor.capture());
+        verify(paymentRepository).saveAndFlush(paymentCaptor.capture());
         assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.COMPLETED);
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
@@ -77,9 +72,8 @@ class PaymentServiceTest {
     @Test
     @DisplayName("PG 결제 실패 시 Payment를 FAILED로 저장하고 PaymentFailedEvent를 발행한다")
     void processFromEvent_failure_failsPaymentAndPublishesEvent() {
-        // Given — PG 스텁이 실패를 반환함
-        given(paymentRepository.existsByOrderIdAndStatus(1L, PaymentStatus.COMPLETED)).willReturn(false);
-        given(paymentRepository.save(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
+        given(paymentRepository.findByOrderId(1L)).willReturn(Optional.empty());
+        given(paymentRepository.saveAndFlush(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
         given(stubProcessor.attempt(any())).willReturn(new PaymentStubProcessor.Result(false, null));
 
         // When
@@ -87,7 +81,7 @@ class PaymentServiceTest {
 
         // Then — Payment가 FAILED 상태로 저장되고 실패 이벤트가 발행됨
         ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
-        verify(paymentRepository).save(paymentCaptor.capture());
+        verify(paymentRepository).saveAndFlush(paymentCaptor.capture());
         assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
 
         ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
@@ -96,16 +90,14 @@ class PaymentServiceTest {
     }
 
     @Test
-    @DisplayName("이미 COMPLETED 결제가 존재하는 주문이면 처리를 건너뛴다")
+    @DisplayName("이미 결제가 존재하는 주문이면 상태와 관계없이 처리를 건너뛴다")
     void processFromEvent_duplicateOrder_skips() {
-        // Given — 이미 완료된 결제가 있는 주문
-        given(paymentRepository.existsByOrderIdAndStatus(1L, PaymentStatus.COMPLETED)).willReturn(true);
+        Payment payment = Payment.create(1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD);
+        given(paymentRepository.findByOrderId(1L)).willReturn(Optional.of(payment));
 
-        // When
         paymentService.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
 
-        // Then — 저장, PG 호출, 이벤트 발행 모두 없음
-        verify(paymentRepository, never()).save(any());
+        verify(paymentRepository, never()).saveAndFlush(any());
         verify(stubProcessor, never()).attempt(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
@@ -151,32 +143,17 @@ class PaymentServiceTest {
         assertThatCode(() -> paymentService.cancelFromEvent(1L)).doesNotThrowAnyException();
     }
 
-    // --- business-idempotency-guard toggle tests ---
-
     @Test
-    @DisplayName("businessGuard=false 일 때 existsByOrderIdAndStatus 체크 없이 항상 Payment를 생성한다")
-    void processFromEvent_guardDisabled_skipsCompletedCheckAndAlwaysProcesses() {
-        given(paymentRepository.save(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
-        given(stubProcessor.attempt(any())).willReturn(new PaymentStubProcessor.Result(true, "TXN-001"));
+    @DisplayName("동일 orderId 결제는 동기 API에서도 중복 결제로 거절한다")
+    void process_existingOrder_throwsDuplicatePayment() {
+        Payment payment = Payment.create(1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD);
+        given(paymentRepository.findByOrderId(1L)).willReturn(Optional.of(payment));
 
-        PaymentService disabled = withGuard(false);
-        disabled.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
+        assertThatCode(() -> paymentService.process(new com.ecommerce.payment.application.dto.ProcessPaymentCommand(
+                1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD)))
+                .isInstanceOf(com.ecommerce.common.exception.BusinessException.class);
 
-        verify(paymentRepository, never()).existsByOrderIdAndStatus(any(), any());
-        verify(paymentRepository).save(any(Payment.class));
-    }
-
-    @Test
-    @DisplayName("businessGuard=false 일 때 같은 orderId에 대해 processFromEvent를 두 번 호출하면 Payment가 두 번 저장된다")
-    void processFromEvent_guardDisabled_allowsDuplicatePaymentCreation() {
-        given(paymentRepository.save(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
-        given(stubProcessor.attempt(any())).willReturn(new PaymentStubProcessor.Result(true, "TXN-001"));
-
-        PaymentService disabled = withGuard(false);
-        disabled.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
-        disabled.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
-
-        verify(paymentRepository, never()).existsByOrderIdAndStatus(any(), any());
-        verify(paymentRepository, org.mockito.Mockito.times(2)).save(any(Payment.class));
+        verify(paymentRepository, never()).saveAndFlush(any());
+        verify(stubProcessor, never()).attempt(any());
     }
 }
