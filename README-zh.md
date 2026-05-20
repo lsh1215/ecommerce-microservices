@@ -171,11 +171,10 @@ open http://localhost:8081/swagger-ui.html
 ### Kubernetes 部署
 
 ```bash
-# 应用 namespace、基础设施、服务与 ingress
-./scripts/k8s-deploy.sh
-
-# 卸载
-./scripts/k8s-teardown.sh
+kubectl apply -f k8s/namespace.yml
+kubectl apply -f k8s/base/
+kubectl apply -f k8s/services/
+kubectl apply -f k8s/ingress/
 ```
 
 清单使用 `k8s` profile，通过集群内部 DNS 解析 MySQL/Kafka，并收紧 CORS 与 `ddl-auto` 配置。

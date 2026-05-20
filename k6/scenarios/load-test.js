@@ -2,12 +2,16 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
 
-// Phase 5 — Load Test (Normal Traffic)
-// 목적: 일반적인 운영 트래픽 수준(50 VUs)에서 시스템이 안정적으로 동작하는지 검증.
-// Ramp-up 1분 → 3분 유지 → 30초 Ramp-down.
-// 트래픽 혼합: 60% 브라우징, 20% 주문 생성, 10% 주문 조회, 10% 결제 조회.
+// 서비스 수준의 일반 트래픽 mix를 확인하는 load test.
 //
-// 통과 기준: p99 < 2s, 에러율 < 1%.
+// smoke test 통과 후, stress/breakpoint 시나리오 전에 실행한다.
+// read 비중을 높게 두되 Order -> Product -> Payment 경로가 계속 실행될 만큼 주문 생성도 포함한다.
+//
+// Traffic mix:
+// - 60% Product browsing
+// - 20% Order creation
+// - 10% Order health
+// - 10% Payment health
 
 const PRODUCT_API = __ENV.PRODUCT_API || 'http://localhost:8081';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
@@ -15,7 +19,7 @@ const PAYMENT_API = __ENV.PAYMENT_API || 'http://localhost:8083';
 const CUSTOMER_ID = __ENV.CUSTOMER_ID || 14;
 const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxNCJ9.sig'}`;
 
-// 경로별 p99/처리량 분리 측정
+// catalog latency와 order creation latency를 분리해서 보기 위한 endpoint별 Trend다.
 const browseDuration = new Trend('browse_duration', true);
 const orderCreateDuration = new Trend('order_create_duration', true);
 
@@ -44,7 +48,7 @@ export default function () {
   const rand = Math.random();
 
   if (rand < 0.6) {
-    // 60%: 상품 브라우징 (카탈로그 + 상세)
+    // Browsing branch: 목록 + 상세 조회로 단순한 상품 페이지 조회를 흉내낸다.
     const listRes = http.get(`${PRODUCT_API}/api/products?page=0&size=20`);
     browseDuration.add(listRes.timings.duration);
     check(listRes, { 'browse list 200': (r) => r.status === 200 });
@@ -54,8 +58,8 @@ export default function () {
     browseDuration.add(detailRes.timings.duration);
     check(detailRes, { 'browse detail 200 or 404': (r) => r.status === 200 || r.status === 404 });
   } else if (rand < 0.8) {
-    // 20%: 주문 생성 (SAGA 흐름)
-    const variantId = Math.floor(Math.random() * 3) + 1; // 1~3 (첫 상품의 variant들)
+    // Order branch: seed data 요구사항을 안정적으로 유지하기 위해 작은 stock set에서 고른다.
+    const variantId = Math.floor(Math.random() * 3) + 1;
     const orderPayload = JSON.stringify({
       customerId: CUSTOMER_ID,
       items: [
@@ -84,11 +88,11 @@ export default function () {
     orderCreateDuration.add(orderRes.timings.duration);
     check(orderRes, { 'order create 201': (r) => r.status === 201 });
   } else if (rand < 0.9) {
-    // 10%: Order 서비스 헬스 조회 (주문 GET API는 기존 LazyInit 버그로 생략)
+    // Order 서비스 가용성을 보는 가벼운 control path다.
     const r = http.get(`${ORDER_API}/actuator/health`);
     check(r, { 'order health 200': (r) => r.status === 200 });
   } else {
-    // 10%: 결제 서비스 헬스 조회
+    // Payment 서비스 가용성을 보는 가벼운 control path다.
     const r = http.get(`${PAYMENT_API}/actuator/health`);
     check(r, { 'payment health 200': (r) => r.status === 200 });
   }

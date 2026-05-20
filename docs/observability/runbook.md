@@ -24,7 +24,7 @@ The activation switch is the `otel-config` ConfigMap:
 - `k8s/monitoring/otel-config.yml`         empty stub (shipped everywhere)
 - `k8s/monitoring/otel-config-active.yml`  populated overlay (applied only on clusters where Alloy is reachable)
 
-Local flows (IDE `./gradlew bootRun`, `./scripts/start.sh`, `./scripts/local-k8s.sh` k3d) skip the active overlay → services stay non-traced.
+Local flows such as IDE `./gradlew bootRun` or plain Docker Compose skip the active overlay, so services stay non-traced.
 
 ## Cluster URLs (GCE)
 
@@ -45,10 +45,9 @@ ConfigMaps labelled `grafana_dashboard: "1"` in the `monitoring` namespace are p
 - **13639** — Loki Logs / App
 - **19665** — k6 Prometheus remote_write
 
-Regenerate / add more:
+Apply dashboard ConfigMaps:
 
 ```bash
-./scripts/fetch-dashboards.sh           # fetches from grafana.com, 900 KiB size guard
 kubectl apply -f k8s/monitoring/dashboards/
 ```
 
@@ -121,4 +120,4 @@ If you must run on e2-standard-2 (2 vCPU / 8 GiB), disable Prometheus+Loki PVC r
 - **Node Exporter Full (1860)** — 468 KiB JSON exceeds the 262 KiB `kubectl apply` last-applied-config annotation limit. Either use `kubectl apply --server-side` or slim the dashboard before re-adding.
 - **Kafka JMX broker internals** — `prometheus.exporter.kafka` covers topic/partition/consumer-lag metrics only. For broker JVM metrics (UnderReplicatedPartitions, ActiveControllerCount) an initContainer-based JMX exporter on the Kafka StatefulSet is the accepted extension.
 - **Traefik IPAllowList** — the plan called for a middleware restricting Grafana anonymous-Admin to owner IP. Not yet enforced in manifests; the GCE firewall on tcp:80 is still `0.0.0.0/0`. Tighten via a Traefik `Middleware` CRD before exposing to the public internet.
-- **Phase worktree rollout** — the overnight run stopped after verifying `main`. phase0/phase5 deploy sweeps are deferred; the observability overlay script (`scripts/apply-observability-overlay.sh`) referenced in the plan is not yet written.
+- **Phase worktree rollout** — the overnight run stopped after verifying `main`. phase0/phase5 deploy sweeps are deferred.

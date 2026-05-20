@@ -1,61 +1,75 @@
-# k6 Load Tests
+# k6 Load Testing
 
-Load testing scripts for the ecommerce MSA platform using [k6](https://k6.io/).
+Load testing scenarios for the ecommerce microservices platform.
 
-## Install k6
+## Setup
 
 ```bash
 brew install k6
 ```
 
-## Scripts
-
-### order-flow.js (Smoke Test)
-
-Basic end-to-end order flow: list products, view detail, create order. Runs 1 VU for 10 seconds.
-
-```bash
-k6 run k6/scripts/order-flow.js
-```
-
-Override API endpoints:
+All scripts accept endpoint overrides through environment variables.
 
 ```bash
 k6 run -e PRODUCT_API=http://localhost:8081 -e ORDER_API=http://localhost:8082 k6/scripts/order-flow.js
 ```
 
-### spike-test.js (Spike Test)
+## Core Scripts
 
-Simulates a drop event traffic spike: ramps from 0 to 100 concurrent users in 30 seconds, then ramps down.
+### `k6/scripts/order-flow.js`
+
+Small end-to-end order flow: product list, product detail, and order creation.
+
+```bash
+k6 run k6/scripts/order-flow.js
+```
+
+### `k6/scripts/hot-row-rampup.js`
+
+Open-model breakpoint test against one inventory row. Use it when measuring lock contention or comparing stock reservation implementations.
+
+```bash
+k6 run -e ORDER_API=http://localhost:8082 -e VARIANT_ID=1 k6/scripts/hot-row-rampup.js
+```
+
+### `k6/scripts/spike-test.js`
+
+Short VU spike for checking how the order path behaves during sudden traffic changes.
 
 ```bash
 k6 run k6/scripts/spike-test.js
 ```
 
-### cascading-failure.js (Cascading Failure Test)
+### `k6/scripts/cascading-failure.js`
 
-Tests Order service behavior under sustained load when a dependent service (e.g., Product) is down. Stop the Product service before running.
+Sustained order traffic for dependent-service failure tests.
 
 ```bash
-# 1. Stop Product service
-# 2. Run the test
 k6 run k6/scripts/cascading-failure.js
 ```
 
-## Thresholds
+### `k6/scripts/phase4-slow-product.js`
 
-| Script              | p(95) Latency | Error Rate |
-|---------------------|---------------|------------|
-| order-flow          | < 2s          | < 10%      |
-| spike-test          | < 3s          | < 15%      |
-| cascading-failure   | < 5s          | < 50%      |
+Compares Order service behavior while Product is slow. Useful for validating circuit-breaker behavior and fallback latency.
+
+```bash
+k6 run k6/scripts/phase4-slow-product.js
+```
+
+## Scenario Set
+
+The `k6/scenarios` directory contains broader service-level checks:
+
+- `smoke-test.js`: core endpoint smoke check.
+- `load-test.js`: normal traffic mix.
+- `stress-test.js`: coarse VU-based degradation search.
 
 ## Output
 
-Export results to JSON for analysis:
+Export local results as JSON when needed:
 
 ```bash
 k6 run --out json=k6-results/result.json k6/scripts/order-flow.js
 ```
 
-The `k6-results/` directory is gitignored.
+Keep capacity conclusions based on success metrics such as `orders_created_2xx/s` or database commit deltas. `http_reqs` includes failed responses and should not be treated as successful throughput.

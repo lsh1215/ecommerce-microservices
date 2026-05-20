@@ -6,8 +6,7 @@
 #
 # The real activation overlay lives in `otel-config-active.yml` and is only
 # applied once the Alloy OTLP receiver is Ready. This stub keeps the
-# `configMapRef` resolvable for clusters where monitoring isn't deployed
-# (local k3d via scripts/local-k8s.sh, phase0 worktree runs, etc.).
+# `configMapRef` resolvable for clusters where monitoring is not deployed.
 apiVersion: v1
 kind: ConfigMap
 metadata:

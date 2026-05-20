@@ -1,9 +1,10 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
-// Phase 5 — Smoke Test
-// 목적: 4개 서비스의 핵심 엔드포인트가 정상 동작하는지 가장 작은 부하로 빠르게 검증.
-// 5 VUs, 30초. 모든 경로가 2xx를 반환하고 p99 < 1s면 통과.
+// 핵심 서비스 경로를 확인하는 작은 end-to-end smoke check.
+//
+// load나 stress 시나리오 전에 실행한다. 짧고 낮은 부하로 routing 문제,
+// 서비스 비가용 상태, 잘못된 seed data를 빠르게 잡는다.
 
 const PRODUCT_API = __ENV.PRODUCT_API || 'http://localhost:8081';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
@@ -27,23 +28,22 @@ export const options = {
 };
 
 export default function () {
-  // 1. 브랜드/상품 목록 조회 (가장 흔한 경로)
+  // Product 서비스 read path.
   const productsRes = http.get(`${PRODUCT_API}/api/products?page=0&size=20`);
   check(productsRes, { 'products list 200': (r) => r.status === 200 });
 
-  // 2. 상품 상세 조회
+  // 아래 주문 payload에서 사용할 Product 상세 데이터.
   const detailRes = http.get(`${PRODUCT_API}/api/products/1`);
   check(detailRes, { 'product detail 200': (r) => r.status === 200 });
 
-  // 3. 고객 서비스 health (기본 actuator 경로)
+  // 서비스별 health check로 dependency/bootstrap 문제를 빠르게 확인한다.
   const customerHealth = http.get(`${CUSTOMER_API}/actuator/health`);
   check(customerHealth, { 'customer health 200': (r) => r.status === 200 });
 
-  // 4. 결제 서비스 health
   const paymentHealth = http.get(`${PAYMENT_API}/actuator/health`);
   check(paymentHealth, { 'payment health 200': (r) => r.status === 200 });
 
-  // 5. 주문 생성 (SAGA 전체 흐름 시작)
+  // Order, Product 재고 예약, Payment까지 이어지는 end-to-end write path.
   const orderPayload = JSON.stringify({
     customerId: CUSTOMER_ID,
     items: [
