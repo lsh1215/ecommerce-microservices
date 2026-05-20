@@ -2,10 +2,13 @@ package com.ecommerce.order.domain.model;
 
 public enum SagaState {
 
-    ORDER_CREATED,
+    STOCK_RESERVATION_PENDING,
+    STOCK_RESERVED,
+    STOCK_RESERVATION_FAILED,
     PAYMENT_PROCESSING,
     COMPLETED,
     COMPENSATING,
+    COMPENSATION_RETRY_REQUIRED,
     COMPENSATED,
     FAILED
 }

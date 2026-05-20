@@ -33,12 +33,23 @@ public class SagaInstance extends BaseEntity {
         SagaInstance instance = new SagaInstance();
         instance.orderId = orderId;
         instance.orderNumber = orderNumber;
-        instance.state = SagaState.ORDER_CREATED;
+        instance.state = SagaState.STOCK_RESERVATION_PENDING;
         return instance;
     }
 
+    public void moveToStockReserved() {
+        validateState(SagaState.STOCK_RESERVATION_PENDING);
+        this.state = SagaState.STOCK_RESERVED;
+    }
+
+    public void moveToStockReservationFailed(String reason) {
+        validateState(SagaState.STOCK_RESERVATION_PENDING);
+        this.state = SagaState.STOCK_RESERVATION_FAILED;
+        this.failureReason = reason;
+    }
+
     public void moveToPaymentProcessing() {
-        validateState(SagaState.ORDER_CREATED);
+        validateState(SagaState.STOCK_RESERVED);
         this.state = SagaState.PAYMENT_PROCESSING;
     }
 
@@ -55,6 +66,12 @@ public class SagaInstance extends BaseEntity {
     public void moveToCompensated() {
         validateState(SagaState.COMPENSATING);
         this.state = SagaState.COMPENSATED;
+    }
+
+    public void moveToCompensationRetryRequired(String reason) {
+        validateState(SagaState.COMPENSATING);
+        this.state = SagaState.COMPENSATION_RETRY_REQUIRED;
+        this.failureReason = reason;
     }
 
     public void moveToFailed(String reason) {

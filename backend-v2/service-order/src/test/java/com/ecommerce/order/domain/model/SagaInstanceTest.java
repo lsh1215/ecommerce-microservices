@@ -14,29 +14,70 @@ import org.junit.jupiter.params.provider.MethodSource;
 class SagaInstanceTest {
 
     @Test
-    @DisplayName("SagaInstance 생성 시 초기 상태는 ORDER_CREATED이다")
-    void create_initialState_isOrderCreated() {
+    @DisplayName("SagaInstance 생성 시 초기 상태는 STOCK_RESERVATION_PENDING이다")
+    void create_initialState_isStockReservationPending() {
         // When
         SagaInstance saga = SagaInstance.create(1L, "ORD-001");
 
         // Then
-        assertThat(saga.getState()).isEqualTo(SagaState.ORDER_CREATED);
+        assertThat(saga.getState()).isEqualTo(SagaState.STOCK_RESERVATION_PENDING);
         assertThat(saga.getOrderId()).isEqualTo(1L);
         assertThat(saga.getOrderNumber()).isEqualTo("ORD-001");
         assertThat(saga.getFailureReason()).isNull();
     }
 
     @Test
-    @DisplayName("ORDER_CREATED 상태에서 PAYMENT_PROCESSING으로 전이 성공")
-    void moveToPaymentProcessing_fromOrderCreated_succeeds() {
+    @DisplayName("STOCK_RESERVATION_PENDING 상태에서 STOCK_RESERVED로 전이 성공")
+    void moveToStockReserved_fromPending_succeeds() {
         // Given
         SagaInstance saga = SagaInstance.create(1L, "ORD-001");
+
+        // When
+        saga.moveToStockReserved();
+
+        // Then
+        assertThat(saga.getState()).isEqualTo(SagaState.STOCK_RESERVED);
+    }
+
+    @Test
+    @DisplayName("STOCK_RESERVED 상태에서 PAYMENT_PROCESSING으로 전이 성공")
+    void moveToPaymentProcessing_fromStockReserved_succeeds() {
+        // Given
+        SagaInstance saga = buildSagaInState(SagaState.STOCK_RESERVED);
 
         // When
         saga.moveToPaymentProcessing();
 
         // Then
         assertThat(saga.getState()).isEqualTo(SagaState.PAYMENT_PROCESSING);
+    }
+
+    @Test
+    @DisplayName("재고 예약 실패 상태로 전이하며 failureReason을 설정한다")
+    void moveToStockReservationFailed_setsFailureReason() {
+        // Given
+        SagaInstance saga = SagaInstance.create(1L, "ORD-001");
+
+        // When
+        saga.moveToStockReservationFailed("variant=200 failed");
+
+        // Then
+        assertThat(saga.getState()).isEqualTo(SagaState.STOCK_RESERVATION_FAILED);
+        assertThat(saga.getFailureReason()).isEqualTo("variant=200 failed");
+    }
+
+    @Test
+    @DisplayName("COMPENSATING 상태에서 COMPENSATION_RETRY_REQUIRED로 전이하며 failureReason을 설정한다")
+    void moveToCompensationRetryRequired_fromCompensating_setsFailureReason() {
+        // Given
+        SagaInstance saga = buildSagaInState(SagaState.COMPENSATING);
+
+        // When
+        saga.moveToCompensationRetryRequired("release failed");
+
+        // Then
+        assertThat(saga.getState()).isEqualTo(SagaState.COMPENSATION_RETRY_REQUIRED);
+        assertThat(saga.getFailureReason()).isEqualTo("release failed");
     }
 
     @Test
@@ -107,22 +148,25 @@ class SagaInstanceTest {
 
     static Stream<Arguments> invalidTransitions() {
         return Stream.of(
-                Arguments.of(SagaState.ORDER_CREATED, "moveToCompleted"),
-                Arguments.of(SagaState.ORDER_CREATED, "moveToCompensating"),
-                Arguments.of(SagaState.ORDER_CREATED, "moveToCompensated"),
+                Arguments.of(SagaState.STOCK_RESERVATION_PENDING, "moveToCompleted"),
+                Arguments.of(SagaState.STOCK_RESERVATION_PENDING, "moveToCompensating"),
+                Arguments.of(SagaState.STOCK_RESERVATION_PENDING, "moveToCompensated"),
                 Arguments.of(SagaState.PAYMENT_PROCESSING, "moveToPaymentProcessing"),
                 Arguments.of(SagaState.COMPLETED, "moveToPaymentProcessing"),
                 Arguments.of(SagaState.COMPLETED, "moveToCompensating"),
                 Arguments.of(SagaState.COMPENSATED, "moveToPaymentProcessing"),
                 Arguments.of(SagaState.COMPENSATED, "moveToCompleted"),
                 Arguments.of(SagaState.COMPENSATED, "moveToCompensating"),
-                Arguments.of(SagaState.FAILED, "moveToPaymentProcessing")
+                Arguments.of(SagaState.FAILED, "moveToPaymentProcessing"),
+                Arguments.of(SagaState.STOCK_RESERVATION_FAILED, "moveToPaymentProcessing"),
+                Arguments.of(SagaState.COMPENSATION_RETRY_REQUIRED, "moveToCompensated")
         );
     }
 
     private void invokeTransition(SagaInstance saga, String method) {
         switch (method) {
             case "moveToPaymentProcessing" -> saga.moveToPaymentProcessing();
+            case "moveToStockReserved" -> saga.moveToStockReserved();
             case "moveToCompleted" -> saga.moveToCompleted();
             case "moveToCompensating" -> saga.moveToCompensating();
             case "moveToCompensated" -> saga.moveToCompensated();
@@ -133,25 +177,44 @@ class SagaInstanceTest {
     private SagaInstance buildSagaInState(SagaState target) {
         SagaInstance saga = SagaInstance.create(1L, "ORD-001");
         return switch (target) {
-            case ORDER_CREATED -> saga;
+            case STOCK_RESERVATION_PENDING -> saga;
+            case STOCK_RESERVED -> {
+                saga.moveToStockReserved();
+                yield saga;
+            }
             case PAYMENT_PROCESSING -> {
+                saga.moveToStockReserved();
                 saga.moveToPaymentProcessing();
                 yield saga;
             }
             case COMPLETED -> {
+                saga.moveToStockReserved();
                 saga.moveToPaymentProcessing();
                 saga.moveToCompleted();
                 yield saga;
             }
             case COMPENSATING -> {
+                saga.moveToStockReserved();
                 saga.moveToPaymentProcessing();
                 saga.moveToCompensating();
                 yield saga;
             }
             case COMPENSATED -> {
+                saga.moveToStockReserved();
                 saga.moveToPaymentProcessing();
                 saga.moveToCompensating();
                 saga.moveToCompensated();
+                yield saga;
+            }
+            case STOCK_RESERVATION_FAILED -> {
+                saga.moveToStockReservationFailed("pre-existing");
+                yield saga;
+            }
+            case COMPENSATION_RETRY_REQUIRED -> {
+                saga.moveToStockReserved();
+                saga.moveToPaymentProcessing();
+                saga.moveToCompensating();
+                saga.moveToCompensationRetryRequired("pre-existing");
                 yield saga;
             }
             case FAILED -> {
