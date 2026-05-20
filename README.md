@@ -171,11 +171,10 @@ open http://localhost:8081/swagger-ui.html
 ### Kubernetes 배포
 
 ```bash
-# namespace, 공통 인프라, 서비스, 인그레스 적용
-./scripts/k8s-deploy.sh
-
-# 제거
-./scripts/k8s-teardown.sh
+kubectl apply -f k8s/namespace.yml
+kubectl apply -f k8s/base/
+kubectl apply -f k8s/services/
+kubectl apply -f k8s/ingress/
 ```
 
 매니페스트는 `k8s` 프로파일을 사용하며, 클러스터 내부 DNS로 MySQL/Kafka를 해석하고 CORS와 `ddl-auto` 설정을 운영 수준으로 강화합니다.

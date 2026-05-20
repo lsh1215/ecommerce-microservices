@@ -2,30 +2,32 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
-// Phase 4 — Slow Product Service 시나리오
-// Product 서비스가 인위적 지연(2s)을 가진 상태에서 Order 서비스의 반응을 측정.
-// Before (Circuit Breaker 없음): 스레드 풀이 고갈되어 Order 전체 응답 시간이 2s 이상으로 악화.
-// After (Circuit Breaker 있음): 초반 실패 이후 CB가 OPEN되어 fast-fail, 주문 경로는 빠르게 503.
-//                              재고 무관 경로인 GET /api/orders는 영향 없이 빠른 응답 유지.
+// Product가 느릴 때 Order 서비스의 반응을 측정한다.
+//
+// circuit-breaker 적용 전후를 비교할 때 사용한다. 핵심 신호는 isolation이다.
+// Product를 호출하는 주문 생성은 fast-fail할 수 있지만, Product를 호출하지 않는 Order 경로는
+// 계속 빠르게 응답해야 한다.
 
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
 const CUSTOMER_ID = __ENV.CUSTOMER_ID || 14;
 const VARIANT_ID = __ENV.VARIANT_ID || 1;
 const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxNCJ9.sig'}`;
 
-// 주문 생성 경로와 주문 조회 경로의 지표를 분리 측정 (thread pool saturation 영향 파악)
+// dependency saturation이 aggregate latency에 묻히지 않도록 endpoint별 metric을 분리한다.
 const orderCreateDuration = new Trend('order_create_duration', true);
 const orderQueryDuration = new Trend('order_query_duration', true);
 const orderCreateErrors = new Rate('order_create_errors');
 
 export const options = {
   scenarios: {
+    // Product 의존 경로다. dependency failure mode가 드러나는 쪽이다.
     order_creation: {
       executor: 'constant-vus',
       vus: 30,
       duration: '30s',
       exec: 'createOrder',
     },
+    // Product 비의존 control path다. isolation이 동작하면 빠르게 유지되어야 한다.
     order_query: {
       executor: 'constant-vus',
       vus: 5,
@@ -34,10 +36,7 @@ export const options = {
     },
   },
   thresholds: {
-    // AFTER (CB) 기준:
-    // - order_query_duration p95는 반드시 <1s (CB 덕에 스레드 풀 영향 없음)
-    // - order_create_duration p95는 <3s (fast-fail)
-    // BEFORE에서는 이 threshold들이 실패 → p99 >> 3s 가 증거가 된다.
+    // protected/fail-fast 동작 기준의 threshold다. resilience control 적용 전에는 실패할 수 있다.
     order_query_duration: ['p(95)<1000'],
     order_create_duration: ['p(95)<3000'],
   },
@@ -82,10 +81,8 @@ export function createOrder() {
   sleep(0.1);
 }
 
-// GET /api/orders는 Phase 1에서 발견된 LazyInitializationException 버그로 500 반환.
-// 본 테스트의 목적은 "Product가 느려도 Product를 안 거치는 경로는 영향 없는가" 검증이므로
-// 독립적인 헬스체크 경로(/actuator/health)로 query latency를 측정.
 export function queryOrders() {
+  // health를 Product 비의존 control path로 사용해 Product latency와 Order 자체 응답성을 분리한다.
   const res = http.get(`${ORDER_API}/actuator/health`, {
     timeout: '5s',
   });
