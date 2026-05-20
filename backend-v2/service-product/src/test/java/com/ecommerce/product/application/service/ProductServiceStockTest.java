@@ -11,6 +11,13 @@ import com.ecommerce.product.domain.model.ProductVariant;
 import com.ecommerce.product.domain.repository.BrandRepository;
 import com.ecommerce.product.domain.repository.ProductRepository;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -64,6 +71,51 @@ class ProductServiceStockTest {
 
         ProductVariant reloaded = productService.getVariantDetail(variant.getId());
         assertThat(reloaded.getStockQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    void concurrentReserveStockDoesNotOversell() throws Exception {
+        ProductVariant variant = saveVariant(5);
+        int requestCount = 20;
+        ExecutorService executor = Executors.newFixedThreadPool(requestCount);
+        CountDownLatch ready = new CountDownLatch(requestCount);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<Boolean>> futures = new ArrayList<>();
+
+        for (int i = 0; i < requestCount; i++) {
+            futures.add(executor.submit(() -> {
+                ready.countDown();
+                start.await();
+                try {
+                    productService.reserveStock(variant.getId(), 1);
+                    return true;
+                } catch (BusinessException e) {
+                    assertThat(e.getErrorCode()).isEqualTo(ProductErrorCode.INSUFFICIENT_STOCK);
+                    return false;
+                }
+            }));
+        }
+
+        assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+        start.countDown();
+
+        int successCount = 0;
+        int failureCount = 0;
+        for (Future<Boolean> future : futures) {
+            if (future.get(5, TimeUnit.SECONDS)) {
+                successCount++;
+            } else {
+                failureCount++;
+            }
+        }
+
+        executor.shutdown();
+        assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+
+        ProductVariant reloaded = productService.getVariantDetail(variant.getId());
+        assertThat(successCount).isEqualTo(5);
+        assertThat(failureCount).isEqualTo(15);
+        assertThat(reloaded.getStockQuantity()).isZero();
     }
 
     @Test
