@@ -17,7 +17,8 @@ public enum ProductErrorCode implements ErrorCodeBase {
     INSUFFICIENT_STOCK(HttpStatus.BAD_REQUEST, "PRODUCT_006", "Insufficient stock"),
     INVALID_PRODUCT_DATA(HttpStatus.BAD_REQUEST, "PRODUCT_007", "Invalid product data"),
     INVALID_BRAND_DATA(HttpStatus.BAD_REQUEST, "PRODUCT_008", "Invalid brand data"),
-    INVALID_VARIANT_OPERATION(HttpStatus.BAD_REQUEST, "PRODUCT_009", "Invalid variant operation");
+    INVALID_VARIANT_OPERATION(HttpStatus.BAD_REQUEST, "PRODUCT_009", "Invalid variant operation"),
+    RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "PRODUCT_010", "Stock reservation not found");
 
     private final HttpStatus status;
     private final String code;
