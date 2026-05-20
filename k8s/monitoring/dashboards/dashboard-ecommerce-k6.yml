@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-k6
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-k6.json: |
+    {
+      "uid": "ecommerce-k6",
+      "title": "Ecommerce K6 Load Test (Prometheus RW)",
+      "tags": ["ecommerce", "k6", "loadtest"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "10s",
+      "time": {"from": "now-30m", "to": "now"},
+      "templating": {
+        "list": [
+          {
+            "name": "testid",
+            "type": "query",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "query": "label_values(k6_http_reqs_total, testid)",
+            "includeAll": true,
+            "multi": true,
+            "refresh": 2
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "1. RPS (k6_http_reqs)",
+          "description": "k6 가 본 throughput. testid 별로 분리. CB chaos 동안 problem leg 는 5xx 가 RPS 에 포함되어도 worker 점유로 절대량이 정체, solution leg 는 fast-fail 로 RPS 유지.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "sum by (testid) (rate(k6_http_reqs_total{testid=~\"$testid\"}[30s]))", "legendFormat": "rps {{testid}}"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "reqps"}}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "2. VUs (k6_vus)",
+          "description": "동시 가상 사용자. 본 run 은 stage 마다 burst 로 k6 run 을 반복 호출하므로 톱니파형이 정상.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "max by (testid) (k6_vus{testid=~\"$testid\"})", "legendFormat": "vus {{testid}}"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "3. http_req_duration p95 / p99 / avg",
+          "description": "k6 클라이언트 관점 latency. problem leg chaos 구간에서 connect timeout (~5s) 까지 정체. solution leg 는 OPEN 직후 fast-fail 로 baseline 수준.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "max by (testid) (k6_http_req_duration_p95{testid=~\"$testid\"})", "legendFormat": "p95 {{testid}}"},
+            {"refId": "B", "expr": "max by (testid) (k6_http_req_duration_p99{testid=~\"$testid\"})", "legendFormat": "p99 {{testid}}"},
+            {"refId": "C", "expr": "avg by (testid) (k6_http_req_duration_avg{testid=~\"$testid\"})", "legendFormat": "avg {{testid}}"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "ms"}}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "4. http_req_failed ratio",
+          "description": "k6 가 본 error rate. CB on/off 효과를 가장 직관적으로 보여주는 panel.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "sum(rate(k6_http_reqs_total{expected_response=\"false\"}[1m])) / clamp_min(sum(rate(k6_http_reqs_total[1m])), 0.001)", "legendFormat": "fail ratio (all testids)"},
+            {"refId": "B", "expr": "sum(rate(k6_http_reqs_total{expected_response=\"false\"}[1m]))", "legendFormat": "failed RPS"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}}
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "5. iterations / data sent / data received",
+          "description": "보조: iterations rate 와 네트워크 트래픽.",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "sum by (testid) (rate(k6_iterations_total{testid=~\"$testid\"}[30s]))", "legendFormat": "iter/s {{testid}}"},
+            {"refId": "B", "expr": "sum by (testid) (rate(k6_data_sent_total{testid=~\"$testid\"}[30s]))", "legendFormat": "sent B/s {{testid}}"},
+            {"refId": "C", "expr": "sum by (testid) (rate(k6_data_received_total{testid=~\"$testid\"}[30s]))", "legendFormat": "recv B/s {{testid}}"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        }
+      ]
+    }

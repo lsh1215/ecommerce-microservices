@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-jvm
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-jvm.json: |
+    {
+      "uid": "ecommerce-jvm",
+      "title": "Ecommerce JVM (Micrometer)",
+      "tags": ["ecommerce", "jvm", "micrometer"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "10s",
+      "time": {"from": "now-30m", "to": "now"},
+      "templating": {
+        "list": [
+          {
+            "name": "app",
+            "type": "query",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "query": "label_values(jvm_memory_used_bytes, app)",
+            "includeAll": false,
+            "multi": false,
+            "current": {"text": "service-order", "value": "service-order"},
+            "refresh": 2
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "1. Heap used vs max",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "sum(jvm_memory_used_bytes{app=\"$app\", area=\"heap\"})", "legendFormat": "heap used"},
+            {"refId": "B", "expr": "sum(jvm_memory_max_bytes{app=\"$app\", area=\"heap\"})", "legendFormat": "heap max"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "bytes"}}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "2. GC pause rate (sum/s) + count rate",
+          "description": "jvm_gc_pause_seconds_sum 의 rate 는 초당 GC 소비 시간(stop-the-world 비율 근사).",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "sum by (action) (rate(jvm_gc_pause_seconds_sum{app=\"$app\"}[1m]))", "legendFormat": "pause s/s {{action}}"},
+            {"refId": "B", "expr": "sum by (action) (rate(jvm_gc_pause_seconds_count{app=\"$app\"}[1m]))", "legendFormat": "count/s {{action}}"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "3. Thread states",
+          "description": "jvm_threads_states_threads. CB 미적용일 때 chaos 동안 WAITING/BLOCKED thread 가 증가.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "jvm_threads_states_threads{app=\"$app\"}", "legendFormat": "{{state}}"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "4. CPU usage (process / system)",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "process_cpu_usage{app=\"$app\"}", "legendFormat": "process"},
+            {"refId": "B", "expr": "system_cpu_usage{app=\"$app\"}", "legendFormat": "system"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}}
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "5. Tomcat threads (busy / config-max) + HikariCP",
+          "description": "thread/connection 고갈 신호. CB off + chaos 동안 둘 다 한도 부근으로 솟음.",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {"refId": "A", "expr": "tomcat_threads_busy_threads{app=\"$app\"}", "legendFormat": "tomcat busy"},
+            {"refId": "B", "expr": "tomcat_threads_config_max_threads{app=\"$app\"}", "legendFormat": "tomcat max"},
+            {"refId": "C", "expr": "hikaricp_connections_active{app=\"$app\"}", "legendFormat": "hikari active"},
+            {"refId": "D", "expr": "hikaricp_connections_pending{app=\"$app\"}", "legendFormat": "hikari pending"}
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        }
+      ]
+    }
