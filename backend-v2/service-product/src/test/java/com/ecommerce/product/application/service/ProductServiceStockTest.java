@@ -67,6 +67,42 @@ class ProductServiceStockTest {
     }
 
     @Test
+    void reserveStockForOrderIsIdempotentForSameOrderAndVariant() {
+        ProductVariant variant = saveVariant(10);
+
+        ProductVariant first = productService.reserveStock(1L, variant.getId(), 3);
+        ProductVariant second = productService.reserveStock(1L, variant.getId(), 3);
+
+        assertThat(first.getStockQuantity()).isEqualTo(7);
+        assertThat(second.getStockQuantity()).isEqualTo(7);
+    }
+
+    @Test
+    void releaseReservationIsIdempotentForSameOrderAndVariant() {
+        ProductVariant variant = saveVariant(10);
+        productService.reserveStock(1L, variant.getId(), 3);
+
+        ProductVariant first = productService.releaseReservation(1L, variant.getId());
+        ProductVariant second = productService.releaseReservation(1L, variant.getId());
+
+        assertThat(first.getStockQuantity()).isEqualTo(10);
+        assertThat(second.getStockQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    void releaseReservationRejectsMissingReservation() {
+        ProductVariant variant = saveVariant(10);
+
+        assertThatThrownBy(() -> productService.releaseReservation(1L, variant.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ProductErrorCode.RESERVATION_NOT_FOUND);
+
+        ProductVariant reloaded = productService.getVariantDetail(variant.getId());
+        assertThat(reloaded.getStockQuantity()).isEqualTo(10);
+    }
+
+    @Test
     void releaseStockRejectsNonPositiveQuantity() {
         ProductVariant variant = saveVariant(10);
 

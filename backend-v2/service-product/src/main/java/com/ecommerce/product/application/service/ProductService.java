@@ -8,10 +8,13 @@ import com.ecommerce.product.application.dto.UpdateProductCommand;
 import com.ecommerce.product.domain.model.Brand;
 import com.ecommerce.product.domain.model.Product;
 import com.ecommerce.product.domain.model.ProductVariant;
+import com.ecommerce.product.domain.model.StockReservation;
+import com.ecommerce.product.domain.model.StockReservationStatus;
 import com.ecommerce.product.domain.repository.BrandRepository;
 import com.ecommerce.product.domain.repository.ProductQueryRepository;
 import com.ecommerce.product.domain.repository.ProductRepository;
 import com.ecommerce.product.domain.repository.ProductVariantRepository;
+import com.ecommerce.product.domain.repository.StockReservationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,6 +30,7 @@ public class ProductService {
     private final ProductVariantRepository productVariantRepository;
     private final ProductQueryRepository productQueryRepository;
     private final BrandRepository brandRepository;
+    private final StockReservationRepository stockReservationRepository;
 
     /**
      * 지정한 브랜드 하위에 신규 상품을 생성한다.
@@ -106,6 +110,31 @@ public class ProductService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 
+    @Transactional
+    public ProductVariant reserveStock(Long orderId, Long variantId, int quantity) {
+        if (quantity <= 0) {
+            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
+                    "Reserve quantity must be positive");
+        }
+        var existingReservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId);
+        if (existingReservation.isPresent()) {
+            return productVariantRepository.findById(variantId)
+                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        }
+
+        int affected = productVariantRepository.decreaseStock(variantId, quantity);
+        if (affected == 0) {
+            ProductVariant variant = productVariantRepository.findById(variantId)
+                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
+                    String.format("Requested %d but only %d available",
+                            quantity, variant.getStockQuantity()));
+        }
+        stockReservationRepository.save(StockReservation.reserve(orderId, variantId, quantity));
+        return productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+    }
+
     /**
      * Releases previously reserved stock for order compensation.
      */
@@ -118,6 +147,21 @@ public class ProductService {
         int affected = productVariantRepository.increaseStock(variantId, quantity);
         if (affected == 0) {
             throw new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND);
+        }
+        return productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+    }
+
+    @Transactional
+    public ProductVariant releaseReservation(Long orderId, Long variantId) {
+        StockReservation reservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.RESERVATION_NOT_FOUND));
+        int claimed = stockReservationRepository.markReleasedIfReserved(
+                reservation.getId(),
+                StockReservationStatus.RESERVED,
+                StockReservationStatus.RELEASED);
+        if (claimed == 1) {
+            productVariantRepository.increaseStock(reservation.getVariantId(), reservation.getQuantity());
         }
         return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
