@@ -8,16 +8,23 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Getter;
 
 @Getter
 @Entity
-@Table(name = "payment")
+@Table(
+        name = "payment",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_payment_order_id",
+                columnNames = "order_id"
+        )
+)
 public class Payment extends BaseEntity {
 
-    @Column(nullable = false)
+    @Column(name = "order_id", nullable = false)
     private Long orderId;
 
     @Column(nullable = false)
