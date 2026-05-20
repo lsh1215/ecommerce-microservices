@@ -13,8 +13,8 @@ import com.ecommerce.payment.domain.repository.PaymentRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,48 +25,32 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final PaymentStubProcessor stubProcessor;
     private final ApplicationEventPublisher eventPublisher;
-    private final boolean businessGuardEnabled;
 
     public PaymentService(
             PaymentRepository paymentRepository,
             PaymentStubProcessor stubProcessor,
-            ApplicationEventPublisher eventPublisher,
-            @Value("${application.business-idempotency-guard.enabled:true}") boolean businessGuardEnabled) {
+            ApplicationEventPublisher eventPublisher) {
         this.paymentRepository = paymentRepository;
         this.stubProcessor = stubProcessor;
         this.eventPublisher = eventPublisher;
-        this.businessGuardEnabled = businessGuardEnabled;
     }
 
-    /**
-     * 주어진 주문에 대한 결제를 처리한다.
-     * Payment를 PENDING 상태로 생성하고, 스텁 프로세서를 실행한 뒤 COMPLETED 또는 FAILED로 전이한다.
-     */
     @Transactional
     public Payment process(ProcessPaymentCommand command) {
-        // 가드: 동일 주문에 대한 중복 결제 방지
-        if (paymentRepository.existsByOrderIdAndStatus(command.orderId(), PaymentStatus.COMPLETED)) {
+        if (paymentRepository.findByOrderId(command.orderId()).isPresent()) {
             throw new BusinessException(PaymentErrorCode.DUPLICATE_PAYMENT);
         }
 
-        // PENDING 상태로 Payment 생성
         Payment payment = Payment.create(
                 command.orderId(),
                 command.orderNumber(),
                 command.amount(),
                 command.paymentMethod()
         );
-        paymentRepository.save(payment);
+        paymentRepository.saveAndFlush(payment);
 
-        // 외부 PG사 연동을 가상으로 대체 (90% 성공, 10% 실패 시뮬레이션)
         PaymentStubProcessor.Result result = stubProcessor.attempt(command.amount());
-
-        // 프로세서 결과에 따라 상태 전이
-        if (result.success()) {
-            payment.markCompleted(result.transactionId());
-        } else {
-            payment.markFailed("stub rejection");
-        }
+        applyProcessorResult(payment, result);
 
         return payment;
     }
@@ -95,36 +79,30 @@ public class PaymentService {
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
     }
 
-    /**
-     * Kafka 이벤트를 통해 비동기로 결제를 처리한다.
-     * order.created 이벤트를 수신한 OrderEventConsumer가 호출.
-     */
     @Transactional
     public void processFromEvent(Long orderId, String orderNumber, BigDecimal amount) {
-        // 비즈니스 멱등성 가드: 이미 완료된 결제가 있으면 중복 생성 방지.
-        // application.business-idempotency-guard.enabled=false 일 때 건너뛴다
-        // (Phase 3 Before evidence harness 전용 — 운영에서는 사용 금지).
-        if (businessGuardEnabled) {
-            if (paymentRepository.existsByOrderIdAndStatus(orderId, PaymentStatus.COMPLETED)) {
-                log.info("이미 완료된 결제 무시: orderId={}", orderId);
-                return;
-            }
-        } else {
-            log.warn("business idempotency guard disabled — proceeding without completed-payment check: orderId={}", orderId);
+        if (paymentRepository.findByOrderId(orderId).isPresent()) {
+            log.info("Duplicate payment request ignored: orderId={}", orderId);
+            return;
         }
 
         Payment payment = Payment.create(orderId, orderNumber, amount, PaymentMethod.CARD);
-        paymentRepository.save(payment);
-
-        // 외부 PG사 연동을 가상으로 대체 (90% 성공, 10% 실패 시뮬레이션)
+        try {
+            paymentRepository.saveAndFlush(payment);
+        } catch (DataIntegrityViolationException e) {
+            if (isOrderIdUniqueViolation(e)) {
+                log.info("Concurrent duplicate payment request ignored: orderId={}", orderId);
+                return;
+            }
+            throw e;
+        }
         PaymentStubProcessor.Result result = stubProcessor.attempt(amount);
+        applyProcessorResult(payment, result);
 
         if (result.success()) {
-            payment.markCompleted(result.transactionId());
             eventPublisher.publishEvent(new PaymentCompletedEvent(
                     orderNumber, orderId, payment.getId(), result.transactionId(), amount));
         } else {
-            payment.markFailed("stub rejection");
             eventPublisher.publishEvent(new PaymentFailedEvent(
                     orderNumber, orderId, "stub rejection"));
         }
@@ -150,5 +128,21 @@ public class PaymentService {
             payment.markFailed("order cancelled");
             log.info("결제 실패 처리 (주문 취소): orderId={}, paymentId={}", orderId, payment.getId());
         }
+    }
+
+    private void applyProcessorResult(Payment payment, PaymentStubProcessor.Result result) {
+        if (result.success()) {
+            payment.markCompleted(result.transactionId());
+        } else {
+            payment.markFailed("stub rejection");
+        }
+    }
+
+    private boolean isOrderIdUniqueViolation(DataIntegrityViolationException e) {
+        String message = e.getMostSpecificCause() != null
+                ? e.getMostSpecificCause().getMessage()
+                : e.getMessage();
+        return message != null
+                && (message.contains("uk_payment_order_id") || message.contains("order_id"));
     }
 }
