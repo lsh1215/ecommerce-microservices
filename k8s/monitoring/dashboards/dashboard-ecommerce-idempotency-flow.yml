@@ -45,12 +45,12 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", result=\"success\"}[1m]))",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error=\"none\"}[1m]))",
               "legendFormat": "listener success /s"
             },
             {
               "refId": "B",
-              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", result=\"failure\"}[1m]))",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error!=\"none\"}[1m]))",
               "legendFormat": "listener failure /s"
             }
           ],
@@ -87,7 +87,7 @@ data:
             },
             {
               "refId": "B",
-              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", result=\"success\"}[1m]))",
+              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error=\"none\"}[1m]))",
               "legendFormat": "(b) listener success — dup 포함"
             },
             {

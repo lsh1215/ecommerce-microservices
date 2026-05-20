@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-circuit-breaker
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-circuit-breaker.json: |
+    {
+      "uid": "ecommerce-circuit-breaker",
+      "title": "Ecommerce Circuit Breaker (Before/After)",
+      "tags": ["ecommerce", "resilience4j", "custom"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "10s",
+      "time": {"from": "now-15m", "to": "now"},
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "1. Circuit Breaker 상태 (productService)",
+          "description": "0=CLOSED, 1=OPEN, 2=HALF_OPEN, 3=DISABLED, 4=FORCED_OPEN. solution leg 에서는 chaos 시작 직후 0→1 (OPEN) 으로 전이, 회복 단계에 1→2→0 으로 복귀. problem leg 에서는 해당 metric 자체가 emit 되지 않음 (CB 미적용 binary).",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "resilience4j_circuitbreaker_state{name=\"productService\", app=\"service-order\"}",
+              "legendFormat": "state {{state}}"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "short", "min": 0, "max": 4}}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "2. CB 호출 분포 (성공/실패/slow/notpermitted)",
+          "description": "Resilience4j 가 분류한 콜 종류. solution leg 에서 OPEN 직후 'not_permitted' 가 급증하며, 그 시점부터 service-order 의 product 호출이 broker 까지 가지 않고 즉시 fallback 으로 빠짐. problem leg 에서는 이 metric 자체가 없음.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (kind) (rate(resilience4j_circuitbreaker_calls_seconds_count{name=\"productService\", app=\"service-order\"}[1m]))",
+              "legendFormat": "calls {{kind}}"
+            },
+            {
+              "refId": "B",
+              "expr": "sum by (kind) (rate(resilience4j_circuitbreaker_not_permitted_calls_total{name=\"productService\", app=\"service-order\"}[1m]))",
+              "legendFormat": "not_permitted (CB OPEN으로 차단)"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "ops"}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "3. service-order HTTP 5xx 비율",
+          "description": "/api/orders 의 5xx 응답 비율. problem leg: chaos window 동안 product 호출이 connect timeout 으로 5xx 비율 급증 (≈100% 가까이). solution leg: 처음 몇 건은 5xx (CB 가 임계 누적 중), 그 후 OPEN 으로 fast-fail 되어 5xx 가 4xx (BusinessException, 503) 로 변환됨 — 호출자에게 명시적 'product unavailable' 신호.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", status=~\"5..\", uri=\"/api/orders\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\"}[1m])), 0.001)",
+              "legendFormat": "5xx ratio"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}}
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "4. service-order /api/orders latency (avg + max)",
+          "description": "Histogram bucket 미적용이라 평균(sum/count) + recent max 사용. problem leg: chaos 동안 RestClient connect timeout (≈5s) 까지 worker 점유 → avg/max 가 5s 부근에 정체. solution leg: CB OPEN 후 fast-fail 로 baseline 근처로 회복.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_requests_seconds_sum{app=\"service-order\", uri=\"/api/orders\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\"}[1m])), 0.001)",
+              "legendFormat": "avg"
+            },
+            {
+              "refId": "B",
+              "expr": "max(http_server_requests_seconds_max{app=\"service-order\", uri=\"/api/orders\"})",
+              "legendFormat": "max"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "s"}}
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "5. HikariCP active connections + Tomcat threads busy (service-order)",
+          "description": "thread 고갈 측정. problem leg: chaos 동안 Tomcat busy thread 가 한도 (max-threads, default 200) 근처로 솟음, HikariCP active 도 동반 상승. solution leg: CB OPEN 으로 fast-fail 후 양쪽 모두 baseline 수준 유지.",
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 16},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "hikaricp_connections_active{app=\"service-order\"}",
+              "legendFormat": "hikari active"
+            },
+            {
+              "refId": "B",
+              "expr": "tomcat_threads_busy_threads{app=\"service-order\"}",
+              "legendFormat": "tomcat busy"
+            }
+          ],
+          "fieldConfig": {"defaults": {"unit": "short"}}
+        },
+        {
+          "id": 6,
+          "type": "logs",
+          "title": "6. service-order CB / fallback / product call logs (Loki)",
+          "description": "solution leg 에서 'CB' 태그 fallback log 와 CircuitBreaker state transition 로그가 함께 보임. problem leg 에서는 'ResourceAccessException / Connection refused' 라인이 chaos window 내내 계속 emit.",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 25},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {"refId": "A", "expr": "{app=\"service-order\"} |~ \"\\\\[CB\\\\]|CircuitBreaker .* state transition|Circuit breaker .* changed state|ResourceAccessException|Connection refused|circuit open\""}
+          ],
+          "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"}
+        }
+      ]
+    }
