@@ -101,6 +101,7 @@ docs/evidence/
 # === Local AI / Agent Artifacts ===
 .claude/
 .codex/
+.agents/*
 .omc/
 .omx/
 .cursor/
@@ -112,7 +113,6 @@ docs/evidence/
 .supermaven/
 
 AGENTS.md
-msa-kafka-es-project-guide.md
 *.prompt
 *.conversation
 .prompts/
