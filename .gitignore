@@ -1,61 +1,57 @@
-# === Study Notes (local only) ===
-study-notes/
+# === OS / Editor ===
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
 
-# === Java / Spring Boot ===
-*.class
-*.jar
-*.war
-*.ear
-*.logs
-*.log
-hs_err_pid*
-replay_pid*
-
-# Gradle
-.gradle/
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-# Maven (if used)
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-
-# === IDE ===
 .idea/
+.vscode/
 *.iml
 *.iws
 *.ipr
-.vscode/
-*.swp
-*.swo
-*~
 .project
 .classpath
 .settings/
 .factorypath
 bin/
 
-# === OS ===
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
 # === Environment ===
 .env
 .env.*
+*.env
 !.env.example
 !.env.sample
 !.env.prod.example
-*.env
 !*.env.example
 !*.env.sample
+
+# === Java / Spring Boot ===
+*.class
+*.jar
+*.war
+*.ear
+*.log
+*.logs
+hs_err_pid*
+replay_pid*
+
+# === Gradle / Maven ===
+.gradle/
+build/
+target/
+
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
 
 # === Node / Frontend ===
 node_modules/
@@ -66,10 +62,13 @@ dist/
 .cache/
 *.tsbuildinfo
 
-# === Docker ===
-docker-compose.override.yml
+# Frontend local-only helpers
+frontend/src/mocks/
+frontend/src/instrumentation.ts
+frontend/scripts/
 
-# === Monitoring / Data ===
+# === Docker / Runtime Data ===
+docker-compose.override.yml
 grafana-data/
 prometheus-data/
 es-data/
@@ -82,31 +81,14 @@ coverage/
 test-results/
 k6-results/
 
-# === AI Artifacts (AI 티 배제) ===
-.claude/
-.omc/
-.cursor/
-.copilot/
-.aider*
-.codeium/
-.continue/
-.tabby/
-.supermaven/
-AGENTS.md
-msa-kafka-es-project-guide.md
+# === Local Notes / Drafts ===
+study-notes/
+blog-drafts/
 
-# Prompt / AI conversation logs
-*.prompt
-*.conversation
-.prompts/
-.ai/
-
-# === Project Internal Docs ===
+# === Project Internal Docs / Evidence ===
 docs/PRD.md
 docs/README-msa.md
 docs/subagent-candidates.md
-
-# === Phase Test Results (local only — portfolio/blog source material) ===
 docs/phase-0-baseline/
 docs/phase-1-results/
 docs/phase-2-results/
@@ -116,15 +98,25 @@ docs/phase-5-results/
 docs/portfolio-screenshots/
 docs/evidence/
 
-# === Vendored Playwright (used by capture scripts; local-only ~150MB) ===
-scripts/visual-audit/
+# === Local AI / Agent Artifacts ===
+.claude/
+.codex/
+.omc/
+.omx/
+.cursor/
+.copilot/
+.aider*
+.codeium/
+.continue/
+.tabby/
+.supermaven/
 
-# === Frontend Local-Only (MSW, instrumentation, scripts) ===
-frontend/src/mocks/
-frontend/src/instrumentation.ts
-frontend/scripts/
-
-# === Pinpoint Agent (downloaded at runtime) ===
+AGENTS.md
+msa-kafka-es-project-guide.md
+*.prompt
+*.conversation
+.prompts/
+.ai/
 
 # === Misc ===
 *.bak
