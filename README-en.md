@@ -171,11 +171,10 @@ open http://localhost:8081/swagger-ui.html
 ### Kubernetes Deployment
 
 ```bash
-# Apply namespace, base infra, services, and ingress
-./scripts/k8s-deploy.sh
-
-# Tear down
-./scripts/k8s-teardown.sh
+kubectl apply -f k8s/namespace.yml
+kubectl apply -f k8s/base/
+kubectl apply -f k8s/services/
+kubectl apply -f k8s/ingress/
 ```
 
 Manifests use the `k8s` profile, which resolves MySQL/Kafka through in-cluster service DNS and tightens CORS and `ddl-auto`.

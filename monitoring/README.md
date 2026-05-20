@@ -8,10 +8,7 @@ during local development.
 ### Start
 
 ```bash
-# Bring up MySQL + Kafka first
-./scripts/start.sh
-
-# Then attach Kafka UI (joins the same compose network)
+docker compose -f infra/docker-compose.yml up -d mysql kafka
 docker compose -f monitoring/docker-compose.kafka-ui.yml up -d
 ```
 
