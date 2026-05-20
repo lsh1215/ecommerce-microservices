@@ -32,7 +32,9 @@ public class InternalProductController {
     public ApiResponse<ProductVariantResponse> reserveStock(
             @PathVariable Long variantId,
             @Valid @RequestBody StockReserveRequest request) {
-        ProductVariant variant = productService.reserveStock(variantId, request.quantity());
+        ProductVariant variant = request.orderId() == null
+                ? productService.reserveStock(variantId, request.quantity())
+                : productService.reserveStock(request.orderId(), variantId, request.quantity());
         return ApiResponse.ok(ProductVariantResponse.from(variant));
     }
 
@@ -40,7 +42,9 @@ public class InternalProductController {
     public ApiResponse<ProductVariantResponse> releaseStock(
             @PathVariable Long variantId,
             @Valid @RequestBody StockReserveRequest request) {
-        ProductVariant variant = productService.releaseStock(variantId, request.quantity());
+        ProductVariant variant = request.orderId() == null
+                ? productService.releaseStock(variantId, request.quantity())
+                : productService.releaseReservation(request.orderId(), variantId);
         return ApiResponse.ok(ProductVariantResponse.from(variant));
     }
 }
