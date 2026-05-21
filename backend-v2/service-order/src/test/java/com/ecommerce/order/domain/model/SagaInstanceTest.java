@@ -16,10 +16,10 @@ class SagaInstanceTest {
     @Test
     @DisplayName("SagaInstance 생성 시 초기 상태는 STOCK_RESERVATION_PENDING이다")
     void create_initialState_isStockReservationPending() {
-        // When
+        // 실행
         SagaInstance saga = SagaInstance.create(1L, "ORD-001");
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.STOCK_RESERVATION_PENDING);
         assertThat(saga.getOrderId()).isEqualTo(1L);
         assertThat(saga.getOrderNumber()).isEqualTo("ORD-001");
@@ -29,39 +29,39 @@ class SagaInstanceTest {
     @Test
     @DisplayName("STOCK_RESERVATION_PENDING 상태에서 STOCK_RESERVED로 전이 성공")
     void moveToStockReserved_fromPending_succeeds() {
-        // Given
+        // 준비
         SagaInstance saga = SagaInstance.create(1L, "ORD-001");
 
-        // When
+        // 실행
         saga.moveToStockReserved();
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.STOCK_RESERVED);
     }
 
     @Test
     @DisplayName("STOCK_RESERVED 상태에서 PAYMENT_PROCESSING으로 전이 성공")
     void moveToPaymentProcessing_fromStockReserved_succeeds() {
-        // Given
+        // 준비
         SagaInstance saga = buildSagaInState(SagaState.STOCK_RESERVED);
 
-        // When
+        // 실행
         saga.moveToPaymentProcessing();
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.PAYMENT_PROCESSING);
     }
 
     @Test
     @DisplayName("재고 예약 실패 상태로 전이하며 failureReason을 설정한다")
     void moveToStockReservationFailed_setsFailureReason() {
-        // Given
+        // 준비
         SagaInstance saga = SagaInstance.create(1L, "ORD-001");
 
-        // When
+        // 실행
         saga.moveToStockReservationFailed("variant=200 failed");
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.STOCK_RESERVATION_FAILED);
         assertThat(saga.getFailureReason()).isEqualTo("variant=200 failed");
     }
@@ -69,13 +69,13 @@ class SagaInstanceTest {
     @Test
     @DisplayName("COMPENSATING 상태에서 COMPENSATION_RETRY_REQUIRED로 전이하며 failureReason을 설정한다")
     void moveToCompensationRetryRequired_fromCompensating_setsFailureReason() {
-        // Given
+        // 준비
         SagaInstance saga = buildSagaInState(SagaState.COMPENSATING);
 
-        // When
+        // 실행
         saga.moveToCompensationRetryRequired("release failed");
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.COMPENSATION_RETRY_REQUIRED);
         assertThat(saga.getFailureReason()).isEqualTo("release failed");
     }
@@ -83,39 +83,39 @@ class SagaInstanceTest {
     @Test
     @DisplayName("PAYMENT_PROCESSING 상태에서 COMPLETED로 전이 성공")
     void moveToCompleted_fromPaymentProcessing_succeeds() {
-        // Given
+        // 준비
         SagaInstance saga = buildSagaInState(SagaState.PAYMENT_PROCESSING);
 
-        // When
+        // 실행
         saga.moveToCompleted();
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.COMPLETED);
     }
 
     @Test
     @DisplayName("PAYMENT_PROCESSING 상태에서 COMPENSATING으로 전이 성공")
     void moveToCompensating_fromPaymentProcessing_succeeds() {
-        // Given
+        // 준비
         SagaInstance saga = buildSagaInState(SagaState.PAYMENT_PROCESSING);
 
-        // When
+        // 실행
         saga.moveToCompensating();
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.COMPENSATING);
     }
 
     @Test
     @DisplayName("COMPENSATING 상태에서 COMPENSATED로 전이 성공")
     void moveToCompensated_fromCompensating_succeeds() {
-        // Given
+        // 준비
         SagaInstance saga = buildSagaInState(SagaState.COMPENSATING);
 
-        // When
+        // 실행
         saga.moveToCompensated();
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.COMPENSATED);
     }
 
@@ -123,13 +123,13 @@ class SagaInstanceTest {
     @EnumSource(SagaState.class)
     @DisplayName("어떤 상태에서도 FAILED로 전이하고 failureReason을 설정한다")
     void moveToFailed_fromAnyState_setsFailureReason(SagaState startingState) {
-        // Given
+        // 준비
         SagaInstance saga = buildSagaInState(startingState);
 
-        // When
+        // 실행
         saga.moveToFailed("timeout");
 
-        // Then
+        // 검증
         assertThat(saga.getState()).isEqualTo(SagaState.FAILED);
         assertThat(saga.getFailureReason()).isEqualTo("timeout");
     }
@@ -138,10 +138,10 @@ class SagaInstanceTest {
     @MethodSource("invalidTransitions")
     @DisplayName("허용되지 않는 상태 전이 시 IllegalStateException을 던진다")
     void invalidTransition_throws(SagaState startingState, String transitionMethod) {
-        // Given
+        // 준비
         SagaInstance saga = buildSagaInState(startingState);
 
-        // When / Then
+        // 실행 및 검증
         assertThatThrownBy(() -> invokeTransition(saga, transitionMethod))
                 .isInstanceOf(IllegalStateException.class);
     }

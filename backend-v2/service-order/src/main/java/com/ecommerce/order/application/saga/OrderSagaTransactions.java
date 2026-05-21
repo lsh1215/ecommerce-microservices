@@ -41,11 +41,11 @@ public class OrderSagaTransactions {
                 mapShippingAddress(command.shippingAddress()),
                 command.memo()
         );
-        orderRepository.saveAndFlush(order);
+        Order savedOrder = orderRepository.save(order);
 
-        SagaInstance saga = SagaInstance.create(order.getId(), order.getOrderNumber());
+        SagaInstance saga = SagaInstance.create(savedOrder.getId(), savedOrder.getOrderNumber());
         sagaRepository.save(saga);
-        return new PendingOrder(order.getId(), order.getOrderNumber());
+        return new PendingOrder(savedOrder.getId(), savedOrder.getOrderNumber());
     }
 
     @Transactional
