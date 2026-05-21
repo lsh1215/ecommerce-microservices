@@ -19,16 +19,16 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 /**
- * Synchronous HTTP adapter for the Product service.
+ * Product 서비스와 동기 HTTP로 통신하는 어댑터.
  *
- * <p>The Resilience4j circuit breaker fast-fails transient Product dependency failures
- * so Order service request threads are not exhausted.
+ * <p>Product 의존성이 일시적으로 실패하면 Resilience4j Circuit Breaker가 빠르게 실패시켜
+ * Order 서비스 요청 스레드 고갈을 막는다.
  *
- * <p>Failure classification:
+ * <p>실패 분류:
  * <ul>
- *   <li>Product 5xx, connection failures, and timeouts are transient dependency failures.</li>
- *   <li>Product 4xx responses are business failures and must not open the circuit.</li>
- *   <li>Open-circuit calls are wrapped as {@link OrderErrorCode#PRODUCT_SERVICE_UNAVAILABLE}.</li>
+ *   <li>Product 5xx, 연결 실패, 타임아웃은 일시적 의존성 실패로 본다.</li>
+ *   <li>Product 4xx 응답은 비즈니스 실패이므로 Circuit Breaker를 열지 않는다.</li>
+ *   <li>열린 Circuit 호출은 {@link OrderErrorCode#PRODUCT_SERVICE_UNAVAILABLE}로 변환한다.</li>
  * </ul>
  */
 @Component
@@ -117,7 +117,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
     }
 
     /**
-     * existsVariant fallback returns false because this method is only a read-side validation.
+     * existsVariant는 읽기 검증 전용이므로 fallback에서 false를 반환한다.
      */
     @SuppressWarnings("unused")
     private boolean existsVariantFallback(Long variantId, Throwable t) {
@@ -127,7 +127,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
     }
 
     /**
-     * fetchSnapshot fallback converts dependency failures to service-unavailable errors.
+     * fetchSnapshot fallback은 의존성 실패를 서비스 사용 불가 오류로 변환한다.
      */
     @SuppressWarnings("unused")
     private ProductSnapshotDto fetchSnapshotFallback(Long variantId, Throwable t) {
@@ -142,7 +142,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
     }
 
     /**
-     * reserveStock fallback preserves business exceptions and wraps dependency failures.
+     * reserveStock fallback은 비즈니스 예외를 보존하고 의존성 실패만 감싼다.
      */
     @SuppressWarnings("unused")
     private void reserveStockFallback(Long variantId, int quantity, Throwable t) {
@@ -157,7 +157,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
     }
 
     /**
-     * releaseStock fallback — propagate so the saga can persist retry-needed state.
+     * releaseStock fallback은 Saga가 재시도 필요 상태를 기록할 수 있도록 예외를 전파한다.
      */
     @SuppressWarnings("unused")
     private void releaseStockFallback(Long variantId, int quantity, Throwable t) {

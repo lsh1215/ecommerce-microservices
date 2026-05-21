@@ -100,93 +100,93 @@ class ProductCatalogRestClientCircuitBreakerTest {
     @Test
     @DisplayName("정상 응답이 반복되면 Circuit Breaker는 CLOSED 상태를 유지한다")
     void normalResponse_keepsCircuitClosed() {
-        // Given: 모든 호출에 대해 200 OK 응답
+        // 준비: 모든 호출에 대해 200 OK 응답
         stubFactory.respondWith(HttpStatus.OK, "{\"success\":true}");
 
-        // When: 5번 호출
+        // 실행: 5번 호출
         for (int i = 0; i < 5; i++) {
             proxiedClient.existsVariant(1L);
         }
 
-        // Then: CLOSED 상태 유지
+        // 검증: CLOSED 상태 유지
         assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
     @Test
     @DisplayName("Product 서비스에서 5xx 실패가 임계치를 넘으면 Circuit Breaker가 OPEN으로 전이한다")
     void repeatedServerErrors_opensCircuit() {
-        // Given: 항상 5xx 응답
+        // 준비: 항상 5xx 응답
         stubFactory.respondWith(HttpStatus.INTERNAL_SERVER_ERROR, "server error");
 
-        // When: 5번 reserveStock 호출 → 전부 실패
+        // 실행: 5번 reserveStock 호출 → 전부 실패
         for (int i = 0; i < 5; i++) {
             try {
                 proxiedClient.reserveStock(1L, 1);
             } catch (Exception ignored) {
-                // fallback이 BusinessException을 던지는건 정상
+                // fallback이 BusinessException을 던지는 것은 정상
             }
         }
 
-        // Then: 실패율 100%가 50% 임계치 초과 → OPEN으로 전이
+        // 검증: 실패율 100%가 50% 임계치 초과 → OPEN으로 전이
         assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
     }
 
     @Test
     @DisplayName("existsVariant는 4xx 응답을 false로 반환하고 Circuit Breaker 실패로 기록하지 않는다")
     void existsVariant_clientError_returnsFalseAndKeepsCircuitClosed() {
-        // Given
+        // 준비
         stubFactory.respondWith(HttpStatus.NOT_FOUND, "{\"success\":false}");
 
-        // When
+        // 실행
         for (int i = 0; i < 5; i++) {
             assertThat(proxiedClient.existsVariant(404L)).isFalse();
         }
 
-        // Then
+        // 검증
         assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
     @Test
     @DisplayName("재고 부족 같은 4xx 비즈니스 실패는 Circuit Breaker를 OPEN시키지 않는다")
     void reserveStock_clientError_doesNotOpenCircuit() {
-        // Given
+        // 준비
         stubFactory.respondWith(HttpStatus.BAD_REQUEST, "{\"success\":false}");
 
-        // When
+        // 실행
         for (int i = 0; i < 5; i++) {
             assertThatThrownBy(() -> proxiedClient.reserveStock(1L, 1))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.STOCK_RESERVATION_FAILED);
         }
 
-        // Then
+        // 검증
         assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
     }
 
     @Test
     @DisplayName("Circuit이 OPEN이면 실제 HTTP 호출 없이 fallback이 즉시 실행된다 (fast-fail)")
     void openCircuit_invokesFallbackImmediately_noHttpCall() {
-        // Given: CB를 강제로 OPEN 상태로 전환
+        // 준비: CB를 강제로 OPEN 상태로 전환
         circuitBreaker.transitionToOpenState();
         stubFactory.respondWith(HttpStatus.OK, "{\"success\":true}");
         int invocationCountBefore = stubFactory.getInvocationCount();
 
-        // When: reserveStock 호출 → fast-fail
+        // 실행: reserveStock 호출 → fast-fail
         assertThatThrownBy(() -> proxiedClient.reserveStock(1L, 1))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("circuit open");
 
-        // Then: HTTP 호출이 발생하지 않음
+        // 검증: HTTP 호출이 발생하지 않음
         assertThat(stubFactory.getInvocationCount()).isEqualTo(invocationCountBefore);
     }
 
     @Test
     @DisplayName("OPEN 상태의 fetchSnapshot은 PRODUCT_SERVICE_UNAVAILABLE 에러를 반환한다")
     void openCircuit_fetchSnapshot_throwsServiceUnavailable() {
-        // Given
+        // 준비
         circuitBreaker.transitionToOpenState();
 
-        // When & Then
+        // 실행 및 검증
         assertThatThrownBy(() -> proxiedClient.fetchSnapshot(1L))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE);
@@ -195,19 +195,19 @@ class ProductCatalogRestClientCircuitBreakerTest {
     @Test
     @DisplayName("OPEN 상태의 releaseStock은 보상 재시도 판단을 위해 PRODUCT_SERVICE_UNAVAILABLE을 전파한다")
     void openCircuit_releaseStock_throwsServiceUnavailable() {
-        // Given
+        // 준비
         circuitBreaker.transitionToOpenState();
 
-        // When & Then
+        // 실행 및 검증
         assertThatThrownBy(() -> proxiedClient.releaseStock(1L, 1))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE);
     }
 
-    // === Test helpers ===
+    // 테스트 헬퍼
 
     /**
-     * ClientHttpRequestFactory stub — 설정된 상태 코드와 body로 응답.
+     * ClientHttpRequestFactory 대역 객체. 설정된 상태 코드와 본문으로 응답한다.
      */
     private static class StubHttpResponseFactory
             implements org.springframework.http.client.ClientHttpRequestFactory {
