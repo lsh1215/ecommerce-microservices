@@ -83,14 +83,14 @@ public class ProductService {
         productRepository.delete(product);
     }
 
-    /** Loads a variant with parent product data for inter-service snapshots. */
+    /** 서비스 간 상품 스냅샷 생성을 위해 상위 상품 정보를 함께 조회한다. */
     public ProductVariant getVariantDetail(Long variantId) {
         return productVariantRepository.findWithProductAndBrandById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 
     /**
-     * Reserves variant stock with one guarded UPDATE statement.
+     * 조건부 UPDATE 한 번으로 옵션 재고를 예약한다.
      */
     @Transactional
     public ProductVariant reserveStock(Long variantId, int quantity) {
@@ -136,7 +136,7 @@ public class ProductService {
     }
 
     /**
-     * Releases previously reserved stock for order compensation.
+     * 주문 보상을 위해 예약된 재고를 해제한다.
      */
     @Transactional
     public ProductVariant releaseStock(Long variantId, int quantity) {
