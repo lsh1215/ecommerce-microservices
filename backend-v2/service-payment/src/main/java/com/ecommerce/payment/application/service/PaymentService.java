@@ -12,6 +12,7 @@ import com.ecommerce.payment.domain.model.PaymentStatus;
 import com.ecommerce.payment.domain.repository.PaymentRepository;
 import java.math.BigDecimal;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -19,21 +20,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentStubProcessor stubProcessor;
     private final ApplicationEventPublisher eventPublisher;
-
-    public PaymentService(
-            PaymentRepository paymentRepository,
-            PaymentStubProcessor stubProcessor,
-            ApplicationEventPublisher eventPublisher) {
-        this.paymentRepository = paymentRepository;
-        this.stubProcessor = stubProcessor;
-        this.eventPublisher = eventPublisher;
-    }
 
     @Transactional
     public Payment process(ProcessPaymentCommand command) {
@@ -47,6 +40,7 @@ public class PaymentService {
                 command.amount(),
                 command.paymentMethod()
         );
+        // PG 시도 전에 동일 orderId unique 제약 위반을 확정해 중복 외부 처리를 막는다.
         paymentRepository.saveAndFlush(payment);
 
         PaymentStubProcessor.Result result = stubProcessor.attempt(command.amount());
@@ -88,6 +82,7 @@ public class PaymentService {
 
         Payment payment = Payment.create(orderId, orderNumber, amount, PaymentMethod.CARD);
         try {
+            // PG 시도 전에 동일 orderId unique 제약 위반을 확정해 중복 외부 처리를 막는다.
             paymentRepository.saveAndFlush(payment);
         } catch (DataIntegrityViolationException e) {
             if (isOrderIdUniqueViolation(e)) {

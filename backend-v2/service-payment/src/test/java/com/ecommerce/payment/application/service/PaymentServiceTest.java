@@ -43,7 +43,7 @@ class PaymentServiceTest {
         paymentService = new PaymentService(paymentRepository, stubProcessor, eventPublisher);
     }
 
-    // --- processFromEvent tests ---
+    // 결제 요청 이벤트 처리 테스트
 
     @Test
     @DisplayName("PG 결제 성공 시 Payment를 COMPLETED로 저장하고 PaymentCompletedEvent를 발행한다")
@@ -52,10 +52,10 @@ class PaymentServiceTest {
         given(paymentRepository.saveAndFlush(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
         given(stubProcessor.attempt(any())).willReturn(new PaymentStubProcessor.Result(true, "TXN-001"));
 
-        // When
+        // 실행
         paymentService.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
 
-        // Then — Payment가 COMPLETED 상태로 저장되고 완료 이벤트가 발행됨
+        // 검증: Payment가 COMPLETED 상태로 저장되고 완료 이벤트가 발행됨
         ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
         verify(paymentRepository).saveAndFlush(paymentCaptor.capture());
         assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.COMPLETED);
@@ -76,10 +76,10 @@ class PaymentServiceTest {
         given(paymentRepository.saveAndFlush(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
         given(stubProcessor.attempt(any())).willReturn(new PaymentStubProcessor.Result(false, null));
 
-        // When
+        // 실행
         paymentService.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
 
-        // Then — Payment가 FAILED 상태로 저장되고 실패 이벤트가 발행됨
+        // 검증: Payment가 FAILED 상태로 저장되고 실패 이벤트가 발행됨
         ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
         verify(paymentRepository).saveAndFlush(paymentCaptor.capture());
         assertThat(paymentCaptor.getValue().getStatus()).isEqualTo(PaymentStatus.FAILED);
@@ -102,44 +102,44 @@ class PaymentServiceTest {
         verify(eventPublisher, never()).publishEvent(any());
     }
 
-    // --- cancelFromEvent tests ---
+    // 주문 취소 이벤트 처리 테스트
 
     @Test
     @DisplayName("COMPLETED 상태 결제가 있으면 REFUNDED로 전이한다")
     void cancelFromEvent_completedPayment_refunds() {
-        // Given — COMPLETED 상태의 결제가 존재함
+        // 준비: COMPLETED 상태의 결제가 존재함
         Payment payment = Payment.create(1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD);
         payment.markCompleted("TXN-001");
         given(paymentRepository.findByOrderId(1L)).willReturn(Optional.of(payment));
 
-        // When
+        // 실행
         paymentService.cancelFromEvent(1L);
 
-        // Then — REFUNDED 상태로 전이됨
+        // 검증: REFUNDED 상태로 전이됨
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
     }
 
     @Test
     @DisplayName("PENDING 상태 결제가 있으면 FAILED로 전이한다")
     void cancelFromEvent_pendingPayment_fails() {
-        // Given — PENDING 상태의 결제가 존재함
+        // 준비: PENDING 상태의 결제가 존재함
         Payment payment = Payment.create(1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD);
         given(paymentRepository.findByOrderId(1L)).willReturn(Optional.of(payment));
 
-        // When
+        // 실행
         paymentService.cancelFromEvent(1L);
 
-        // Then — FAILED 상태로 전이됨
+        // 검증: FAILED 상태로 전이됨
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
     }
 
     @Test
     @DisplayName("취소할 결제가 없으면 아무 작업도 하지 않는다")
     void cancelFromEvent_noPayment_ignores() {
-        // Given — 해당 주문에 결제가 없음
+        // 준비: 해당 주문에 결제가 없음
         given(paymentRepository.findByOrderId(1L)).willReturn(Optional.empty());
 
-        // When / Then — 예외 없이 조용히 종료됨
+        // 실행 및 검증: 예외 없이 종료됨
         assertThatCode(() -> paymentService.cancelFromEvent(1L)).doesNotThrowAnyException();
     }
 
