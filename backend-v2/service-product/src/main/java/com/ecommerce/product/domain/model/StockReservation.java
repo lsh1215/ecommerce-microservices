@@ -36,6 +36,10 @@ public class StockReservation extends BaseEntity {
     @Column(nullable = false)
     private StockReservationStatus status;
 
+    /**
+     * orderId와 variantId 조합을 재고 예약의 비즈니스 키로 사용한다.
+     * 같은 주문의 같은 옵션 예약은 하나의 예약 이력으로 수렴해야 한다.
+     */
     public static StockReservation reserve(Long orderId, Long variantId, int quantity) {
         StockReservation reservation = new StockReservation();
         reservation.orderId = orderId;

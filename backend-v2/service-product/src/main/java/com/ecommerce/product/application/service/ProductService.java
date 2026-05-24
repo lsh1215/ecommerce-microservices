@@ -118,10 +118,12 @@ public class ProductService {
         }
         var existingReservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId);
         if (existingReservation.isPresent()) {
+            // 동일 주문/옵션 예약은 이미 재고를 차감했으므로 다시 차감하지 않는다.
             return productVariantRepository.findById(variantId)
                     .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
         }
 
+        // 조건부 UPDATE로 재고 차감을 먼저 확정한 뒤 예약 이력을 남긴다.
         int affected = productVariantRepository.decreaseStock(variantId, quantity);
         if (affected == 0) {
             ProductVariant variant = productVariantRepository.findById(variantId)
@@ -152,6 +154,12 @@ public class ProductService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 
+    /**
+     * 예약 이력을 기준으로 재고를 해제한다.
+     *
+     * <p>상태를 RESERVED에서 RELEASED로 바꾼 호출만 재고를 증가시킨다.
+     * 이미 RELEASED인 예약은 다시 들어와도 재고를 중복 복구하지 않는다.
+     */
     @Transactional
     public ProductVariant releaseReservation(Long orderId, Long variantId) {
         StockReservation reservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId)
