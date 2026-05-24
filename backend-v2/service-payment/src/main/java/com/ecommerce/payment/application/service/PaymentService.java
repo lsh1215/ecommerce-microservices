@@ -82,7 +82,7 @@ public class PaymentService {
 
         Payment payment = Payment.create(orderId, orderNumber, amount, PaymentMethod.CARD);
         try {
-            // PG 시도 전에 동일 orderId unique 제약 위반을 확정해 중복 외부 처리를 막는다.
+            // Kafka 재처리나 동시 consumer 경합에서도 PG 시도 전에 동일 주문 결제 선점을 확정한다.
             paymentRepository.saveAndFlush(payment);
         } catch (DataIntegrityViolationException e) {
             if (isOrderIdUniqueViolation(e)) {
