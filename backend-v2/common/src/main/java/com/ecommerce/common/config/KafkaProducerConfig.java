@@ -15,13 +15,10 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 /**
- * Kafka producer config with Micrometer instrumentation.
+ * Kafka Producer 설정과 Micrometer 계측을 담당한다.
  *
- * <p>{@link MicrometerProducerListener} is registered on every {@link ProducerFactory}
- * so that {@code kafka_producer_record_send_total}, {@code kafka_producer_record_error_total},
- * and {@code kafka_producer_*} client-level metrics are auto-emitted to Prometheus
- * via Spring Boot Actuator. Without this listener Spring Kafka emits zero producer-side
- * Micrometer metrics — only the binder's KafkaTemplate Observation timer.
+ * <p>모든 {@link ProducerFactory}에 {@link MicrometerProducerListener}를 등록해
+ * producer client 지표가 Actuator를 통해 노출되도록 한다.
  */
 @Configuration
 public class KafkaProducerConfig {
@@ -37,6 +34,7 @@ public class KafkaProducerConfig {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        // 브로커 재시도 중 중복 발행 가능성을 낮추기 위한 프로듀서 멱등성 계약.
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120_000);
@@ -61,6 +59,7 @@ public class KafkaProducerConfig {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        // 문자열 DLT publish 경로도 일반 이벤트와 동일한 전송 계약을 사용한다.
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120_000);
