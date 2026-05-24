@@ -29,6 +29,9 @@ public class SagaInstance extends BaseEntity {
     @Column(length = 500)
     private String failureReason;
 
+    /**
+     * Saga는 주문 생성 직후 바로 결제 단계로 가지 않고 재고 예약 대기 상태에서 시작한다.
+     */
     public static SagaInstance create(Long orderId, String orderNumber) {
         SagaInstance instance = new SagaInstance();
         instance.orderId = orderId;
@@ -42,6 +45,9 @@ public class SagaInstance extends BaseEntity {
         this.state = SagaState.STOCK_RESERVED;
     }
 
+    /**
+     * 재고 예약 실패는 결제 요청 전 실패이므로 별도 상태로 남겨 보상/재시도 대상과 구분한다.
+     */
     public void moveToStockReservationFailed(String reason) {
         validateState(SagaState.STOCK_RESERVATION_PENDING);
         this.state = SagaState.STOCK_RESERVATION_FAILED;
@@ -68,6 +74,9 @@ public class SagaInstance extends BaseEntity {
         this.state = SagaState.COMPENSATED;
     }
 
+    /**
+     * 보상 재고 해제 실패 시 완료로 넘기지 않고 재시도 필요 상태로 멈춘다.
+     */
     public void moveToCompensationRetryRequired(String reason) {
         validateState(SagaState.COMPENSATING);
         this.state = SagaState.COMPENSATION_RETRY_REQUIRED;

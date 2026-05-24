@@ -21,18 +21,27 @@ public class OrderSagaOrchestrator {
     private final OrderSagaTransactions transactions;
     private final ProductCatalogPort productCatalog;
 
+    /**
+     * 주문 SAGA 시작점.
+     *
+     * <p>Order DB 트랜잭션 안에서 Product 서비스를 호출하지 않도록,
+     * 로컬 주문 생성과 재고 예약 완료 처리를 각각 짧은 트랜잭션으로 나눈다.
+     * Product 스냅샷 조회와 재고 예약은 두 트랜잭션 사이에서 실행된다.
+     */
     public Order startSaga(CreateOrderCommand command) {
         PendingOrder pendingOrder = transactions.createPendingOrder(command);
         List<ReservedOrderItem> reservedItems = new ArrayList<>();
         List<StockReservation> reservations = new ArrayList<>();
         try {
             for (OrderItemCommand item : command.items()) {
+                // 외부 I/O 구간: Order DB 트랜잭션이 열려 있지 않아야 한다.
                 ProductSnapshotDto snapshot = productCatalog.fetchSnapshot(item.productVariantId());
                 productCatalog.reserveStock(item.productVariantId(), item.quantity());
                 reservedItems.add(new ReservedOrderItem(snapshot, item.quantity()));
                 reservations.add(new StockReservation(item.productVariantId(), item.quantity()));
             }
         } catch (Exception e) {
+            // 일부 재고만 예약된 실패 케이스이므로 이미 예약한 항목만 즉시 보상한다.
             releaseAllStock(reservations);
             transactions.markStockReservationFailed(pendingOrder.orderId(), reservations, e);
             throw e;
@@ -49,9 +58,11 @@ public class OrderSagaOrchestrator {
         List<StockReservation> reservations = transactions.startCompensation(orderNumber);
         try {
             for (StockReservation reservation : reservations) {
+                // 보상 재고 해제도 Product 서비스 호출이므로 Order DB 트랜잭션 밖에서 실행한다.
                 productCatalog.releaseStock(reservation.variantId(), reservation.quantity());
             }
         } catch (Exception e) {
+            // 실패를 삼키면 재고 보상이 누락되므로 Saga 상태에 재시도 필요를 남긴다.
             transactions.markCompensationRetryRequired(orderNumber, e);
             throw e;
         }
