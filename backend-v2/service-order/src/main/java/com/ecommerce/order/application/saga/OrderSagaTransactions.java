@@ -33,6 +33,12 @@ public class OrderSagaTransactions {
     private final ApplicationEventPublisher eventPublisher;
     private final VirtualAccountIssuer virtualAccountIssuer;
 
+    /**
+     * 주문과 SagaInstance의 최소 상태만 먼저 저장한다.
+     *
+     * <p>이 트랜잭션은 Product 호출 전에 커밋되어야 하므로,
+     * 주문 항목과 결제 요청 이벤트는 재고 예약이 끝난 뒤 별도 트랜잭션에서 처리한다.
+     */
     @Transactional
     public PendingOrder createPendingOrder(CreateOrderCommand command) {
         Order order = Order.create(
@@ -48,6 +54,11 @@ public class OrderSagaTransactions {
         return new PendingOrder(savedOrder.getId(), savedOrder.getOrderNumber());
     }
 
+    /**
+     * Product 재고 예약이 모두 성공한 뒤 주문 항목을 확정하고 결제 요청 이벤트를 발행한다.
+     *
+     * <p>이 메서드 안에서는 외부 서비스를 호출하지 않고, 로컬 상태 변경과 outbox 이벤트 발행만 수행한다.
+     */
     @Transactional
     public Order completeStockReservation(Long orderId, List<ReservedOrderItem> reservedItems) {
         Order order = orderRepository.findById(orderId)
@@ -74,6 +85,9 @@ public class OrderSagaTransactions {
         saga.moveToStockReservationFailed(buildReservationFailureReason(reservations, cause));
     }
 
+    /**
+     * 결제 완료 이벤트를 로컬 주문 상태 전이로 반영한다.
+     */
     @Transactional
     public void completePayment(String orderNumber, Long orderId, Long paymentId,
                                 String transactionId, BigDecimal amount) {
@@ -90,6 +104,12 @@ public class OrderSagaTransactions {
                 orderNumber, paymentId, transactionId);
     }
 
+    /**
+     * 보상 트랜잭션의 DB 구간을 시작한다.
+     *
+     * <p>주문 취소와 Saga 상태 전이만 처리하고, 실제 Product 재고 해제 호출은 반환 이후
+     * Orchestrator가 트랜잭션 밖에서 수행한다.
+     */
     @Transactional
     public List<StockReservation> startCompensation(String orderNumber) {
         SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
@@ -106,6 +126,9 @@ public class OrderSagaTransactions {
                 .toList();
     }
 
+    /**
+     * Product 재고 해제가 모두 끝난 뒤 Saga 보상 완료 상태를 기록한다.
+     */
     @Transactional
     public void markCompensated(String orderNumber) {
         SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
@@ -113,6 +136,9 @@ public class OrderSagaTransactions {
         saga.moveToCompensated();
     }
 
+    /**
+     * Product 재고 해제 실패 시 운영자가 재시도 대상을 식별할 수 있도록 Saga 상태에 남긴다.
+     */
     @Transactional
     public void markCompensationRetryRequired(String orderNumber, Exception cause) {
         SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
