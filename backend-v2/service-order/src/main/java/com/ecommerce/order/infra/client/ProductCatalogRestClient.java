@@ -46,6 +46,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
     @Override
     @CircuitBreaker(name = CB_NAME, fallbackMethod = "existsVariantFallback")
     public boolean existsVariant(Long variantId) {
+        // retrieve()는 4xx도 예외로 던지므로, 검증성 404를 CB 실패로 기록하지 않기 위해 exchange()로 직접 분류한다.
         return restClient.get()
                 .uri("/api/internal/products/variants/{variantId}", variantId)
                 .exchange((request, response) -> {
@@ -100,6 +101,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
                 .body(Map.of("quantity", quantity))
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    // 재고 부족 같은 4xx는 Product 장애가 아니라 주문 비즈니스 실패로 처리한다.
                     throw new BusinessException(OrderErrorCode.STOCK_RESERVATION_FAILED,
                             "Stock reservation failed for variant: " + variantId);
                 })
@@ -163,6 +165,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
     private void releaseStockFallback(Long variantId, int quantity, Throwable t) {
         if (t instanceof BusinessException be) throw be;
         log.warn("[CB] releaseStock fallback for variantId={}, qty={}: {}", variantId, quantity, t.toString());
+        // 보상 실패를 정상 반환하면 Saga가 재시도 필요 상태를 남길 수 없으므로 예외로 전파한다.
         if (t instanceof CallNotPermittedException) {
             throw new BusinessException(OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE,
                     "Stock release unavailable (circuit open)");
