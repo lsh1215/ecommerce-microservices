@@ -24,38 +24,13 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.util.backoff.ExponentialBackOff;
 
 /**
- * Kafka consumer config with Micrometer instrumentation + a tuned
- * {@link DefaultErrorHandler}.
+ * Kafka Consumer 설정, Micrometer 계측, 공통 에러 처리를 담당한다.
  *
- * <p>{@link MicrometerConsumerListener} is registered so {@code kafka_consumer_*}
- * client-level metrics (records-consumed-rate, fetch-latency, etc.) are exposed.
- * The container factory ALSO honors Spring Kafka's listener-side Observation when
- * {@code spring.kafka.listener.observation-enabled=true} (Spring Kafka 3.x), which
- * emits {@code spring_kafka_listener_seconds{result=success|failure}} — the canonical
- * consumer-side success/failure timer.
+ * <p>{@link MicrometerConsumerListener}를 등록해 consumer client 지표를 노출하고,
+ * listener 컨테이너에는 {@link DefaultErrorHandler}를 붙여 재시도와 DLT 라우팅 정책을 고정한다.
  *
- * <p>The {@code DefaultErrorHandler} bean below is the second half of the
- * "drop RuntimeException wrapping in listeners" change. The listeners now let
- * the original exception type propagate; this handler is the consumer of that
- * type information:
- * <ul>
- *   <li><b>Non-retryable</b> exceptions (poison pill: malformed JSON,
- *       deserialization failure, illegal-argument from validation) are sent
- *       straight to the {@code <topic>.DLT} topic — retrying the same message
- *       cannot produce a different outcome.</li>
- *   <li><b>Retryable</b> exceptions (Kafka broker unavailable, transient
- *       service errors, optimistic-lock collisions in the consumer's domain
- *       layer) get an exponential backoff: 500ms → 1s → 2s → 4s → 8s, then DLT.
- *       Capped retries prevent an unrelated downstream outage from monopolizing
- *       a partition.</li>
- * </ul>
- *
- * <p>Without this bean, Spring Kafka falls back to its default
- * {@code FixedBackOff(0, 9)} — 9 immediate retries with no DLT — which silently
- * commits and loses the message after exhaustion. That default is what the
- * previous {@code throw new RuntimeException(msg, e)} wrapper happened to mask;
- * removing the wrapper without configuring the handler would have made
- * runtime behavior strictly worse.
+ * <p>역직렬화 실패나 검증 실패처럼 같은 메시지를 재시도해도 성공할 수 없는 예외는 즉시 DLT로 보낸다.
+ * 일시적 장애는 지수 백오프로 재시도한 뒤 DLT로 보내 파티션 독점을 막는다.
  */
 @Slf4j
 @Configuration
@@ -75,6 +50,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        // 오프셋 커밋은 리스너 처리와 에러 핸들러 결과에 맞춰 컨테이너가 관리한다.
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.ecommerce.*");
         DefaultKafkaConsumerFactory<String, Object> cf = new DefaultKafkaConsumerFactory<>(props);
@@ -102,6 +78,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        // DLT 문자열 컨슈머도 자동 커밋을 끄고 컨테이너의 처리 결과를 따른다.
         props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
         DefaultKafkaConsumerFactory<String, String> cf = new DefaultKafkaConsumerFactory<>(props);
         cf.addListener(new MicrometerConsumerListener<>(meterRegistry));
@@ -121,16 +98,9 @@ public class KafkaConsumerConfig {
     }
 
     /**
-     * 5 retries with exponential backoff (500ms → 8s, capped), then DLT.
-     * Non-retryable exceptions (malformed payload, validation failure) skip
-     * retry and go straight to {@code <topic>.DLT} — retrying poison pills
-     * just delays the inevitable.
+     * 재시도 가능한 예외는 지수 백오프로 재시도하고, 재시도 불가능한 예외는 즉시 DLT로 보낸다.
      *
-     * <p>The DLT topic name is derived as {@code <originalTopic>.DLT} by
-     * {@link DeadLetterPublishingRecoverer}'s default destination resolver.
-     * Operators should pre-create those topics; if they don't exist the
-     * recoverer logs a warning and the partition pauses until manual
-     * intervention.
+     * <p>DLT 토픽명은 원본 토픽명 뒤에 {@code .DLT}를 붙여 만든다.
      */
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, String> stringKafkaTemplate) {
@@ -140,7 +110,7 @@ public class KafkaConsumerConfig {
 
         ExponentialBackOff backOff = new ExponentialBackOff(500L, 2.0);
         backOff.setMaxInterval(8000L);
-        backOff.setMaxElapsedTime(30000L); // ≈ 5 attempts within 30s, then DLT
+        backOff.setMaxElapsedTime(30000L); // 약 30초 동안 재시도한 뒤 DLT로 보낸다.
 
         DefaultErrorHandler handler = new DefaultErrorHandler(recoverer, backOff);
         handler.addNotRetryableExceptions(
