@@ -13,6 +13,12 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Getter;
 
+/**
+ * 주문 하나에는 결제 하나만 생성되어야 한다.
+ *
+ * <p>order_id unique 제약은 애플리케이션 멱등성 가드가 놓친 동시성 경합까지
+ * 데이터베이스 레벨에서 마지막으로 차단한다.
+ */
 @Getter
 @Entity
 @Table(
