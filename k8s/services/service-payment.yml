@@ -48,6 +48,8 @@ spec:
               value: "8083"
             - name: DB_NAME
               value: "ecommerce_payment"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql-payment-service:3306/ecommerce_payment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
             - name: OTEL_SERVICE_NAME
               value: "service-payment"
             - name: OTEL_RESOURCE_ATTRIBUTES

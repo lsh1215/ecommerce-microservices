@@ -35,6 +35,8 @@ spec:
       labels:
         app: kafka
     spec:
+      securityContext:
+        fsGroup: 1000
       terminationGracePeriodSeconds: 30
       containers:
         - name: kafka
@@ -76,7 +78,7 @@ spec:
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
               value: "false"
             - name: KAFKA_LOG_DIRS
-              value: "/var/lib/kafka/data"
+              value: "/var/lib/kafka/data/kraft-combined-logs"
             - name: CLUSTER_ID
               value: "MkU3OEVBNTcwNTJENDM2Qk"
             - name: KAFKA_HEAP_OPTS

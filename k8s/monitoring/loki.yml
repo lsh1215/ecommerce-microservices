@@ -69,6 +69,8 @@ spec:
       labels:
         app: loki
     spec:
+      securityContext:
+        fsGroup: 10001
       containers:
         - name: loki
           image: grafana/loki:3.1.1

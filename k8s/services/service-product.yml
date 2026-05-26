@@ -48,6 +48,8 @@ spec:
               value: "8081"
             - name: DB_NAME
               value: "ecommerce_product"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql-product-service:3306/ecommerce_product?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
             - name: OTEL_SERVICE_NAME
               value: "service-product"
             - name: OTEL_RESOURCE_ATTRIBUTES

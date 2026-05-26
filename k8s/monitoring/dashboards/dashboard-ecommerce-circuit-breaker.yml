@@ -96,7 +96,7 @@ data:
         {
           "id": 5,
           "type": "timeseries",
-          "title": "5. HikariCP active connections + Tomcat threads busy (service-order)",
+          "title": "5. HikariCP active connections + JVM threads (service-order)",
           "description": "thread 고갈 측정. problem leg: chaos 동안 Tomcat busy thread 가 한도 (max-threads, default 200) 근처로 솟음, HikariCP active 도 동반 상승. solution leg: CB OPEN 으로 fast-fail 후 양쪽 모두 baseline 수준 유지.",
           "gridPos": {"h": 9, "w": 24, "x": 0, "y": 16},
           "datasource": {"type": "prometheus", "uid": "prometheus"},
@@ -108,8 +108,8 @@ data:
             },
             {
               "refId": "B",
-              "expr": "tomcat_threads_busy_threads{app=\"service-order\"}",
-              "legendFormat": "tomcat busy"
+              "expr": "sum(jvm_threads_states_threads{app=\"service-order\"})",
+              "legendFormat": "jvm threads"
             }
           ],
           "fieldConfig": {"defaults": {"unit": "short"}}

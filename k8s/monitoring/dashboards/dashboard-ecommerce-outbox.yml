@@ -110,7 +110,7 @@ data:
             },
             {
               "refId": "B",
-              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error=\"none\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_records_consumed_total{app=\"service-payment\"}[1m]))",
               "legendFormat": "payments processed /s (Kafka consumer success)"
             }
           ],

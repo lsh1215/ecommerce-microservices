@@ -39,18 +39,18 @@ data:
           "id": 2,
           "type": "timeseries",
           "title": "2. Consumer 처리 율 — service-payment 의 KafkaListener (실측 라벨 사용)",
-          "description": "spring_kafka_listener_seconds_count{app='service-payment', result='success'}. 실제 emit 되는 라벨은 messaging_source_name 이 아니라 result/exception 임. 양 leg 모두 dup-inject 시점에 receive spike (consumer 가 메시지를 받는 사실은 동일). 실제 결제로 이어지는가는 Panel 3 와 비교.",
+          "description": "service-payment Kafka consumer 수신량. 양 leg 모두 dup-inject 시점에 receive spike (consumer 가 메시지를 받는 사실은 동일). 실제 결제로 이어지는가는 Panel 3 와 비교.",
           "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error=\"none\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_records_consumed_total{app=\"service-payment\"}[1m]))",
               "legendFormat": "listener success /s"
             },
             {
               "refId": "B",
-              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error!=\"none\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_failed_rebalance_total{app=\"service-payment\"}[1m]))",
               "legendFormat": "listener failure /s"
             }
           ],
@@ -87,7 +87,7 @@ data:
             },
             {
               "refId": "B",
-              "expr": "sum(rate(spring_kafka_listener_seconds_count{app=\"service-payment\", messaging_source_name=\"order.created\", error=\"none\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_records_consumed_total{app=\"service-payment\"}[1m]))",
               "legendFormat": "(b) listener success — dup 포함"
             },
             {

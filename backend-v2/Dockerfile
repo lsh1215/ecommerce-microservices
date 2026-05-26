@@ -23,6 +23,8 @@ RUN chmod +x gradlew && \
 # ── Stage 2: compile & package ────────────────────────────────────────────────
 FROM deps AS builder
 
+ARG SERVICE_NAME
+
 # Copy source code after deps are cached
 COPY common/src common/src
 COPY ${SERVICE_NAME}/src ${SERVICE_NAME}/src
