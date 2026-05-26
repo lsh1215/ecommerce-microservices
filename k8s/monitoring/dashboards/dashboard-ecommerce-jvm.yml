@@ -85,13 +85,12 @@ data:
         {
           "id": 5,
           "type": "timeseries",
-          "title": "5. Tomcat threads (busy / config-max) + HikariCP",
+          "title": "5. JVM threads + HikariCP",
           "description": "thread/connection 고갈 신호. CB off + chaos 동안 둘 다 한도 부근으로 솟음.",
           "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
           "datasource": {"type": "prometheus", "uid": "prometheus"},
           "targets": [
-            {"refId": "A", "expr": "tomcat_threads_busy_threads{app=\"$app\"}", "legendFormat": "tomcat busy"},
-            {"refId": "B", "expr": "tomcat_threads_config_max_threads{app=\"$app\"}", "legendFormat": "tomcat max"},
+            {"refId": "A", "expr": "sum by (state) (jvm_threads_states_threads{app=\"$app\"})", "legendFormat": "{{state}}"},
             {"refId": "C", "expr": "hikaricp_connections_active{app=\"$app\"}", "legendFormat": "hikari active"},
             {"refId": "D", "expr": "hikaricp_connections_pending{app=\"$app\"}", "legendFormat": "hikari pending"}
           ],

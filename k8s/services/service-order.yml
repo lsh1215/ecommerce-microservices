@@ -48,6 +48,8 @@ spec:
               value: "8082"
             - name: DB_NAME
               value: "ecommerce_order"
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:mysql://mysql-order-service:3306/ecommerce_order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
             - name: PRODUCT_SERVICE_URL
               value: "http://service-product:8081"
             - name: OTEL_SERVICE_NAME

@@ -77,7 +77,7 @@ data:
         {
           "type": "stat",
           "id": 2,
-          "title": "Kafka Brokers",
+          "title": "Kafka Client Apps",
           "gridPos": {
             "h": 4,
             "w": 4,
@@ -91,7 +91,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "kafka_brokers",
+              "expr": "count(kafka_app_info_start_time_ms{app=~\"service-order|service-payment\"})",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -273,7 +273,7 @@ data:
         {
           "type": "stat",
           "id": 6,
-          "title": "Kafka Topic Partitions",
+          "title": "Kafka Consumer Connections",
           "gridPos": {
             "h": 4,
             "w": 4,
@@ -287,7 +287,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(kafka_topic_partition_in_sync_replica)",
+              "expr": "sum(kafka_consumer_connection_count{app=~\"service-order|service-payment\"})",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -630,8 +630,8 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "max by (topic) (kafka_topic_partition_current_offset)",
-              "legendFormat": "{{topic}}",
+              "expr": "sum by (app) (rate(kafka_consumer_records_consumed_total{app=~\"service-order|service-payment\"}[1m]))",
+              "legendFormat": "{{app}}",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -665,7 +665,7 @@ data:
         {
           "type": "timeseries",
           "id": 14,
-          "title": "Kafka ISR (min per topic, should be >=1)",
+          "title": "Kafka Consumer Commits",
           "gridPos": {
             "h": 8,
             "w": 12,
@@ -679,8 +679,8 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "min by (topic) (kafka_topic_partition_in_sync_replica)",
-              "legendFormat": "{{topic}}",
+              "expr": "sum by (app) (rate(kafka_consumer_commit_total{app=~\"service-order|service-payment\"}[1m]))",
+              "legendFormat": "{{app}}",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
