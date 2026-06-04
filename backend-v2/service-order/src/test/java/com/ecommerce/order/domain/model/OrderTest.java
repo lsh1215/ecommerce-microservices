@@ -152,6 +152,6 @@ class OrderTest {
         LocalDateTime upperBound = after.plus(Order.DEFAULT_EXPIRATION_DURATION);
 
         assertThat(order.getExpiresAt()).isBetween(lowerBound, upperBound);
-        assertThat(Order.DEFAULT_EXPIRATION_DURATION).isEqualTo(Duration.ofDays(7));
+        assertThat(Order.DEFAULT_EXPIRATION_DURATION).isEqualTo(Duration.ofMinutes(15));
     }
 }

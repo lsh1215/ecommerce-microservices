@@ -3,7 +3,6 @@ package com.ecommerce.order.domain.model;
 import com.ecommerce.common.entity.BaseEntity;
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.order.OrderErrorCode;
-import com.ecommerce.order.domain.service.VirtualAccountIssuer;
 import com.github.f4b6a3.ulid.UlidCreator;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -28,7 +27,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Order extends BaseEntity {
 
-    public static final Duration DEFAULT_EXPIRATION_DURATION = Duration.ofDays(7);
+    public static final Duration DEFAULT_EXPIRATION_DURATION = Duration.ofMinutes(15);
 
     @Column(nullable = false)
     private Long customerId;
@@ -51,9 +50,6 @@ public class Order extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime expiresAt;
 
-    @Embedded
-    private VirtualAccountInstruction virtualAccount;
-
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -72,10 +68,6 @@ public class Order extends BaseEntity {
         item.setOrder(this);
         this.items.add(item);
         recalculateTotalAmount();
-    }
-
-    public void assignVirtualAccount(VirtualAccountIssuer issuer) {
-        this.virtualAccount = issuer.issue(this.orderNumber, this.totalAmount, this.expiresAt);
     }
 
     public void markConfirmed() {
