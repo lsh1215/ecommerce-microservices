@@ -89,25 +89,16 @@ public class ProductService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 
-    /**
-     * 조건부 UPDATE 한 번으로 옵션 재고를 예약한다.
-     */
     @Transactional
     public ProductVariant reserveStock(Long variantId, int quantity) {
         if (quantity <= 0) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
                     "Reserve quantity must be positive");
         }
-        int affected = productVariantRepository.decreaseStock(variantId, quantity);
-        if (affected == 0) {
-            ProductVariant variant = productVariantRepository.findById(variantId)
-                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
-                    String.format("Requested %d but only %d available",
-                            quantity, variant.getStockQuantity()));
-        }
-        return productVariantRepository.findById(variantId)
+        ProductVariant variant = productVariantRepository.findByIdForUpdate(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        variant.reserveStock(quantity);
+        return variant;
     }
 
     @Transactional
@@ -123,18 +114,11 @@ public class ProductService {
                     .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
         }
 
-        // 조건부 UPDATE로 재고 차감을 먼저 확정한 뒤 예약 이력을 남긴다.
-        int affected = productVariantRepository.decreaseStock(variantId, quantity);
-        if (affected == 0) {
-            ProductVariant variant = productVariantRepository.findById(variantId)
-                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
-                    String.format("Requested %d but only %d available",
-                            quantity, variant.getStockQuantity()));
-        }
-        stockReservationRepository.save(StockReservation.reserve(orderId, variantId, quantity));
-        return productVariantRepository.findById(variantId)
+        ProductVariant variant = productVariantRepository.findByIdForUpdate(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        variant.reserveStock(quantity);
+        stockReservationRepository.save(StockReservation.reserve(orderId, variantId, quantity));
+        return variant;
     }
 
     /**
