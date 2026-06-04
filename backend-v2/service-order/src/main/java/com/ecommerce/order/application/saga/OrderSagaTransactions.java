@@ -13,7 +13,6 @@ import com.ecommerce.order.domain.model.ShippingAddress;
 import com.ecommerce.order.domain.model.VariantSnapshot;
 import com.ecommerce.order.domain.repository.OrderRepository;
 import com.ecommerce.order.domain.repository.SagaInstanceRepository;
-import com.ecommerce.order.domain.service.VirtualAccountIssuer;
 import com.github.f4b6a3.ulid.UlidCreator;
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,7 +30,6 @@ public class OrderSagaTransactions {
     private final OrderRepository orderRepository;
     private final SagaInstanceRepository sagaRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final VirtualAccountIssuer virtualAccountIssuer;
 
     /**
      * 주문과 SagaInstance의 최소 상태만 먼저 저장한다.
@@ -69,7 +67,6 @@ public class OrderSagaTransactions {
         for (ReservedOrderItem item : reservedItems) {
             order.addItem(OrderItem.create(toVariantSnapshot(item), item.quantity()));
         }
-        order.assignVirtualAccount(virtualAccountIssuer);
         saga.moveToStockReserved();
         saga.moveToPaymentProcessing();
         eventPublisher.publishEvent(new OrderCreatedEvent(
