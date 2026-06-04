@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-product-service
+  namespace: ecommerce
+spec:
+  selector:
+    app: redis-product
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-product
+  namespace: ecommerce
+spec:
+  serviceName: redis-product-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-product
+  template:
+    metadata:
+      labels:
+        app: redis-product
+    spec:
+      nodeSelector:
+        role: svc-product
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          command: ["redis-server", "--appendonly", "yes", "--dir", "/data"]
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          volumeMounts:
+            - name: redis-product-data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "ping"]
+            initialDelaySeconds: 20
+            periodSeconds: 20
+  volumeClaimTemplates:
+    - metadata:
+        name: redis-product-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi

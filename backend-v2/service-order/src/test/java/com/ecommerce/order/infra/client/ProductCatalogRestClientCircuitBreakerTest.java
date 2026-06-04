@@ -121,7 +121,7 @@ class ProductCatalogRestClientCircuitBreakerTest {
         // 실행: 5번 reserveStock 호출 → 전부 실패
         for (int i = 0; i < 5; i++) {
             try {
-                proxiedClient.reserveStock(1L, 1);
+                proxiedClient.reserveStock(10L, 1L, 1);
             } catch (Exception ignored) {
                 // fallback이 BusinessException을 던지는 것은 정상
             }
@@ -154,7 +154,7 @@ class ProductCatalogRestClientCircuitBreakerTest {
 
         // 실행
         for (int i = 0; i < 5; i++) {
-            assertThatThrownBy(() -> proxiedClient.reserveStock(1L, 1))
+            assertThatThrownBy(() -> proxiedClient.reserveStock(10L, 1L, 1))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.STOCK_RESERVATION_FAILED);
         }
@@ -172,7 +172,7 @@ class ProductCatalogRestClientCircuitBreakerTest {
         int invocationCountBefore = stubFactory.getInvocationCount();
 
         // 실행: reserveStock 호출 → fast-fail
-        assertThatThrownBy(() -> proxiedClient.reserveStock(1L, 1))
+        assertThatThrownBy(() -> proxiedClient.reserveStock(10L, 1L, 1))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("circuit open");
 
@@ -199,7 +199,7 @@ class ProductCatalogRestClientCircuitBreakerTest {
         circuitBreaker.transitionToOpenState();
 
         // 실행 및 검증
-        assertThatThrownBy(() -> proxiedClient.releaseStock(1L, 1))
+        assertThatThrownBy(() -> proxiedClient.releaseStock(10L, 1L, 1))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE);
     }

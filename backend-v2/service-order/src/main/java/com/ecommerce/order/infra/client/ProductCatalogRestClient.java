@@ -95,10 +95,10 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
 
     @Override
     @CircuitBreaker(name = CB_NAME, fallbackMethod = "reserveStockFallback")
-    public void reserveStock(Long variantId, int quantity) {
+    public void reserveStock(Long orderId, Long variantId, int quantity) {
         restClient.post()
                 .uri("/api/internal/products/variants/{variantId}/reserve-stock", variantId)
-                .body(Map.of("quantity", quantity))
+                .body(Map.of("orderId", orderId, "quantity", quantity))
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
                     // 재고 부족 같은 4xx는 Product 장애가 아니라 주문 비즈니스 실패로 처리한다.
@@ -110,10 +110,20 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
 
     @Override
     @CircuitBreaker(name = CB_NAME, fallbackMethod = "releaseStockFallback")
-    public void releaseStock(Long variantId, int quantity) {
+    public void releaseStock(Long orderId, Long variantId, int quantity) {
         restClient.post()
                 .uri("/api/internal/products/variants/{variantId}/release-stock", variantId)
-                .body(Map.of("quantity", quantity))
+                .body(Map.of("orderId", orderId, "quantity", quantity))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    @Override
+    @CircuitBreaker(name = CB_NAME, fallbackMethod = "confirmReservationFallback")
+    public void confirmReservation(Long orderId, Long variantId) {
+        restClient.post()
+                .uri("/api/internal/products/variants/{variantId}/confirm-reservation", variantId)
+                .body(Map.of("orderId", orderId))
                 .retrieve()
                 .toBodilessEntity();
     }
@@ -147,9 +157,10 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
      * reserveStock fallback은 비즈니스 예외를 보존하고 의존성 실패만 감싼다.
      */
     @SuppressWarnings("unused")
-    private void reserveStockFallback(Long variantId, int quantity, Throwable t) {
+    private void reserveStockFallback(Long orderId, Long variantId, int quantity, Throwable t) {
         if (t instanceof BusinessException be) throw be;
-        log.warn("[CB] reserveStock fallback for variantId={}, qty={}: {}", variantId, quantity, t.toString());
+        log.warn("[CB] reserveStock fallback for orderId={}, variantId={}, qty={}: {}",
+                orderId, variantId, quantity, t.toString());
         if (t instanceof CallNotPermittedException) {
             throw new BusinessException(OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE,
                     "Stock reservation unavailable (circuit open)");
@@ -162,9 +173,10 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
      * releaseStock fallback은 Saga가 재시도 필요 상태를 기록할 수 있도록 예외를 전파한다.
      */
     @SuppressWarnings("unused")
-    private void releaseStockFallback(Long variantId, int quantity, Throwable t) {
+    private void releaseStockFallback(Long orderId, Long variantId, int quantity, Throwable t) {
         if (t instanceof BusinessException be) throw be;
-        log.warn("[CB] releaseStock fallback for variantId={}, qty={}: {}", variantId, quantity, t.toString());
+        log.warn("[CB] releaseStock fallback for orderId={}, variantId={}, qty={}: {}",
+                orderId, variantId, quantity, t.toString());
         // 보상 실패를 정상 반환하면 Saga가 재시도 필요 상태를 남길 수 없으므로 예외로 전파한다.
         if (t instanceof CallNotPermittedException) {
             throw new BusinessException(OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE,
@@ -172,6 +184,19 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
         }
         throw new BusinessException(OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE,
                 "Stock release temporarily unavailable");
+    }
+
+    @SuppressWarnings("unused")
+    private void confirmReservationFallback(Long orderId, Long variantId, Throwable t) {
+        if (t instanceof BusinessException be) throw be;
+        log.warn("[CB] confirmReservation fallback for orderId={}, variantId={}: {}",
+                orderId, variantId, t.toString());
+        if (t instanceof CallNotPermittedException) {
+            throw new BusinessException(OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE,
+                    "Stock confirmation unavailable (circuit open)");
+        }
+        throw new BusinessException(OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE,
+                "Stock confirmation temporarily unavailable");
     }
 
     @SuppressWarnings("unchecked")

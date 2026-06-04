@@ -82,6 +82,20 @@ public class OrderSagaTransactions {
         saga.moveToStockReservationFailed(buildReservationFailureReason(reservations, cause));
     }
 
+    @Transactional(readOnly = true)
+    public List<StockReservation> findReservations(String orderNumber) {
+        SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+        Order order = orderRepository.findById(saga.getOrderId())
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+        return order.getItems().stream()
+                .map(item -> new StockReservation(
+                        order.getId(),
+                        item.getVariantSnapshot().getProductVariantId(),
+                        item.getQuantity()))
+                .toList();
+    }
+
     /**
      * 결제 완료 이벤트를 로컬 주문 상태 전이로 반영한다.
      */
@@ -118,6 +132,7 @@ public class OrderSagaTransactions {
         order.cancel();
         return order.getItems().stream()
                 .map(item -> new StockReservation(
+                        order.getId(),
                         item.getVariantSnapshot().getProductVariantId(),
                         item.getQuantity()))
                 .toList();

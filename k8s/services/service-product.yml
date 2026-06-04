@@ -50,6 +50,10 @@ spec:
               value: "ecommerce_product"
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:mysql://mysql-product-service:3306/ecommerce_product?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis-product-service"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
             - name: OTEL_SERVICE_NAME
               value: "service-product"
             - name: OTEL_RESOURCE_ATTRIBUTES

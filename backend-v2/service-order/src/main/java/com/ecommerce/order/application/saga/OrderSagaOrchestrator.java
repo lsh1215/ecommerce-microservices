@@ -36,9 +36,10 @@ public class OrderSagaOrchestrator {
             for (OrderItemCommand item : command.items()) {
                 // 외부 I/O 구간: Order DB 트랜잭션이 열려 있지 않아야 한다.
                 ProductSnapshotDto snapshot = productCatalog.fetchSnapshot(item.productVariantId());
-                productCatalog.reserveStock(item.productVariantId(), item.quantity());
+                productCatalog.reserveStock(pendingOrder.orderId(), item.productVariantId(), item.quantity());
                 reservedItems.add(new ReservedOrderItem(snapshot, item.quantity()));
-                reservations.add(new StockReservation(item.productVariantId(), item.quantity()));
+                reservations.add(new StockReservation(
+                        pendingOrder.orderId(), item.productVariantId(), item.quantity()));
             }
         } catch (Exception e) {
             // 일부 재고만 예약된 실패 케이스이므로 이미 예약한 항목만 즉시 보상한다.
@@ -51,6 +52,10 @@ public class OrderSagaOrchestrator {
 
     public void handlePaymentCompleted(String orderNumber, Long orderId, Long paymentId,
                                        String transactionId, BigDecimal amount) {
+        List<StockReservation> reservations = transactions.findReservations(orderNumber);
+        for (StockReservation reservation : reservations) {
+            productCatalog.confirmReservation(reservation.orderId(), reservation.variantId());
+        }
         transactions.completePayment(orderNumber, orderId, paymentId, transactionId, amount);
     }
 
@@ -59,7 +64,7 @@ public class OrderSagaOrchestrator {
         try {
             for (StockReservation reservation : reservations) {
                 // 보상 재고 해제도 Product 서비스 호출이므로 Order DB 트랜잭션 밖에서 실행한다.
-                productCatalog.releaseStock(reservation.variantId(), reservation.quantity());
+                productCatalog.releaseStock(reservation.orderId(), reservation.variantId(), reservation.quantity());
             }
         } catch (Exception e) {
             // 실패를 삼키면 재고 보상이 누락되므로 Saga 상태에 재시도 필요를 남긴다.
@@ -73,7 +78,7 @@ public class OrderSagaOrchestrator {
     private void releaseAllStock(List<StockReservation> reservations) {
         for (StockReservation reservation : reservations) {
             try {
-                productCatalog.releaseStock(reservation.variantId(), reservation.quantity());
+                productCatalog.releaseStock(reservation.orderId(), reservation.variantId(), reservation.quantity());
             } catch (Exception e) {
                 log.warn("Stock release failed: variantId={}, qty={}",
                         reservation.variantId(), reservation.quantity(), e);

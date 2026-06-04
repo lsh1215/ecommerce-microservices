@@ -2,6 +2,7 @@ package com.ecommerce.product.api.controller;
 
 import com.ecommerce.common.dto.ApiResponse;
 import com.ecommerce.product.api.dto.request.StockReserveRequest;
+import com.ecommerce.product.api.dto.request.StockReservationActionRequest;
 import com.ecommerce.product.api.dto.response.ProductVariantResponse;
 import com.ecommerce.product.api.dto.response.VariantDetailResponse;
 import com.ecommerce.product.application.service.ProductService;
@@ -45,6 +46,14 @@ public class InternalProductController {
         ProductVariant variant = request.orderId() == null
                 ? productService.releaseStock(variantId, request.quantity())
                 : productService.releaseReservation(request.orderId(), variantId);
+        return ApiResponse.ok(ProductVariantResponse.from(variant));
+    }
+
+    @PostMapping("/variants/{variantId}/confirm-reservation")
+    public ApiResponse<ProductVariantResponse> confirmReservation(
+            @PathVariable Long variantId,
+            @Valid @RequestBody StockReservationActionRequest request) {
+        ProductVariant variant = productService.confirmReservation(request.orderId(), variantId);
         return ApiResponse.ok(ProductVariantResponse.from(variant));
     }
 }

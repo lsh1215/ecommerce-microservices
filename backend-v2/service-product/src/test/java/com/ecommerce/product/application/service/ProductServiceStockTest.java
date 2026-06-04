@@ -73,8 +73,8 @@ class ProductServiceStockTest {
         ProductVariant first = productService.reserveStock(1L, variant.getId(), 3);
         ProductVariant second = productService.reserveStock(1L, variant.getId(), 3);
 
-        assertThat(first.getStockQuantity()).isEqualTo(7);
-        assertThat(second.getStockQuantity()).isEqualTo(7);
+        assertThat(first.getStockQuantity()).isEqualTo(10);
+        assertThat(second.getStockQuantity()).isEqualTo(10);
     }
 
     @Test
