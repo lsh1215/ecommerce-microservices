@@ -52,4 +52,9 @@ public class StockReservation extends BaseEntity {
     public boolean isReleased() {
         return status == StockReservationStatus.RELEASED;
     }
+
+    public boolean isConfirmed() {
+        return status == StockReservationStatus.CONFIRMED;
+    }
+
 }

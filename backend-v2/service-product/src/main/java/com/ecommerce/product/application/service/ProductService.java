@@ -31,6 +31,7 @@ public class ProductService {
     private final ProductQueryRepository productQueryRepository;
     private final BrandRepository brandRepository;
     private final StockReservationRepository stockReservationRepository;
+    private final StockReservationStore stockReservationStore;
 
     /**
      * 지정한 브랜드 하위에 신규 상품을 생성한다.
@@ -123,18 +124,16 @@ public class ProductService {
                     .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
         }
 
-        // 조건부 UPDATE로 재고 차감을 먼저 확정한 뒤 예약 이력을 남긴다.
-        int affected = productVariantRepository.decreaseStock(variantId, quantity);
-        if (affected == 0) {
-            ProductVariant variant = productVariantRepository.findById(variantId)
-                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        ProductVariant variant = productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        boolean reserved = stockReservationStore.reserve(variantId, orderId, quantity, variant.getStockQuantity());
+        if (!reserved) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
                     String.format("Requested %d but only %d available",
                             quantity, variant.getStockQuantity()));
         }
         stockReservationRepository.save(StockReservation.reserve(orderId, variantId, quantity));
-        return productVariantRepository.findById(variantId)
-                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        return variant;
     }
 
     /**
@@ -169,7 +168,37 @@ public class ProductService {
                 StockReservationStatus.RESERVED,
                 StockReservationStatus.RELEASED);
         if (claimed == 1) {
-            productVariantRepository.increaseStock(reservation.getVariantId(), reservation.getQuantity());
+            stockReservationStore.release(reservation.getVariantId(), reservation.getOrderId());
+        }
+        return productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+    }
+
+    @Transactional
+    public ProductVariant confirmReservation(Long orderId, Long variantId) {
+        StockReservation reservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.RESERVATION_NOT_FOUND));
+        if (reservation.isConfirmed()) {
+            return productVariantRepository.findById(variantId)
+                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        }
+        if (reservation.isReleased()) {
+            throw new BusinessException(ProductErrorCode.RESERVATION_NOT_FOUND);
+        }
+        int claimed = stockReservationRepository.markConfirmedIfReserved(
+                reservation.getId(),
+                StockReservationStatus.RESERVED,
+                StockReservationStatus.CONFIRMED);
+        if (claimed == 1) {
+            int affected = productVariantRepository.decreaseStock(variantId, reservation.getQuantity());
+            if (affected == 0) {
+                ProductVariant variant = productVariantRepository.findById(variantId)
+                        .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+                throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
+                        String.format("Requested %d but only %d available",
+                                reservation.getQuantity(), variant.getStockQuantity()));
+            }
+            stockReservationStore.release(reservation.getVariantId(), reservation.getOrderId());
         }
         return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));

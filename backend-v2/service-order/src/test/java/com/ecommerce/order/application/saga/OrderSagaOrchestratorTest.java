@@ -54,7 +54,7 @@ class OrderSagaOrchestratorTest {
         given(transactions.createPendingOrder(any()))
                 .willReturn(new PendingOrder(1L, "ORD-001"));
         given(productCatalog.fetchSnapshot(anyLong())).willAnswer(inv -> snapshotDto(inv.getArgument(0)));
-        willDoNothing().given(productCatalog).reserveStock(anyLong(), anyInt());
+        willDoNothing().given(productCatalog).reserveStock(anyLong(), anyLong(), anyInt());
         Order completedOrder = buildOrderWithItem(100L, 1);
         given(transactions.completeStockReservation(eq(1L), any()))
                 .willReturn(completedOrder);
@@ -65,7 +65,7 @@ class OrderSagaOrchestratorTest {
         InOrder inOrder = inOrder(transactions, productCatalog);
         inOrder.verify(transactions).createPendingOrder(any());
         inOrder.verify(productCatalog).fetchSnapshot(100L);
-        inOrder.verify(productCatalog).reserveStock(100L, 1);
+        inOrder.verify(productCatalog).reserveStock(1L, 100L, 1);
         inOrder.verify(transactions).completeStockReservation(eq(1L), any());
     }
 
@@ -75,13 +75,13 @@ class OrderSagaOrchestratorTest {
         given(transactions.createPendingOrder(any()))
                 .willReturn(new PendingOrder(1L, "ORD-001"));
         given(productCatalog.fetchSnapshot(anyLong())).willReturn(snapshotDto(100L));
-        willDoNothing().given(productCatalog).reserveStock(anyLong(), anyInt());
+        willDoNothing().given(productCatalog).reserveStock(anyLong(), anyLong(), anyInt());
         given(transactions.completeStockReservation(eq(1L), any()))
                 .willReturn(buildOrderWithItem(100L, 1));
 
         orchestrator.startSaga(validCommand());
 
-        verify(productCatalog).reserveStock(eq(100L), eq(1));
+        verify(productCatalog).reserveStock(eq(1L), eq(100L), eq(1));
         assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
     }
 
@@ -91,9 +91,9 @@ class OrderSagaOrchestratorTest {
         given(transactions.createPendingOrder(any()))
                 .willReturn(new PendingOrder(1L, "ORD-001"));
         given(productCatalog.fetchSnapshot(anyLong())).willAnswer(inv -> snapshotDto(inv.getArgument(0)));
-        willDoNothing().given(productCatalog).reserveStock(eq(100L), anyInt());
+        willDoNothing().given(productCatalog).reserveStock(eq(1L), eq(100L), anyInt());
         BusinessException failure = new BusinessException(OrderErrorCode.STOCK_RESERVATION_FAILED);
-        willThrow(failure).given(productCatalog).reserveStock(eq(200L), anyInt());
+        willThrow(failure).given(productCatalog).reserveStock(eq(1L), eq(200L), anyInt());
 
         CreateOrderCommand twoItemCommand = new CreateOrderCommand(
                 1L,
@@ -104,11 +104,11 @@ class OrderSagaOrchestratorTest {
 
         assertThatThrownBy(() -> orchestrator.startSaga(twoItemCommand))
                 .isSameAs(failure);
-        verify(productCatalog).releaseStock(100L, 1);
-        verify(productCatalog, never()).releaseStock(eq(200L), anyInt());
+        verify(productCatalog).releaseStock(1L, 100L, 1);
+        verify(productCatalog, never()).releaseStock(eq(1L), eq(200L), anyInt());
         verify(transactions).markStockReservationFailed(
                 eq(1L),
-                eq(List.of(new StockReservation(100L, 1))),
+                eq(List.of(new StockReservation(1L, 100L, 1))),
                 eq(failure)
         );
         verify(transactions, never()).completeStockReservation(anyLong(), any());
@@ -117,8 +117,12 @@ class OrderSagaOrchestratorTest {
     @Test
     @DisplayName("결제 완료 이벤트는 짧은 로컬 트랜잭션으로 위임한다")
     void handlePaymentCompleted_delegatesToTransactionBoundary() {
+        given(transactions.findReservations("ORD-001"))
+                .willReturn(List.of(new StockReservation(1L, 100L, 1)));
+
         orchestrator.handlePaymentCompleted("ORD-001", 1L, 10L, "TX-001", new BigDecimal("100.00"));
 
+        verify(productCatalog).confirmReservation(1L, 100L);
         verify(transactions).completePayment("ORD-001", 1L, 10L, "TX-001", new BigDecimal("100.00"));
     }
 
@@ -126,14 +130,14 @@ class OrderSagaOrchestratorTest {
     @DisplayName("결제 실패 보상은 주문 취소 트랜잭션 후 트랜잭션 밖에서 재고를 해제하고 보상 완료를 기록한다")
     void handlePaymentFailed_releasesStockOutsideOrderTransaction() {
         given(transactions.startCompensation("ORD-001"))
-                .willReturn(List.of(new StockReservation(100L, 2)));
-        willDoNothing().given(productCatalog).releaseStock(anyLong(), anyInt());
+                .willReturn(List.of(new StockReservation(1L, 100L, 2)));
+        willDoNothing().given(productCatalog).releaseStock(anyLong(), anyLong(), anyInt());
 
         orchestrator.handlePaymentFailed("ORD-001", 1L, "stub rejection");
 
         InOrder inOrder = inOrder(transactions, productCatalog);
         inOrder.verify(transactions).startCompensation("ORD-001");
-        inOrder.verify(productCatalog).releaseStock(100L, 2);
+        inOrder.verify(productCatalog).releaseStock(1L, 100L, 2);
         inOrder.verify(transactions).markCompensated("ORD-001");
     }
 
@@ -142,8 +146,8 @@ class OrderSagaOrchestratorTest {
     void handlePaymentFailed_releaseFailure_recordsRetryRequiredAndRethrows() {
         RuntimeException failure = new RuntimeException("product timeout");
         given(transactions.startCompensation("ORD-001"))
-                .willReturn(List.of(new StockReservation(100L, 2)));
-        willThrow(failure).given(productCatalog).releaseStock(100L, 2);
+                .willReturn(List.of(new StockReservation(1L, 100L, 2)));
+        willThrow(failure).given(productCatalog).releaseStock(1L, 100L, 2);
 
         assertThatThrownBy(() -> orchestrator.handlePaymentFailed("ORD-001", 1L, "stub rejection"))
                 .isSameAs(failure);

@@ -24,4 +24,12 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
             @Param("id") Long id,
             @Param("reserved") StockReservationStatus reserved,
             @Param("released") StockReservationStatus released);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE StockReservation r SET r.status = :confirmed "
+            + "WHERE r.id = :id AND r.status = :reserved")
+    int markConfirmedIfReserved(
+            @Param("id") Long id,
+            @Param("reserved") StockReservationStatus reserved,
+            @Param("confirmed") StockReservationStatus confirmed);
 }
