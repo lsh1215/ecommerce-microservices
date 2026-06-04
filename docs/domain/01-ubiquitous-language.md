@@ -5,7 +5,7 @@
 이 문서는 일반 이커머스 플랫폼의 4개 Bounded Context에서 사용하는 핵심 도메인 용어를 정의한다.
 모든 팀원(개발자, 기획자, 디자이너)은 이 용어를 동일한 의미로 사용해야 한다.
 
-> 본 프로젝트는 가상계좌(무통장입금) 결제 시나리오를 모델링한다. PG/은행 webhook 연동은 범위 밖이며 Payment 서비스 내부 로직으로 시뮬레이션한다.
+> 본 프로젝트는 PG 즉시 결제형 주문 흐름을 모델링한다. 외부 PG 호출은 DB 트랜잭션 밖에서 수행하고, 결제 요청과 처리 결과는 별도 이력 행으로 남긴다.
 
 ---
 
@@ -33,7 +33,7 @@
 | **OrderStatus** | 주문의 생명주기 상태. PENDING → CONFIRMED → PAID → SHIPPING → DELIVERED 또는 CANCELLED. |
 | **ShippingAddress** | 배송 수령지 정보. 수령인, 전화번호, 우편번호, 주소로 구성된 Value Object. |
 | **Stock Reservation** | 주문 생성 시 Product Context에 재고 확보를 요청하는 행위. |
-| **ExpiresAt** | 가상계좌 입금기한. Order 생성 시점에 `now + 7일` 로 세팅된다. |
+| **ExpiresAt** | 결제 승인 대기 만료 시각. Order 생성 시점에 `now + 15분` 으로 세팅된다. |
 
 ---
 
@@ -43,8 +43,9 @@
 |------|------|
 | **Payment** | 특정 Order에 대한 결제 건. 금액, 상태, 거래 ID를 가진다. |
 | **PaymentStatus** | 결제의 생명주기 상태. PENDING → COMPLETED 또는 FAILED. COMPLETED에서 REFUNDED로 전이 가능. |
-| **VirtualAccountInstruction** | Order 생성 시 결정적으로 발급되는 입금 안내(은행, 가상계좌번호, 예금주, 금액, 입금기한). Order Aggregate 의 Embedded Value Object. |
-| **TransactionId** | 결제 처리 시 부여되는 고유 거래 식별자. (Payment 서비스 내부에서 시뮬레이션 발급) |
+| **PaymentAttempt** | PG 승인 요청 단위. 요청 시각, 처리 시작 시각, 완료/실패 시각, retry count, idempotency key를 가진다. |
+| **PaymentAttemptHistory** | 결제 요청, 처리 시작, 완료, 실패, retry 가능 실패, 취소 같은 상태 변경 이력. 장애 분석과 재처리 근거로 사용한다. |
+| **TransactionId** | PG 승인 성공 시 부여되는 고유 거래 식별자. 현재는 Payment 서비스의 stub adapter가 시뮬레이션한다. |
 | **Refund** | 완료된 결제를 취소하고 금액을 반환하는 행위. |
 
 ---

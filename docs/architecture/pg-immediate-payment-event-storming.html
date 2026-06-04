@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PG 즉시 결제형 SAGA 이벤트 스토밍</title>
+  <style>
+    :root {
+      --bg: #f6f3ea;
+      --line: #27231f;
+      --command: #7cc4ff;
+      --event: #ffb35c;
+      --policy: #d8b4fe;
+      --aggregate: #fff2a8;
+      --read: #b7f7d6;
+      --external: #d8dee9;
+      --issue: #ff9aa2;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--line);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .board {
+      min-width: 1440px;
+      min-height: 900px;
+      padding: 32px 40px 56px;
+    }
+
+    .title {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      border-bottom: 3px solid var(--line);
+      padding-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      letter-spacing: 0;
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .legend span {
+      border: 2px solid var(--line);
+      padding: 7px 10px;
+      background: #fff;
+    }
+
+    .lane {
+      position: relative;
+      display: grid;
+      grid-template-columns: 220px 220px 220px 220px 220px 220px;
+      column-gap: 16px;
+      margin-bottom: 34px;
+      padding: 24px 20px 28px;
+      border: 2px solid rgba(39, 35, 31, 0.28);
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    .lane-title {
+      position: absolute;
+      top: -15px;
+      left: 18px;
+      padding: 4px 10px;
+      background: var(--bg);
+      border: 2px solid var(--line);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .card {
+      min-height: 110px;
+      border: 2px solid var(--line);
+      box-shadow: 5px 5px 0 rgba(39, 35, 31, 0.16);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card strong {
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .card small {
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .command { background: var(--command); }
+    .event { background: var(--event); }
+    .policy { background: var(--policy); }
+    .aggregate { background: var(--aggregate); }
+    .read { background: var(--read); }
+    .external { background: var(--external); }
+    .issue { background: var(--issue); }
+
+    .arrow {
+      align-self: center;
+      justify-self: center;
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .note {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .note section {
+      border: 2px solid var(--line);
+      background: #fff;
+      padding: 16px;
+    }
+
+    .note h2 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .note ul {
+      margin: 0;
+      padding-left: 18px;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <div class="title">
+      <h1>PG 즉시 결제형 SAGA 이벤트 스토밍</h1>
+      <div class="legend">
+        <span class="command">Command</span>
+        <span class="event">Event</span>
+        <span class="policy">Policy</span>
+        <span class="aggregate">Aggregate</span>
+        <span class="read">Read Model</span>
+      </div>
+    </div>
+
+    <section class="lane">
+      <div class="lane-title">주문 생성과 재고 예약</div>
+      <article class="card command">
+        <strong>주문 생성 요청</strong>
+        <small>User → Traefik → Order. JWT에서 식별된 customerId와 주문 항목을 전달한다.</small>
+      </article>
+      <div class="arrow">→</div>
+      <article class="card aggregate">
+        <strong>Order / SagaInstance</strong>
+        <small>PENDING Order와 STOCK_RESERVATION_PENDING SagaInstance를 먼저 저장한다.</small>
+      </article>
+      <div class="arrow">→</div>
+      <article class="card command">
+        <strong>재고 예약 요청</strong>
+        <small>Order transaction 밖에서 Product에 variant별 reserve를 호출한다.</small>
+      </article>
+      <article class="card event">
+        <strong>OrderCreated</strong>
+        <small>재고 예약 성공 후 OrderItem을 저장하고 Kafka outbox에 결제 요청 이벤트를 남긴다.</small>
+      </article>
+    </section>
+
+    <section class="lane">
+      <div class="lane-title">결제 요청 생성</div>
+      <article class="card policy">
+        <strong>OrderCreated 수신 정책</strong>
+        <small>중복 eventId는 processed_event로 차단한다.</small>
+      </article>
+      <div class="arrow">→</div>
+      <article class="card aggregate">
+        <strong>Payment</strong>
+        <small>orderId unique key로 주문당 결제 1건만 생성한다. 상태는 PENDING.</small>
+      </article>
+      <div class="arrow">→</div>
+      <article class="card aggregate">
+        <strong>PaymentAttempt</strong>
+        <small>REQUESTED 상태, requestedAt, idempotencyKey, retryCount를 저장한다.</small>
+      </article>
+      <article class="card read">
+        <strong>PaymentAttemptHistory</strong>
+        <small>REQUESTED 이력을 append한다. 장애 분석과 재처리 판단의 기준이 된다.</small>
+      </article>
+    </section>
+
+    <section class="lane">
+      <div class="lane-title">PG 승인 처리</div>
+      <article class="card policy">
+        <strong>PaymentAttemptProcessor</strong>
+        <small>REQUESTED/RETRYABLE_FAILED attempt를 짧은 트랜잭션으로 claim한다.</small>
+      </article>
+      <div class="arrow">→</div>
+      <article class="card read">
+        <strong>PROCESSING_STARTED</strong>
+        <small>처리 시작 시각과 retryCount를 먼저 기록한다.</small>
+      </article>
+      <div class="arrow">→</div>
+      <article class="card external">
+        <strong>PG 승인 API</strong>
+        <small>DB 트랜잭션 밖에서 호출한다. 현재는 stub adapter가 승인/거절을 시뮬레이션한다.</small>
+      </article>
+      <article class="card issue">
+        <strong>retry 가능 오류</strong>
+        <small>네트워크/일시 장애는 RETRYABLE_FAILED로 남기고 다음 processor 주기에 재시도한다.</small>
+      </article>
+    </section>
+
+    <section class="lane">
+      <div class="lane-title">결제 결과와 보상</div>
+      <article class="card event">
+        <strong>PaymentCompleted</strong>
+        <small>Payment와 Attempt를 COMPLETED로 전이하고 transactionId를 기록한다.</small>
+      </article>
+      <div class="arrow">→</div>
+      <article class="card aggregate">
+        <strong>Order Paid</strong>
+        <small>Order는 CONFIRMED, PAID로 전이하고 SagaInstance는 COMPLETED가 된다.</small>
+      </article>
+      <div class="arrow">↘</div>
+      <article class="card event">
+        <strong>PaymentFailed</strong>
+        <small>재시도 불가능 실패는 FAILED 이력과 함께 실패 이벤트를 발행한다.</small>
+      </article>
+      <article class="card policy">
+        <strong>Compensation</strong>
+        <small>Order를 CANCELLED로 전이하고 Product 재고 해제를 트랜잭션 밖에서 호출한다.</small>
+      </article>
+    </section>
+
+    <div class="note">
+      <section>
+        <h2>트랜잭션 원칙</h2>
+        <ul>
+          <li>Order DB transaction 안에서 Product/Payment/PG를 호출하지 않는다.</li>
+          <li>Payment DB transaction 안에서 PG를 호출하지 않는다.</li>
+          <li>외부 호출 전후 상태를 DB 이력으로 남긴다.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>운영 관측 포인트</h2>
+        <ul>
+          <li>REQUESTED → PROCESSING_STARTED 지연</li>
+          <li>PROCESSING_STARTED → COMPLETED/FAILED 지연</li>
+          <li>RETRYABLE_FAILED 누적과 retryCount 분포</li>
+        </ul>
+      </section>
+      <section>
+        <h2>증거 수집 포인트</h2>
+        <ul>
+          <li>결제 성공률과 실패 이벤트 수</li>
+          <li>PaymentAttemptHistory 행 수와 상태별 분포</li>
+          <li>Order SAGA COMPLETED/COMPENSATED 상태 전이</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</body>
+</html>
