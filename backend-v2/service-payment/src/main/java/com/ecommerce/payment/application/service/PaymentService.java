@@ -2,20 +2,27 @@ package com.ecommerce.payment.application.service;
 
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.payment.PaymentErrorCode;
+import com.ecommerce.payment.application.dto.PaymentGatewayCommand;
 import com.ecommerce.payment.application.dto.ProcessPaymentCommand;
 import com.ecommerce.payment.application.dto.RefundPaymentCommand;
 import com.ecommerce.payment.domain.event.PaymentCompletedEvent;
 import com.ecommerce.payment.domain.event.PaymentFailedEvent;
 import com.ecommerce.payment.domain.model.Payment;
+import com.ecommerce.payment.domain.model.PaymentAttempt;
+import com.ecommerce.payment.domain.model.PaymentAttemptHistory;
+import com.ecommerce.payment.domain.model.PaymentAttemptHistoryType;
+import com.ecommerce.payment.domain.model.PaymentAttemptStatus;
 import com.ecommerce.payment.domain.model.PaymentMethod;
 import com.ecommerce.payment.domain.model.PaymentStatus;
+import com.ecommerce.payment.domain.repository.PaymentAttemptHistoryRepository;
+import com.ecommerce.payment.domain.repository.PaymentAttemptRepository;
 import com.ecommerce.payment.domain.repository.PaymentRepository;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,35 +31,99 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class PaymentService {
 
+    private static final List<PaymentAttemptStatus> CLAIMABLE_STATUSES = List.of(
+            PaymentAttemptStatus.REQUESTED,
+            PaymentAttemptStatus.RETRYABLE_FAILED
+    );
+
     private final PaymentRepository paymentRepository;
-    private final PaymentStubProcessor stubProcessor;
+    private final PaymentAttemptRepository attemptRepository;
+    private final PaymentAttemptHistoryRepository historyRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public Payment process(ProcessPaymentCommand command) {
-        if (paymentRepository.findByOrderId(command.orderId()).isPresent()) {
-            throw new BusinessException(PaymentErrorCode.DUPLICATE_PAYMENT);
-        }
-
-        Payment payment = Payment.create(
-                command.orderId(),
-                command.orderNumber(),
-                command.amount(),
-                command.paymentMethod()
-        );
-        // PG 시도 전에 동일 orderId unique 제약 위반을 확정해 중복 외부 처리를 막는다.
-        paymentRepository.saveAndFlush(payment);
-
-        PaymentStubProcessor.Result result = stubProcessor.attempt(command.amount());
-        applyProcessorResult(payment, result);
-
-        return payment;
+        return requestPayment(command.orderId(), command.orderNumber(), command.amount(), command.paymentMethod());
     }
 
-    /**
-     * 완료된 결제를 환불 처리한다.
-     * 제공된 사유와 관계없이 Payment를 REFUNDED 상태로 전이한다.
-     */
+    @Transactional
+    public void processFromEvent(Long orderId, String orderNumber, BigDecimal amount) {
+        requestPayment(orderId, orderNumber, amount, PaymentMethod.CARD);
+    }
+
+    @Transactional
+    public Optional<PaymentGatewayCommand> claimNextAttempt() {
+        Optional<PaymentAttempt> optionalAttempt =
+                attemptRepository.findFirstByStatusInOrderByRequestedAtAsc(CLAIMABLE_STATUSES);
+        if (optionalAttempt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        PaymentAttempt attempt = optionalAttempt.get();
+        attempt.markProcessing();
+        historyRepository.save(PaymentAttemptHistory.of(attempt, PaymentAttemptHistoryType.PROCESSING_STARTED));
+
+        return Optional.of(new PaymentGatewayCommand(
+                attempt.getId(),
+                attempt.getOrderId(),
+                attempt.getOrderNumber(),
+                attempt.getAmount(),
+                attempt.getPaymentMethod(),
+                attempt.getIdempotencyKey()
+        ));
+    }
+
+    @Transactional
+    public void completeAttempt(Long attemptId, String transactionId) {
+        PaymentAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+        Payment payment = paymentRepository.findByOrderId(attempt.getOrderId())
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+
+        if (attempt.getStatus() == PaymentAttemptStatus.COMPLETED) {
+            return;
+        }
+
+        attempt.markCompleted(transactionId);
+        payment.markCompleted(transactionId);
+        historyRepository.save(PaymentAttemptHistory.of(
+                attempt, PaymentAttemptHistoryType.COMPLETED, transactionId, null));
+
+        eventPublisher.publishEvent(new PaymentCompletedEvent(
+                attempt.getOrderNumber(),
+                attempt.getOrderId(),
+                payment.getId(),
+                transactionId,
+                attempt.getAmount()
+        ));
+    }
+
+    @Transactional
+    public void failAttempt(Long attemptId, String reason, boolean retryable) {
+        PaymentAttempt attempt = attemptRepository.findById(attemptId)
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+        Payment payment = paymentRepository.findByOrderId(attempt.getOrderId())
+                .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
+
+        if (retryable) {
+            attempt.markRetryableFailed(reason);
+            historyRepository.save(PaymentAttemptHistory.of(
+                    attempt, PaymentAttemptHistoryType.RETRYABLE_FAILED, null, reason));
+            return;
+        }
+
+        attempt.markFailed(reason);
+        payment.markFailed(reason);
+        historyRepository.save(PaymentAttemptHistory.of(
+                attempt, PaymentAttemptHistoryType.FAILED, null, reason));
+
+        eventPublisher.publishEvent(new PaymentFailedEvent(
+                attempt.getOrderNumber(),
+                attempt.getOrderId(),
+                reason
+        ));
+    }
+
     @Transactional
     public Payment refund(Long paymentId, RefundPaymentCommand command) {
         Payment payment = paymentRepository.findById(paymentId)
@@ -74,40 +145,6 @@ public class PaymentService {
     }
 
     @Transactional
-    public void processFromEvent(Long orderId, String orderNumber, BigDecimal amount) {
-        if (paymentRepository.findByOrderId(orderId).isPresent()) {
-            log.info("Duplicate payment request ignored: orderId={}", orderId);
-            return;
-        }
-
-        Payment payment = Payment.create(orderId, orderNumber, amount, PaymentMethod.CARD);
-        try {
-            // Kafka 재처리나 동시 consumer 경합에서도 PG 시도 전에 동일 주문 결제 선점을 확정한다.
-            paymentRepository.saveAndFlush(payment);
-        } catch (DataIntegrityViolationException e) {
-            if (isOrderIdUniqueViolation(e)) {
-                log.info("Concurrent duplicate payment request ignored: orderId={}", orderId);
-                return;
-            }
-            throw e;
-        }
-        PaymentStubProcessor.Result result = stubProcessor.attempt(amount);
-        applyProcessorResult(payment, result);
-
-        if (result.success()) {
-            eventPublisher.publishEvent(new PaymentCompletedEvent(
-                    orderNumber, orderId, payment.getId(), result.transactionId(), amount));
-        } else {
-            eventPublisher.publishEvent(new PaymentFailedEvent(
-                    orderNumber, orderId, "stub rejection"));
-        }
-    }
-
-    /**
-     * 주문 취소 이벤트 수신 시 결제를 취소하거나 환불 처리한다.
-     * COMPLETED 상태면 환불, PENDING 상태면 실패 처리.
-     */
-    @Transactional
     public void cancelFromEvent(Long orderId) {
         Optional<Payment> optionalPayment = paymentRepository.findByOrderId(orderId);
         if (optionalPayment.isEmpty()) {
@@ -119,25 +156,32 @@ public class PaymentService {
         if (payment.getStatus() == PaymentStatus.COMPLETED) {
             payment.markRefunded();
             log.info("결제 환불 처리: orderId={}, paymentId={}", orderId, payment.getId());
+            return;
         } else if (payment.getStatus() == PaymentStatus.PENDING) {
             payment.markFailed("order cancelled");
             log.info("결제 실패 처리 (주문 취소): orderId={}, paymentId={}", orderId, payment.getId());
         }
+
+        Optional<PaymentAttempt> optionalAttempt = attemptRepository.findFirstByOrderIdOrderByRequestedAtDesc(orderId);
+        optionalAttempt.ifPresent(attempt -> {
+            attempt.markCancelled("order cancelled");
+            historyRepository.save(PaymentAttemptHistory.of(
+                    attempt, PaymentAttemptHistoryType.CANCELLED, null, "order cancelled"));
+        });
     }
 
-    private void applyProcessorResult(Payment payment, PaymentStubProcessor.Result result) {
-        if (result.success()) {
-            payment.markCompleted(result.transactionId());
-        } else {
-            payment.markFailed("stub rejection");
+    private Payment requestPayment(Long orderId, String orderNumber, BigDecimal amount, PaymentMethod method) {
+        Optional<Payment> existing = paymentRepository.findByOrderId(orderId);
+        if (existing.isPresent()) {
+            log.info("이미 생성된 결제 요청 무시: orderId={}", orderId);
+            return existing.get();
         }
-    }
 
-    private boolean isOrderIdUniqueViolation(DataIntegrityViolationException e) {
-        String message = e.getMostSpecificCause() != null
-                ? e.getMostSpecificCause().getMessage()
-                : e.getMessage();
-        return message != null
-                && (message.contains("uk_payment_order_id") || message.contains("order_id"));
+        Payment payment = Payment.create(orderId, orderNumber, amount, method);
+        Payment savedPayment = paymentRepository.saveAndFlush(payment);
+        PaymentAttempt attempt = PaymentAttempt.request(orderId, orderNumber, amount, method);
+        PaymentAttempt savedAttempt = attemptRepository.saveAndFlush(attempt);
+        historyRepository.save(PaymentAttemptHistory.of(savedAttempt, PaymentAttemptHistoryType.REQUESTED));
+        return savedPayment;
     }
 }
