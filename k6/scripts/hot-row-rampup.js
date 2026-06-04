@@ -21,6 +21,7 @@ import { Counter } from 'k6/metrics';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
 const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.sig'}`;
 const VARIANT_ID = Number(__ENV.VARIANT_ID || 1);
+const CUSTOMER_ID = Number(__ENV.CUSTOMER_ID || 1);
 
 // 더 정확한 knee를 찾을 때는 CI나 로컬 실험에서 STAGES를 덮어쓴다.
 const STAGES = __ENV.STAGES
@@ -44,6 +45,7 @@ const ordersTimeout = new Counter('orders_timeout');
 
 export const options = {
   tags: { testid: __ENV.TESTID || 'hotrow-rampup' },
+  summaryTrendStats: ['min', 'avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   scenarios: {
     hot_row_breakpoint: {
       executor: 'ramping-arrival-rate',
@@ -64,7 +66,7 @@ export const options = {
 
 export default function () {
   const payload = JSON.stringify({
-    customerId: 1,
+    customerId: CUSTOMER_ID,
     items: [
       {
         productVariantId: VARIANT_ID,
@@ -86,7 +88,7 @@ export default function () {
   });
 
   const res = http.post(`${ORDER_API}/api/orders`, payload, {
-    headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER },
+    headers: { 'Content-Type': 'application/json', Authorization: AUTH_HEADER, 'X-Customer-Id': String(CUSTOMER_ID) },
     // 서버 connection timeout 구간과 맞춰 pool exhaustion과 client timeout을 분리해서 본다.
     timeout: '30s',
   });
