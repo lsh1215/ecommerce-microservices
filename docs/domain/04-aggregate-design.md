@@ -80,11 +80,13 @@ Order (Aggregate Root)
 
 ```
 Payment (Aggregate Root, 단일 Entity)
+PaymentAttempt (PG 승인 요청 이력 Entity)
+PaymentAttemptHistory (상태 변경 감사 이력 Entity)
 ```
 
 - **Root**: `Payment`
 - **불변식**:
-  - Payment.orderId 당 활성 결제(COMPLETED 가 아닌 결제)는 최대 1건이다. (단일 결제수단 — 가상계좌 — 시나리오)
+  - Payment.orderId 당 결제는 최대 1건이다.
   - Payment.amount는 0보다 커야 한다.
   - PaymentStatus 전이는 허용된 경로만 가능하다:
     - PENDING → COMPLETED
@@ -96,7 +98,13 @@ Payment (Aggregate Root, 단일 Entity)
 - **일관성 규칙**:
   - 상태 전이는 Payment의 도메인 메서드를 통해서만 수행한다.
   - 동일 Order에 대해 COMPLETED 상태의 Payment가 있으면 새 결제를 생성할 수 없다.
-- **트랜잭션 경계**: 단일 Entity이므로 Payment 단위로 트랜잭션을 관리한다.
+  - PaymentAttempt는 PG 승인 요청, 처리 시작, 완료/실패 시각을 보존한다.
+  - PaymentAttemptHistory는 상태 변경마다 append-only 감사 이력으로 저장한다.
+  - 외부 PG adapter 호출은 Payment 트랜잭션 안에서 수행하지 않는다.
+- **트랜잭션 경계**:
+  - Payment/PaymentAttempt 생성과 이력 저장은 로컬 DB 트랜잭션으로 처리한다.
+  - PaymentAttempt claim과 상태 전이는 짧은 로컬 트랜잭션으로 처리한다.
+  - PG 승인 호출은 processor가 claim 트랜잭션을 끝낸 뒤 수행한다.
 
 ---
 

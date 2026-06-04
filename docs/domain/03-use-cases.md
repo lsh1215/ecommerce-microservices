@@ -82,17 +82,16 @@
 ### UC-O1: 주문 생성
 
 - **Actor**: 고객
-- **선행 조건**: Customer가 존재, 주문 항목의 ProductVariant에 충분한 재고
+- **선행 조건**: API Gateway에서 식별된 고객 ID가 있고, 주문 항목의 ProductVariant에 충분한 재고가 있음
 - **주요 흐름**:
   1. 고객이 주문 항목(variantId, 수량), 배송지, 메모를 입력한다.
-  2. 시스템이 Customer Context에 고객 존재 여부를 검증한다.
-  3. 시스템이 Product Context에 각 항목의 재고를 예약한다.
-  4. 시스템이 Order를 생성한다 (상태: PENDING, expiresAt = now + 7d, 가상계좌 입금 안내 발급).
-  5. `order.created` 이벤트를 Kafka로 발행한다.
+  2. 시스템이 Product Context에 각 항목의 재고를 예약한다.
+  3. 시스템이 Order를 생성한다 (상태: PENDING, expiresAt = now + 15분).
+  4. `order.created` 이벤트를 Kafka로 발행한다.
+  5. Payment Context가 이벤트를 수신해 PG 승인 요청을 시작한다.
 - **대안 흐름**:
-  - 고객이 존재하지 않으면 CUSTOMER_NOT_FOUND 오류를 반환한다.
   - 재고 예약 실패 시 이미 예약된 재고를 해제하고 INSUFFICIENT_STOCK 오류를 반환한다.
-- **결과**: 생성된 Order (상태 PENDING, 입금 대기). 응답에 가상계좌(은행/계좌번호/금액/입금기한) inline 포함.
+- **결과**: 생성된 Order (상태 PENDING). 결제 완료 여부는 `payment.completed` 또는 `payment.failed` 이벤트로 후속 반영된다.
 
 ### UC-O2: 주문 상세 조회
 
@@ -133,10 +132,13 @@
 - **주요 흐름**:
   1. `order.created` 이벤트를 수신한다.
   2. Payment를 생성한다 (상태: PENDING).
-  3. 가상계좌 입금 처리를 시뮬레이션한다 (실제 은행 webhook 연동 없음 — Payment 서비스 내부 로직으로 성공/실패 결정).
-  4. 성공 시 상태를 COMPLETED로 변경하고 `payment.completed` 이벤트를 발행한다.
+  3. PaymentAttempt를 생성하고 REQUESTED 이력을 저장한다.
+  4. PaymentAttemptProcessor가 처리 대상 attempt를 claim한다.
+  5. 트랜잭션 밖에서 PG 승인 adapter를 호출한다.
+  6. 성공 시 PaymentAttempt와 Payment를 COMPLETED로 변경하고 `payment.completed` 이벤트를 발행한다.
 - **대안 흐름**:
   - 결제 실패 시 상태를 FAILED로 변경하고 `payment.failed` 이벤트를 발행한다.
+  - 재시도 가능한 PG 오류는 PaymentAttempt를 RETRYABLE_FAILED로 기록하고 다음 processor 주기에 재시도한다.
 
 ### UC-PM2: 환불 처리
 
