@@ -227,10 +227,10 @@ export default function CheckoutPage() {
           <section className="border-t border-border pt-8">
             <h2 className="text-lg font-bold text-foreground">Payment Method</h2>
             <div className="mt-4 rounded-md border border-primary/40 bg-primary/5 p-4">
-              <p className="text-sm font-medium text-foreground">Virtual Account (Bank Deposit)</p>
+              <p className="text-sm font-medium text-foreground">Card (PG Authorization)</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                A virtual account will be issued after you submit the order. Transfer the exact
-                amount before the deposit deadline to confirm your order.
+                Payment authorization is requested through the PG workflow after you submit the
+                order. The processor records each request and result for retry and audit.
               </p>
             </div>
           </section>
@@ -247,7 +247,7 @@ export default function CheckoutPage() {
                   Processing...
                 </>
               ) : (
-                `Issue Virtual Account — ${formatKRW(total)}`
+                `Pay and Place Order — ${formatKRW(total)}`
               )}
             </button>
           </div>
@@ -307,7 +307,7 @@ export default function CheckoutPage() {
                 Processing...
               </>
             ) : (
-              `Place Order — ${formatKRW(total)}`
+              `Pay and Place Order — ${formatKRW(total)}`
             )}
           </button>
         </div>

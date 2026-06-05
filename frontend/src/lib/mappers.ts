@@ -5,14 +5,12 @@ import type {
   OrderItem,
   Category,
   OrderStatus,
-  VirtualAccount,
 } from '@/types/domain';
 import type {
   ProductResponse,
   BrandResponse,
   OrderResponse,
   OrderItemResponse,
-  VirtualAccountResponse,
 } from '@/types/api-responses';
 
 function toCategory(raw: string): Category {
@@ -99,19 +97,6 @@ export function mapOrderItemResponse(backend: OrderItemResponse, brandName = '')
   };
 }
 
-export function mapVirtualAccountResponse(
-  backend: VirtualAccountResponse | null | undefined,
-): VirtualAccount | undefined {
-  if (!backend) return undefined;
-  return {
-    bank: backend.bank,
-    accountNumber: backend.accountNumber,
-    holderName: backend.holderName,
-    amount: backend.amount,
-    expiresAt: backend.expiresAt,
-  };
-}
-
 export function mapOrderResponse(backend: OrderResponse): Order {
   return {
     id: String(backend.id),
@@ -126,8 +111,6 @@ export function mapOrderResponse(backend: OrderResponse): Order {
       address2: backend.shippingAddress.address2,
     },
     totalAmount: backend.totalAmount,
-    expiresAt: backend.expiresAt,
-    virtualAccount: mapVirtualAccountResponse(backend.virtualAccount),
     createdAt: backend.createdAt,
     updatedAt: backend.updatedAt,
   };

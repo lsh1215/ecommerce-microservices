@@ -9,7 +9,7 @@ export type Category =
 
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PAID' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
 
-export type PaymentMethod = 'CARD' | 'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT';
+export type PaymentMethod = 'CARD';
 
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
 
@@ -83,14 +83,6 @@ export interface OrderItem {
   totalPrice: number;
 }
 
-export interface VirtualAccount {
-  bank: string;
-  accountNumber: string;
-  holderName: string;
-  amount: number;
-  expiresAt: string;
-}
-
 export interface Order {
   id: string;
   orderNumber: string;
@@ -98,8 +90,6 @@ export interface Order {
   items: OrderItem[];
   shippingAddress: ShippingAddress;
   totalAmount: number;
-  expiresAt?: string;
-  virtualAccount?: VirtualAccount;
   createdAt: string;
   updatedAt: string;
 }

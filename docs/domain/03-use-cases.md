@@ -86,7 +86,7 @@
 - **주요 흐름**:
   1. 고객이 주문 항목(variantId, 수량), 배송지, 메모를 입력한다.
   2. 시스템이 Product Context에 각 항목의 재고를 예약한다.
-  3. 시스템이 Order를 생성한다 (상태: PENDING, expiresAt = now + 15분).
+  3. 시스템이 Order를 생성한다 (상태: PENDING).
   4. `order.created` 이벤트를 Kafka로 발행한다.
   5. Payment Context가 이벤트를 수신해 PG 승인 요청을 시작한다.
 - **대안 흐름**:
