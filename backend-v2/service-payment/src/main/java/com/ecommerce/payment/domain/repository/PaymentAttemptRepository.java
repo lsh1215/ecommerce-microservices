@@ -13,5 +13,9 @@ public interface PaymentAttemptRepository extends JpaRepository<PaymentAttempt, 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<PaymentAttempt> findFirstByStatusInOrderByRequestedAtAsc(Collection<PaymentAttemptStatus> statuses);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<PaymentAttempt> findFirstByOrderIdAndStatusInOrderByRequestedAtDesc(
+            Long orderId, Collection<PaymentAttemptStatus> statuses);
+
     Optional<PaymentAttempt> findFirstByOrderIdOrderByRequestedAtDesc(Long orderId);
 }

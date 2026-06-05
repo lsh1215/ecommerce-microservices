@@ -10,6 +10,7 @@ import com.ecommerce.common.outbox.OutboxEvent;
 import com.ecommerce.common.outbox.OutboxEventRepository;
 import com.ecommerce.order.domain.event.OrderCancelledEvent;
 import com.ecommerce.order.domain.event.OrderCreatedEvent;
+import com.ecommerce.order.domain.event.PaymentRequestedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
@@ -50,6 +51,24 @@ class OrderOutboxEventHandlerTest {
         assertThat(saved.getPartitionKey()).isEqualTo("ORDER-001");
         assertThat(saved.getPayload()).contains("ORDER-001");
         assertThat(saved.isPublished()).isFalse();
+    }
+
+    @Test
+    void handlePaymentRequested_savesOutboxEvent() {
+        PaymentRequestedEvent event = new PaymentRequestedEvent(1L, "ORDER-001", 10L, new BigDecimal("100.00"));
+        given(outboxRepository.save(any(OutboxEvent.class))).willAnswer(inv -> inv.getArgument(0));
+
+        handler.handlePaymentRequested(event);
+
+        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxRepository).save(captor.capture());
+
+        OutboxEvent saved = captor.getValue();
+        assertThat(saved.getAggregateType()).isEqualTo("Order");
+        assertThat(saved.getAggregateId()).isEqualTo("1");
+        assertThat(saved.getEventType()).isEqualTo(KafkaTopics.PAYMENT_REQUESTED);
+        assertThat(saved.getPartitionKey()).isEqualTo("ORDER-001");
+        assertThat(saved.getPayload()).contains("ORDER-001");
     }
 
     @Test

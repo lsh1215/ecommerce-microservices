@@ -1,11 +1,14 @@
 package com.ecommerce.payment.api.controller;
 
 import com.ecommerce.common.dto.ApiResponse;
+import com.ecommerce.payment.api.dto.request.ConfirmPaymentRequest;
 import com.ecommerce.payment.api.dto.request.ProcessPaymentRequest;
 import com.ecommerce.payment.api.dto.request.RefundPaymentRequest;
 import com.ecommerce.payment.api.dto.response.PaymentResponse;
+import com.ecommerce.payment.application.dto.ConfirmPaymentCommand;
 import com.ecommerce.payment.application.dto.ProcessPaymentCommand;
 import com.ecommerce.payment.application.dto.RefundPaymentCommand;
+import com.ecommerce.payment.application.service.PaymentConfirmationService;
 import com.ecommerce.payment.application.service.PaymentService;
 import com.ecommerce.payment.domain.model.Payment;
 import jakarta.validation.Valid;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PaymentController {
 
     private final PaymentService paymentService;
+    private final PaymentConfirmationService paymentConfirmationService;
 
     @PostMapping("/process")
     @ResponseStatus(HttpStatus.CREATED)
@@ -34,6 +38,13 @@ public class PaymentController {
         );
         Payment payment = paymentService.process(command);
         return ApiResponse.created(PaymentResponse.from(payment));
+    }
+
+    @PostMapping("/confirm")
+    public ApiResponse<PaymentResponse> confirmPayment(@Valid @RequestBody ConfirmPaymentRequest request) {
+        Payment payment = paymentConfirmationService.confirm(
+                new ConfirmPaymentCommand(request.orderId(), request.providerPaymentKey()));
+        return ApiResponse.ok(PaymentResponse.from(payment));
     }
 
     @PostMapping("/{id}/refund")

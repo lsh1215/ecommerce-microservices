@@ -40,7 +40,7 @@ public class PaymentAttemptProcessor {
     }
 
     public boolean processOne() {
-        return paymentService.claimNextAttempt()
+        return paymentService.claimNextRetryableAttempt()
                 .map(this::authorize)
                 .orElse(false);
     }

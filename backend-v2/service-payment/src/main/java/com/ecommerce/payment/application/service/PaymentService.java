@@ -31,8 +31,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class PaymentService {
 
-    private static final List<PaymentAttemptStatus> CLAIMABLE_STATUSES = List.of(
+    private static final List<PaymentAttemptStatus> CONFIRMABLE_STATUSES = List.of(
             PaymentAttemptStatus.REQUESTED,
+            PaymentAttemptStatus.RETRYABLE_FAILED
+    );
+    private static final List<PaymentAttemptStatus> RETRYABLE_STATUSES = List.of(
             PaymentAttemptStatus.RETRYABLE_FAILED
     );
 
@@ -47,20 +50,31 @@ public class PaymentService {
     }
 
     @Transactional
-    public void processFromEvent(Long orderId, String orderNumber, BigDecimal amount) {
+    public void requestFromPaymentRequested(Long orderId, String orderNumber, BigDecimal amount) {
         requestPayment(orderId, orderNumber, amount, PaymentMethod.CARD);
     }
 
     @Transactional
-    public Optional<PaymentGatewayCommand> claimNextAttempt() {
+    public Optional<PaymentGatewayCommand> claimNextRetryableAttempt() {
         Optional<PaymentAttempt> optionalAttempt =
-                attemptRepository.findFirstByStatusInOrderByRequestedAtAsc(CLAIMABLE_STATUSES);
+                attemptRepository.findFirstByStatusInOrderByRequestedAtAsc(RETRYABLE_STATUSES);
+        return claim(optionalAttempt, null);
+    }
+
+    @Transactional
+    public Optional<PaymentGatewayCommand> claimAttemptForConfirmation(Long orderId, String providerPaymentKey) {
+        Optional<PaymentAttempt> optionalAttempt =
+                attemptRepository.findFirstByOrderIdAndStatusInOrderByRequestedAtDesc(orderId, CONFIRMABLE_STATUSES);
+        return claim(optionalAttempt, providerPaymentKey);
+    }
+
+    private Optional<PaymentGatewayCommand> claim(Optional<PaymentAttempt> optionalAttempt, String providerPaymentKey) {
         if (optionalAttempt.isEmpty()) {
             return Optional.empty();
         }
 
         PaymentAttempt attempt = optionalAttempt.get();
-        attempt.markProcessing();
+        attempt.markProcessing(providerPaymentKey);
         historyRepository.save(PaymentAttemptHistory.of(attempt, PaymentAttemptHistoryType.PROCESSING_STARTED));
 
         return Optional.of(new PaymentGatewayCommand(
@@ -69,19 +83,20 @@ public class PaymentService {
                 attempt.getOrderNumber(),
                 attempt.getAmount(),
                 attempt.getPaymentMethod(),
-                attempt.getIdempotencyKey()
+                attempt.getIdempotencyKey(),
+                attempt.getProviderPaymentKey()
         ));
     }
 
     @Transactional
-    public void completeAttempt(Long attemptId, String transactionId) {
+    public Payment completeAttempt(Long attemptId, String transactionId) {
         PaymentAttempt attempt = attemptRepository.findById(attemptId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
         Payment payment = paymentRepository.findByOrderId(attempt.getOrderId())
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
 
         if (attempt.getStatus() == PaymentAttemptStatus.COMPLETED) {
-            return;
+            return payment;
         }
 
         attempt.markCompleted(transactionId);
@@ -96,10 +111,11 @@ public class PaymentService {
                 transactionId,
                 attempt.getAmount()
         ));
+        return payment;
     }
 
     @Transactional
-    public void failAttempt(Long attemptId, String reason, boolean retryable) {
+    public Payment failAttempt(Long attemptId, String reason, boolean retryable) {
         PaymentAttempt attempt = attemptRepository.findById(attemptId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.PAYMENT_NOT_FOUND));
         Payment payment = paymentRepository.findByOrderId(attempt.getOrderId())
@@ -109,7 +125,7 @@ public class PaymentService {
             attempt.markRetryableFailed(reason);
             historyRepository.save(PaymentAttemptHistory.of(
                     attempt, PaymentAttemptHistoryType.RETRYABLE_FAILED, null, reason));
-            return;
+            return payment;
         }
 
         attempt.markFailed(reason);
@@ -122,6 +138,7 @@ public class PaymentService {
                 attempt.getOrderId(),
                 reason
         ));
+        return payment;
     }
 
     @Transactional

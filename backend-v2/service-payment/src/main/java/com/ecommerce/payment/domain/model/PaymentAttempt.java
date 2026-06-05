@@ -38,6 +38,9 @@ public class PaymentAttempt extends BaseEntity {
     private String idempotencyKey;
 
     @Column
+    private String providerPaymentKey;
+
+    @Column
     private String transactionId;
 
     @Column(length = 500)
@@ -76,10 +79,17 @@ public class PaymentAttempt extends BaseEntity {
     }
 
     public void markProcessing() {
+        markProcessing(null);
+    }
+
+    public void markProcessing(String providerPaymentKey) {
         if (status != PaymentAttemptStatus.REQUESTED && status != PaymentAttemptStatus.RETRYABLE_FAILED) {
             throw invalidTransition(PaymentAttemptStatus.PROCESSING);
         }
         this.status = PaymentAttemptStatus.PROCESSING;
+        if (providerPaymentKey != null && !providerPaymentKey.isBlank()) {
+            this.providerPaymentKey = providerPaymentKey;
+        }
         this.processingStartedAt = LocalDateTime.now();
         this.retryCount += 1;
     }

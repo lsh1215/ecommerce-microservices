@@ -6,6 +6,7 @@ import com.ecommerce.order.application.dto.CreateOrderCommand;
 import com.ecommerce.order.application.dto.ShippingAddressCommand;
 import com.ecommerce.order.application.dto.StockReservation;
 import com.ecommerce.order.domain.event.OrderCreatedEvent;
+import com.ecommerce.order.domain.event.PaymentRequestedEvent;
 import com.ecommerce.order.domain.model.Order;
 import com.ecommerce.order.domain.model.OrderItem;
 import com.ecommerce.order.domain.model.SagaInstance;
@@ -70,6 +71,9 @@ public class OrderSagaTransactions {
         saga.moveToStockReserved();
         saga.moveToPaymentProcessing();
         eventPublisher.publishEvent(new OrderCreatedEvent(
+                order.getId(), order.getOrderNumber(),
+                order.getCustomerId(), order.getTotalAmount()));
+        eventPublisher.publishEvent(new PaymentRequestedEvent(
                 order.getId(), order.getOrderNumber(),
                 order.getCustomerId(), order.getTotalAmount()));
         return order;

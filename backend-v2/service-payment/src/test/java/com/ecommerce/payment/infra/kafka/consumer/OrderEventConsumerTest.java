@@ -43,7 +43,7 @@ class OrderEventConsumerTest {
 
     // --- JSON helpers ---
 
-    private static String orderCreatedJson(String eventId, long orderId, String orderNumber, String totalAmount) {
+    private static String paymentRequestedJson(String eventId, long orderId, String orderNumber, String totalAmount) {
         return String.format(
                 "{\"eventId\":\"%s\",\"orderId\":%d,\"orderNumber\":\"%s\",\"totalAmount\":\"%s\"}",
                 eventId, orderId, orderNumber, totalAmount);
@@ -58,19 +58,19 @@ class OrderEventConsumerTest {
     // --- Tests ---
 
     @Test
-    @DisplayName("유효한 order.created 메시지 수신 시 PaymentService.processFromEvent를 호출한다")
-    void handleOrderCreated_validMessage_delegatesToPaymentService() {
-        given(idempotentEventHandler.tryProcess(eq("evt-1"), eq(KafkaTopics.ORDER_CREATED), any(Runnable.class)))
+    @DisplayName("유효한 payment.requested 메시지 수신 시 PaymentService.requestFromPaymentRequested를 호출한다")
+    void handlePaymentRequested_validMessage_delegatesToPaymentService() {
+        given(idempotentEventHandler.tryProcess(eq("evt-1"), eq(KafkaTopics.PAYMENT_REQUESTED), any(Runnable.class)))
                 .willAnswer(invocation -> {
                     Runnable processor = invocation.getArgument(2);
                     processor.run();
                     return true;
                 });
 
-        consumer.handleOrderCreated(orderCreatedJson("evt-1", 1L, "ORD-001", "100.00"));
+        consumer.handlePaymentRequested(paymentRequestedJson("evt-1", 1L, "ORD-001", "100.00"));
 
-        verify(idempotentEventHandler).tryProcess(eq("evt-1"), eq(KafkaTopics.ORDER_CREATED), any());
-        verify(paymentService).processFromEvent(
+        verify(idempotentEventHandler).tryProcess(eq("evt-1"), eq(KafkaTopics.PAYMENT_REQUESTED), any());
+        verify(paymentService).requestFromPaymentRequested(
                 eq(1L),
                 eq("ORD-001"),
                 argThat(a -> a.compareTo(new BigDecimal("100.00")) == 0));
@@ -93,20 +93,20 @@ class OrderEventConsumerTest {
     }
 
     @Test
-    @DisplayName("중복 order.created 이벤트는 PaymentService를 호출하지 않는다")
-    void handleOrderCreated_duplicateEvent_skipped() {
+    @DisplayName("중복 payment.requested 이벤트는 PaymentService를 호출하지 않는다")
+    void handlePaymentRequested_duplicateEvent_skipped() {
         given(idempotentEventHandler.tryProcess(anyString(), anyString(), any(Runnable.class)))
                 .willReturn(false);
 
-        consumer.handleOrderCreated(orderCreatedJson("evt-1", 1L, "ORD-001", "100.00"));
+        consumer.handlePaymentRequested(paymentRequestedJson("evt-1", 1L, "ORD-001", "100.00"));
 
-        verify(paymentService, never()).processFromEvent(any(), anyString(), any());
+        verify(paymentService, never()).requestFromPaymentRequested(any(), anyString(), any());
     }
 
     @Test
     @DisplayName("malformed JSON 은 BusinessException(INVALID_INPUT) 으로 변환되어 DefaultErrorHandler 가 DLT 로 라우팅한다")
-    void handleOrderCreated_malformedJson_throwsBusinessExceptionInvalidInput() {
-        assertThatThrownBy(() -> consumer.handleOrderCreated("not-json"))
+    void handlePaymentRequested_malformedJson_throwsBusinessExceptionInvalidInput() {
+        assertThatThrownBy(() -> consumer.handlePaymentRequested("not-json"))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> Assertions.assertThat(((BusinessException) ex).getErrorCode())
                         .isEqualTo(CommonErrorCode.INVALID_INPUT));

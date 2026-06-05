@@ -30,13 +30,13 @@ class PaymentAttemptProcessorTest {
     PaymentGatewayPort gatewayPort;
 
     @Test
-    @DisplayName("요청된 결제 시도를 PG 트랜잭션 밖에서 승인하고 완료 처리한다")
+    @DisplayName("재시도 가능한 결제 시도를 PG 트랜잭션 밖에서 승인하고 완료 처리한다")
     void should_call_gateway_outside_transaction_and_complete_attempt() {
         PaymentGatewayCommand command = new PaymentGatewayCommand(
-                10L, 1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD, "ORD-001");
+                10L, 1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD, "ORD-001", "pay-key");
         AtomicBoolean transactionActiveDuringGateway = new AtomicBoolean(true);
 
-        given(paymentService.claimNextAttempt()).willReturn(Optional.of(command));
+        given(paymentService.claimNextRetryableAttempt()).willReturn(Optional.of(command));
         given(gatewayPort.authorize(command)).willAnswer(inv -> {
             transactionActiveDuringGateway.set(TransactionSynchronizationManager.isActualTransactionActive());
             return PaymentGatewayResult.success("TXN-001");
@@ -55,9 +55,9 @@ class PaymentAttemptProcessorTest {
     @DisplayName("PG 거절은 retry 불가능 실패로 기록한다")
     void should_record_permanent_failure_when_gateway_rejects() {
         PaymentGatewayCommand command = new PaymentGatewayCommand(
-                10L, 1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD, "ORD-001");
+                10L, 1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD, "ORD-001", "pay-key");
 
-        given(paymentService.claimNextAttempt()).willReturn(Optional.of(command));
+        given(paymentService.claimNextRetryableAttempt()).willReturn(Optional.of(command));
         given(gatewayPort.authorize(command)).willReturn(PaymentGatewayResult.failure("card rejected"));
 
         PaymentAttemptProcessor processor = new PaymentAttemptProcessor(paymentService, gatewayPort);
@@ -69,7 +69,7 @@ class PaymentAttemptProcessorTest {
     @Test
     @DisplayName("처리할 결제 시도가 없으면 PG를 호출하지 않는다")
     void should_not_call_gateway_when_no_attempt_exists() {
-        given(paymentService.claimNextAttempt()).willReturn(Optional.empty());
+        given(paymentService.claimNextRetryableAttempt()).willReturn(Optional.empty());
 
         PaymentAttemptProcessor processor = new PaymentAttemptProcessor(paymentService, gatewayPort);
 
@@ -81,11 +81,11 @@ class PaymentAttemptProcessorTest {
     @DisplayName("스케줄러 1회 실행 시 최대 batch size까지 결제 시도를 처리한다")
     void should_process_attempts_until_batch_size_or_empty() {
         PaymentGatewayCommand first = new PaymentGatewayCommand(
-                10L, 1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD, "ORD-001");
+                10L, 1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD, "ORD-001", "pay-key-1");
         PaymentGatewayCommand second = new PaymentGatewayCommand(
-                11L, 2L, "ORD-002", new BigDecimal("200.00"), PaymentMethod.CARD, "ORD-002");
+                11L, 2L, "ORD-002", new BigDecimal("200.00"), PaymentMethod.CARD, "ORD-002", "pay-key-2");
 
-        given(paymentService.claimNextAttempt())
+        given(paymentService.claimNextRetryableAttempt())
                 .willReturn(Optional.of(first))
                 .willReturn(Optional.of(second))
                 .willReturn(Optional.empty());
@@ -95,7 +95,7 @@ class PaymentAttemptProcessorTest {
 
         processor.processScheduled();
 
-        verify(paymentService, times(3)).claimNextAttempt();
+        verify(paymentService, times(3)).claimNextRetryableAttempt();
         verify(gatewayPort, times(2)).authorize(any());
         verify(paymentService).completeAttempt(10L, "TXN");
         verify(paymentService).completeAttempt(11L, "TXN");
@@ -105,9 +105,9 @@ class PaymentAttemptProcessorTest {
     @DisplayName("batch size 설정이 0 이하이면 최소 1건을 처리한다")
     void should_process_at_least_one_attempt_when_batch_size_is_not_positive() {
         PaymentGatewayCommand command = new PaymentGatewayCommand(
-                10L, 1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD, "ORD-001");
+                10L, 1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD, "ORD-001", "pay-key");
 
-        given(paymentService.claimNextAttempt()).willReturn(Optional.of(command));
+        given(paymentService.claimNextRetryableAttempt()).willReturn(Optional.of(command));
         given(gatewayPort.authorize(command)).willReturn(PaymentGatewayResult.success("TXN-001"));
 
         PaymentAttemptProcessor processor = new PaymentAttemptProcessor(paymentService, gatewayPort, 0);
