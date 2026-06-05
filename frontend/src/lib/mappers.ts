@@ -1,11 +1,4 @@
-import type {
-  Product,
-  Brand,
-  Order,
-  OrderItem,
-  Category,
-  OrderStatus,
-} from '@/types/domain';
+import type { Product, Brand, Order, OrderItem, Category, OrderStatus } from '@/types/domain';
 import type {
   ProductResponse,
   BrandResponse,
