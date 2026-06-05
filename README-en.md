@@ -118,7 +118,8 @@ ecommerce-microservices/
 │   ├── namespace.yml
 │   ├── base/                # MySQL StatefulSet, Kafka deployment, ConfigMap, Secrets
 │   ├── services/            # Per-service Deployment + Service manifests
-│   └── ingress/             # nginx IngressRoute
+│   ├── ingress/             # nginx IngressRoute
+│   └── monitoring/          # Grafana, Prometheus, Loki, Tempo, Alloy manifests and dashboards
 ├── scripts/                 # Helper scripts (k8s-deploy.sh, k8s-teardown.sh, etc.)
 └── frontend/                # Next.js 16 storefront (separate track)
 ```

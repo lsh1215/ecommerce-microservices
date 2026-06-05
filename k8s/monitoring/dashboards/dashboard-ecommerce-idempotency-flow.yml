@@ -45,12 +45,12 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(kafka_consumer_records_consumed_total{app=\"service-payment\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_fetch_manager_records_consumed_total{app=\"service-payment\"}[5m]))",
               "legendFormat": "listener success /s"
             },
             {
               "refId": "B",
-              "expr": "sum(rate(kafka_consumer_failed_rebalance_total{app=\"service-payment\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_coordinator_failed_rebalance_total{app=\"service-payment\"}[5m]))",
               "legendFormat": "listener failure /s"
             }
           ],
@@ -87,7 +87,7 @@ data:
             },
             {
               "refId": "B",
-              "expr": "sum(rate(kafka_consumer_records_consumed_total{app=\"service-payment\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_fetch_manager_records_consumed_total{app=\"service-payment\"}[5m]))",
               "legendFormat": "(b) listener success — dup 포함"
             },
             {
@@ -101,25 +101,25 @@ data:
         {
           "id": 5,
           "type": "timeseries",
-          "title": "5. Layer 1 dedup count over time (Loki LogQL count_over_time)",
-          "description": "헤드라인 차이를 가장 직접적으로 보여주는 panel. problem leg (idempotency=false): 0 line — IdempotentEventHandler 가 env 로 단락. solution leg (idempotency=true): chaos window 에 spike — 중복 eventId 재도달이 dedup 으로 차단된 횟수.",
+          "title": "5. 중복 이벤트 처리 경로 (Loki 로그 rate)",
+          "description": "동일 이벤트 replay 구간에서 service-payment가 이벤트를 받았는지, before는 idempotency disabled 경로로 내려갔는지, after는 Duplicate event skipped 경로에서 차단됐는지 비교한다. DB row count는 exporter 추정치가 아니라 raw count 파일로 검증한다.",
           "gridPos": {"h": 8, "w": 24, "x": 0, "y": 17},
           "datasource": {"type": "loki", "uid": "loki"},
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(count_over_time({app=\"service-payment\"} |~ \"중복 이벤트 감지, 건너뜀\" [1m]))",
-              "legendFormat": "Layer 1 dedup hits /min"
+              "expr": "sum(count_over_time({app=\"service-payment\"} |~ \"order.created 이벤트 수신\" [1m]))",
+              "legendFormat": "order.created 수신 로그/min"
             },
             {
               "refId": "B",
-              "expr": "sum(count_over_time({app=\"service-payment\"} |~ \"동시 중복 이벤트 감지\" [1m]))",
-              "legendFormat": "Layer 2 DB race hits /min"
+              "expr": "sum(count_over_time({app=\"service-payment\"} |~ \"idempotency disabled\" [1m]))",
+              "legendFormat": "before: idempotency disabled/min"
             },
             {
               "refId": "C",
-              "expr": "sum(count_over_time({app=\"service-order\"} |~ \"이미 다른 인스턴스에서 발행됨\" [1m]))",
-              "legendFormat": "Publisher OptLock hits /min"
+              "expr": "sum(count_over_time({app=\"service-payment\"} |~ \"Duplicate event skipped|Concurrent duplicate event detected\" [1m]))",
+              "legendFormat": "after: duplicate skipped/min"
             }
           ],
           "fieldConfig": {"defaults": {"unit": "short"}}
@@ -132,7 +132,7 @@ data:
           "gridPos": {"h": 8, "w": 24, "x": 0, "y": 25},
           "datasource": {"type": "loki", "uid": "loki"},
           "targets": [
-            {"refId": "A", "expr": "{app=\"service-payment\"} |~ \"중복 이벤트 감지|order.created 이벤트 수신|동시 중복 이벤트|idempotency disabled\""}
+            {"refId": "A", "expr": "{app=\"service-payment\"} |~ \"중복 이벤트 감지|Duplicate event skipped|order.created 이벤트 수신|동시 중복 이벤트|Concurrent duplicate event detected|idempotency disabled\""}
           ],
           "options": {"showTime": true, "wrapLogMessage": true, "sortOrder": "Descending"}
         }

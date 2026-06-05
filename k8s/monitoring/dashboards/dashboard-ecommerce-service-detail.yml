@@ -1,0 +1,409 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-service-detail
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-service-detail.json: |
+    {
+      "uid": "ecommerce-service-detail",
+      "title": "Ecommerce Service Detail",
+      "tags": ["ecommerce", "service-detail", "apm"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "15s",
+      "time": { "from": "now-30m", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "service",
+            "type": "query",
+            "label": "service",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(http_server_requests_seconds_count{app=~\"service-.*\"}, app)",
+            "current": { "text": "service-order", "value": "service-order", "selected": true },
+            "refresh": 1,
+            "sort": 1
+          },
+          {
+            "name": "uri",
+            "type": "query",
+            "label": "uri",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(http_server_requests_seconds_count{app=\"$service\", uri!~\"/actuator.*\"}, uri)",
+            "current": { "text": ".*", "value": ".*", "selected": true },
+            "includeAll": true,
+            "allValue": ".*",
+            "refresh": 1,
+            "sort": 1
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "RPS",
+          "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"$service\", uri=~\"$uri\", uri!~\"/actuator.*\"}[5m])) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "5xx rate",
+          "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(sum(rate(http_server_requests_seconds_count{app=\"$service\", uri=~\"$uri\", uri!~\"/actuator.*\", status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=\"$service\", uri=~\"$uri\", uri!~\"/actuator.*\"}[5m])), 0.001)) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "decimals": 3,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.01 },
+                  { "color": "red", "value": 0.05 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "p95 server span",
+          "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[5m]))) >= 0) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "p99 server span",
+          "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[5m]))) >= 0) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Max HTTP latency",
+          "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "max(http_server_requests_seconds_max{app=\"$service\", uri=~\"$uri\", uri!~\"/actuator.*\"}) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Hikari pending",
+          "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "hikaricp_connections_pending{app=\"$service\"} or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Request latency percentiles by endpoint",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.50, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[5m]))) >= 0)",
+              "legendFormat": "p50 {{span_name}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            },
+            {
+              "refId": "B",
+              "expr": "(histogram_quantile(0.95, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[5m]))) >= 0)",
+              "legendFormat": "p95 {{span_name}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            },
+            {
+              "refId": "C",
+              "expr": "(histogram_quantile(0.99, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[5m]))) >= 0)",
+              "legendFormat": "p99 {{span_name}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "HTTP status mix",
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (status) (rate(http_server_requests_seconds_count{app=\"$service\", uri=~\"$uri\", uri!~\"/actuator.*\"}[5m]))",
+              "legendFormat": "{{status}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 9,
+          "type": "table",
+          "title": "Top endpoints by p99 latency",
+          "gridPos": { "x": 0, "y": 12, "w": 8, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(15, (histogram_quantile(0.99, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[30m]))) >= 0))",
+              "format": "table",
+              "instant": true,
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 3,
+              "links": [
+                {
+                  "title": "Open trace drilldown",
+                  "url": "/grafana/d/ecommerce-trace-drilldown/ecommerce-trace-drilldown?orgId=1&var-service=$service&${__url_time_range}"
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": { "showHeader": true, "cellHeight": "sm" }
+        },
+        {
+          "id": 10,
+          "type": "table",
+          "title": "Top endpoints by error count",
+          "gridPos": { "x": 8, "y": 12, "w": 8, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(15, sum by (uri, status) (increase(http_server_requests_seconds_count{app=\"$service\", uri!~\"/actuator.*\", status=~\"4..|5..\"}[30m])))",
+              "format": "table",
+              "instant": true,
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+          "options": { "showHeader": true, "cellHeight": "sm" }
+        },
+        {
+          "id": 11,
+          "type": "table",
+          "title": "Top endpoints by request volume",
+          "gridPos": { "x": 16, "y": 12, "w": 8, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(15, sum by (uri) (increase(http_server_requests_seconds_count{app=\"$service\", uri!~\"/actuator.*\"}[30m])))",
+              "format": "table",
+              "instant": true,
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+          "options": { "showHeader": true, "cellHeight": "sm" }
+        },
+        {
+          "id": 12,
+          "type": "timeseries",
+          "title": "JVM heap / GC pause",
+          "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(jvm_memory_used_bytes{app=\"$service\", area=\"heap\"})",
+              "legendFormat": "heap used",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            },
+            {
+              "refId": "B",
+              "expr": "sum(rate(jvm_gc_pause_seconds_sum{app=\"$service\"}[5m]))",
+              "legendFormat": "gc pause s/s",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 13,
+          "type": "timeseries",
+          "title": "JVM threads / CPU",
+          "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (state) (jvm_threads_states_threads{app=\"$service\"})",
+              "legendFormat": "{{state}} threads",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            },
+            {
+              "refId": "B",
+              "expr": "process_cpu_usage{app=\"$service\"}",
+              "legendFormat": "process cpu",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 14,
+          "type": "timeseries",
+          "title": "Hikari active / pending",
+          "gridPos": { "x": 0, "y": 28, "w": 8, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "hikaricp_connections_active{app=\"$service\"}",
+              "legendFormat": "active",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            },
+            {
+              "refId": "B",
+              "expr": "hikaricp_connections_pending{app=\"$service\"}",
+              "legendFormat": "pending",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 15,
+          "type": "timeseries",
+          "title": "Hikari acquire / usage time",
+          "gridPos": { "x": 8, "y": 28, "w": 8, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(rate(hikaricp_connections_acquire_seconds_sum{app=\"$service\"}[5m]) / clamp_min(rate(hikaricp_connections_acquire_seconds_count{app=\"$service\"}[5m]), 0.001)) or vector(0)",
+              "legendFormat": "acquire avg",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            },
+            {
+              "refId": "B",
+              "expr": "(rate(hikaricp_connections_usage_seconds_sum{app=\"$service\"}[5m]) / clamp_min(rate(hikaricp_connections_usage_seconds_count{app=\"$service\"}[5m]), 0.001)) or vector(0)",
+              "legendFormat": "usage avg",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 16,
+          "type": "timeseries",
+          "title": "DB / downstream / Kafka span p95",
+          "gridPos": { "x": 16, "y": 28, "w": 8, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.95, sum by (le, span_kind, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_name=~\"SELECT.*|INSERT.*|UPDATE.*|DELETE.*|Transaction.*|.*Repository.*|Session.*|GET|POST|PUT|DELETE|PATCH|.*send.*|.*receive.*\"}[5m]))) >= 0)",
+              "legendFormat": "{{span_kind}} {{span_name}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 17,
+          "type": "logs",
+          "title": "Recent logs with traceId",
+          "gridPos": { "x": 0, "y": 36, "w": 24, "h": 9 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{app=\"$service\"} |~ \"traceId=\"",
+              "datasource": { "type": "loki", "uid": "loki" }
+            }
+          ],
+          "options": { "showTime": true, "showLabels": false, "wrapLogMessage": false, "prettifyLogMessage": false, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" }
+        }
+      ]
+    }

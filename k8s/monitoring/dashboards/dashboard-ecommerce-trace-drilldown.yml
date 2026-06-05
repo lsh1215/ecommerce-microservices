@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-trace-drilldown
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-trace-drilldown.json: |
+    {
+      "uid": "ecommerce-trace-drilldown",
+      "title": "Ecommerce Trace Drilldown",
+      "tags": ["ecommerce", "trace", "drilldown"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "15s",
+      "time": { "from": "now-30m", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "service",
+            "type": "query",
+            "label": "service",
+            "datasource": { "type": "prometheus", "uid": "prometheus" },
+            "query": "label_values(traces_spanmetrics_calls_total{service=~\"service-.*\"}, service)",
+            "current": { "text": "service-order", "value": "service-order", "selected": true },
+            "refresh": 1,
+            "sort": 1
+          },
+          {
+            "name": "min_duration",
+            "type": "textbox",
+            "label": "min duration",
+            "query": "1s",
+            "current": { "text": "1s", "value": "1s", "selected": true }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Slow span p95",
+          "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_name!~\"GET /actuator.*\"}[30m]))) >= 0) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Error spans / s",
+          "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(traces_spanmetrics_calls_total{service=\"$service\", status_code=\"STATUS_CODE_ERROR\"}[5m])) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops", "decimals": 2 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Trace-linked logs",
+          "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(count_over_time({app=\"$service\"} |~ \"traceId=[0-9a-f]+\" [30m]))",
+              "datasource": { "type": "loki", "uid": "loki" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 4,
+          "type": "table",
+          "title": "Slowest traced spans - p99 candidates",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 10 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(25, (histogram_quantile(0.99, sum by (le, service, span_kind, span_name) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_name!~\"GET /actuator.*\"}[30m]))) >= 0))",
+              "format": "table",
+              "instant": true,
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "showHeader": true, "cellHeight": "sm" }
+        },
+        {
+          "id": 5,
+          "type": "table",
+          "title": "Dependency p95 - caller to downstream",
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 10 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.95, sum by (le, client, server, connection_type) (rate(traces_service_graph_request_client_seconds_bucket{client=\"$service\"}[30m]))) >= 0)",
+              "format": "table",
+              "instant": true,
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "showHeader": true, "cellHeight": "sm" }
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Layer breakdown p95",
+          "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.95, sum by (le, service, span_kind) (rate(traces_spanmetrics_latency_bucket{service=\"$service\", span_name!~\"GET /actuator.*\"}[5m]))) >= 0)",
+              "legendFormat": "{{span_kind}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 7,
+          "type": "logs",
+          "title": "Recent trace IDs - open TraceID from Loki derived field",
+          "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
+          "datasource": { "type": "loki", "uid": "loki" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{app=\"$service\"} |~ \"traceId=[0-9a-f]+\"",
+              "datasource": { "type": "loki", "uid": "loki" }
+            }
+          ],
+          "options": { "showTime": true, "showLabels": false, "wrapLogMessage": false, "prettifyLogMessage": false, "enableLogDetails": true, "dedupStrategy": "none", "sortOrder": "Descending" }
+        },
+        {
+          "id": 8,
+          "type": "traces",
+          "title": "Tempo TraceQL - slow traces for selected service",
+          "gridPos": { "x": 0, "y": 22, "w": 24, "h": 10 },
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "targets": [
+            {
+              "refId": "A",
+              "queryType": "traceql",
+              "query": "{ resource.service.name = \"$service\" && duration > $min_duration }",
+              "limit": 20,
+              "datasource": { "type": "tempo", "uid": "tempo" }
+            }
+          ],
+          "options": {}
+        }
+      ]
+    }

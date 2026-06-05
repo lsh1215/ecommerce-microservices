@@ -34,7 +34,7 @@ data:
             },
             {
               "refId": "B",
-              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\", method=\"POST\", status=~\"5..\"}[1m]))",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=\"service-order\", uri=\"/api/orders\", method=\"POST\", status=~\"5..\"}[1m])) or vector(0)",
               "legendFormat": "orders POST 5xx /s"
             }
           ],
@@ -55,7 +55,7 @@ data:
             },
             {
               "refId": "B",
-              "expr": "sum(rate(kafka_producer_record_error_total{app=\"service-order\"}[1m]))",
+              "expr": "sum(rate(kafka_producer_record_error_total{app=\"service-order\"}[1m])) or vector(0)",
               "legendFormat": "error_total /s"
             }
           ],
@@ -71,12 +71,12 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum(rate(kafka_consumer_records_consumed_total{app=\"service-payment\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_fetch_manager_records_consumed_total{app=\"service-payment\"}[5m]))",
               "legendFormat": "consumer success /s"
             },
             {
               "refId": "B",
-              "expr": "sum(rate(kafka_consumer_failed_rebalance_total{app=\"service-payment\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_coordinator_failed_rebalance_total{app=\"service-payment\"}[5m]))",
               "legendFormat": "consumer failure /s"
             }
           ],
@@ -102,7 +102,7 @@ data:
             },
             {
               "refId": "C",
-              "expr": "sum(rate(kafka_consumer_records_consumed_total{app=\"service-payment\"}[1m]))",
+              "expr": "sum(rate(kafka_consumer_fetch_manager_records_consumed_total{app=\"service-payment\"}[5m]))",
               "legendFormat": "(c) consumer success — 실제 도달"
             }
           ],

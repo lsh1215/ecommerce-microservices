@@ -1,0 +1,280 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-service-fleet
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-service-fleet.json: |
+    {
+      "uid": "ecommerce-service-fleet",
+      "title": "Ecommerce Service Fleet",
+      "tags": ["ecommerce", "fleet", "apm"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "15s",
+      "time": { "from": "now-30m", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Live services",
+          "gridPos": { "x": 0, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "count(max by (app) (up{app=~\"service-.*\"} == 1)) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Service RPS",
+          "gridPos": { "x": 4, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(rate(http_server_requests_seconds_count{app=~\"service-.*\", uri!~\"/actuator.*\"}[5m])) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "HTTP error rate",
+          "gridPos": { "x": 8, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(sum(rate(http_server_requests_seconds_count{app=~\"service-.*\", uri!~\"/actuator.*\", status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"service-.*\", uri!~\"/actuator.*\"}[5m])), 0.001)) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "decimals": 3,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 0.01 },
+                  { "color": "red", "value": 0.05 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Fleet p95 latency",
+          "gridPos": { "x": 12, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=~\"service-.*\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[5m]))) >= 0) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Fleet p99 latency",
+          "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "(histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=~\"service-.*\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[5m]))) >= 0) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "decimals": 3 }, "overrides": [] },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Hikari pending",
+          "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum(hikaricp_connections_pending{app=~\"service-.*\"}) or vector(0)",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 5 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": { "graphMode": "area", "colorMode": "value", "justifyMode": "auto", "textMode": "auto" }
+        },
+        {
+          "id": 7,
+          "type": "table",
+          "title": "Service inventory - click an app to open detail",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 9 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "max by (app) (up{app=~\"service-.*\"})",
+              "format": "table",
+              "instant": true,
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "links": [
+                {
+                  "title": "Open service detail",
+                  "url": "/grafana/d/ecommerce-service-detail/ecommerce-service-detail?orgId=1&var-service=${__field.labels.app}&${__url_time_range}"
+                }
+              ],
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": { "showHeader": true, "cellHeight": "sm" }
+        },
+        {
+          "id": 8,
+          "type": "table",
+          "title": "Top slow services by p99",
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 9 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "topk(10, (histogram_quantile(0.99, sum by (le, service) (rate(traces_spanmetrics_latency_bucket{service=~\"service-.*\", span_kind=\"SPAN_KIND_SERVER\", span_name!~\"GET /actuator.*\"}[30m]))) >= 0))",
+              "format": "table",
+              "instant": true,
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "decimals": 3,
+              "links": [
+                {
+                  "title": "Open service detail",
+                  "url": "/grafana/d/ecommerce-service-detail/ecommerce-service-detail?orgId=1&var-service=${__field.labels.service}&${__url_time_range}"
+                }
+              ]
+            },
+            "overrides": []
+          },
+          "options": { "showHeader": true, "cellHeight": "sm" }
+        },
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "Request rate by service",
+          "gridPos": { "x": 0, "y": 13, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (app) (rate(http_server_requests_seconds_count{app=~\"service-.*\", uri!~\"/actuator.*\"}[5m]))",
+              "legendFormat": "{{app}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 10,
+          "type": "timeseries",
+          "title": "Error rate by service",
+          "gridPos": { "x": 12, "y": 13, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (app) (rate(http_server_requests_seconds_count{app=~\"service-.*\", uri!~\"/actuator.*\", status=~\"5..\"}[5m])) or (0 * sum by (app) (rate(http_server_requests_seconds_count{app=~\"service-.*\", uri!~\"/actuator.*\"}[5m])))",
+              "legendFormat": "{{app}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 11,
+          "type": "timeseries",
+          "title": "JVM heap used by service",
+          "gridPos": { "x": 0, "y": 21, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (app) (jvm_memory_used_bytes{app=~\"service-.*\", area=\"heap\"})",
+              "legendFormat": "{{app}}",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "id": 12,
+          "type": "timeseries",
+          "title": "Hikari active / pending by service",
+          "gridPos": { "x": 12, "y": 21, "w": 12, "h": 8 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "hikaricp_connections_active{app=~\"service-.*\"}",
+              "legendFormat": "{{app}} active",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            },
+            {
+              "refId": "B",
+              "expr": "hikaricp_connections_pending{app=~\"service-.*\"}",
+              "legendFormat": "{{app}} pending",
+              "datasource": { "type": "prometheus", "uid": "prometheus" }
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        }
+      ]
+    }
