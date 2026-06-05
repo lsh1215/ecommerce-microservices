@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'infra/**'
-      - 'monitoring/**'
       - '.github/workflows/ci-infra.yml'
 
 concurrency:
@@ -23,6 +22,3 @@ jobs:
 
       - name: Validate infra/docker-compose.yml
         run: docker compose -f infra/docker-compose.yml config --quiet
-
-      - name: Validate monitoring/docker-compose.kafka-ui.yml
-        run: docker compose -f monitoring/docker-compose.kafka-ui.yml config --quiet
