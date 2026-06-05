@@ -6,7 +6,7 @@ export interface CheckoutShippingAddress {
   address2?: string;
 }
 
-export type CheckoutPaymentMethod = 'CARD' | 'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT';
+export type CheckoutPaymentMethod = 'CARD';
 
 export interface CheckoutState {
   shippingAddress: CheckoutShippingAddress | null;

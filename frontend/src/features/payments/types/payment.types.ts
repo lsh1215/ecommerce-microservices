@@ -1,7 +1,7 @@
 export interface ProcessPaymentRequest {
   orderId: number;
   amount: number;
-  paymentMethod: 'CARD' | 'BANK_TRANSFER' | 'VIRTUAL_ACCOUNT';
+  paymentMethod: 'CARD';
 }
 
 export interface RefundRequest {

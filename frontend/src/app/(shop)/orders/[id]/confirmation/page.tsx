@@ -1,27 +1,13 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { Landmark, Package } from 'lucide-react';
+import { CreditCard, Package } from 'lucide-react';
 import { PriceDisplay } from '@/components/shared/PriceDisplay';
 import { serverFetch } from '@/lib/server-fetch';
 import { mapOrderResponse } from '@/lib/mappers';
 import type { OrderResponse } from '@/types/api-responses';
-import { CopyButton } from './CopyButton';
 
 interface ConfirmationPageProps {
   params: Promise<{ id: string }>;
-}
-
-function formatDeadline(iso: string | undefined): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 export default async function OrderConfirmationPage({ params }: ConfirmationPageProps) {
@@ -31,88 +17,43 @@ export default async function OrderConfirmationPage({ params }: ConfirmationPage
   if (!orderData) return notFound();
   const order = mapOrderResponse(orderData);
 
-  const va = order.virtualAccount;
-  const deadlineIso = va?.expiresAt ?? order.expiresAt;
-  const deadlineLabel = formatDeadline(deadlineIso);
-  const isExpired =
-    !!deadlineIso &&
-    order.status === 'PENDING' &&
-    new Date(deadlineIso).getTime() < new Date().getTime();
-
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 md:px-6">
       <div className="flex flex-col items-center text-center">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-          <Landmark size={32} strokeWidth={1.75} className="text-primary" />
+          <CreditCard size={32} strokeWidth={1.75} className="text-primary" />
         </div>
 
-        <h1 className="mt-6 text-3xl font-bold text-foreground">
-          {isExpired ? 'Deposit Deadline Expired' : 'Awaiting Deposit'}
-        </h1>
+        <h1 className="mt-6 text-3xl font-bold text-foreground">Order Received</h1>
         <p className="mt-2 text-sm text-muted-foreground">{order.orderNumber}</p>
-        {!isExpired && (
-          <p className="mt-3 max-w-md text-sm text-muted-foreground">
-            Please transfer the exact amount to the virtual account below. Your order will be
-            confirmed once the deposit is received.
-          </p>
-        )}
-        {isExpired && (
-          <p className="mt-3 max-w-md text-sm text-destructive">
-            The deposit window for this virtual account has closed. Please place a new order to
-            receive a fresh account.
-          </p>
-        )}
+        <p className="mt-3 max-w-md text-sm text-muted-foreground">
+          Payment authorization has been requested through the PG workflow. We will update the order
+          status after the payment processor records the result.
+        </p>
       </div>
 
-      {va && (
-        <div
-          className={`mt-10 rounded-lg border p-6 ${
-            isExpired ? 'border-destructive/30 bg-destructive/5' : 'border-primary/30 bg-primary/5'
-          }`}
-        >
-          <h2 className="text-lg font-bold text-foreground">Deposit Instructions</h2>
+      <div className="mt-10 rounded-lg border border-primary/30 bg-primary/5 p-6">
+        <h2 className="text-lg font-bold text-foreground">Payment Processing</h2>
 
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Bank</span>
-              <span className="font-medium text-foreground">{va.bank}</span>
-            </div>
+        <div className="mt-4 space-y-3 text-sm">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Method</span>
+            <span className="font-medium text-foreground">Card / PG Authorization</span>
+          </div>
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Account Number</span>
-              <span className="flex items-center gap-2">
-                <span className="font-mono text-sm font-semibold text-foreground">
-                  {va.accountNumber}
-                </span>
-                <CopyButton value={va.accountNumber} label="Copy account number" />
-              </span>
-            </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Order Status</span>
+            <span className="font-medium text-foreground">{order.status}</span>
+          </div>
 
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Account Holder</span>
-              <span className="font-medium text-foreground">{va.holderName}</span>
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-muted-foreground">Amount</span>
-              <span className="text-base font-semibold text-foreground">
-                <PriceDisplay amount={va.amount} />
-              </span>
-            </div>
-
-            {deadlineLabel && (
-              <div className="flex items-center justify-between gap-4 border-t border-border pt-3">
-                <span className="text-muted-foreground">Deposit By</span>
-                <span
-                  className={`font-medium ${isExpired ? 'text-destructive' : 'text-foreground'}`}
-                >
-                  {deadlineLabel}
-                </span>
-              </div>
-            )}
+          <div className="flex items-center justify-between gap-4 border-t border-border pt-3">
+            <span className="text-muted-foreground">Amount</span>
+            <span className="text-base font-semibold text-foreground">
+              <PriceDisplay amount={order.totalAmount} />
+            </span>
           </div>
         </div>
-      )}
+      </div>
 
       <div className="mt-6 rounded-lg border border-border p-6">
         <h2 className="text-lg font-bold text-foreground">Order Summary</h2>
@@ -165,8 +106,8 @@ export default async function OrderConfirmationPage({ params }: ConfirmationPage
         <div>
           <p className="text-sm font-medium text-foreground">What happens next?</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Once your deposit is received, the order is confirmed and shipped within 1-3 business
-            days. You will receive a shipping confirmation with tracking information by email.
+            Once payment authorization completes, the order is confirmed and prepared for shipment.
+            You will receive a shipping confirmation with tracking information by email.
           </p>
         </div>
       </div>
