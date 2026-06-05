@@ -54,14 +54,7 @@ data:
 
     otelcol.processor.batch "traces" {
       output {
-        // Forward to Tempo for the durable backend, and to Jaeger for the
-        // visual UI used in evidence captures (Jaeger's flame graph
-        // renders the cross-service span tree better than Grafana's
-        // Tempo Explore for portfolio screenshots).
-        traces = [
-          otelcol.exporter.otlp.tempo.input,
-          otelcol.exporter.otlp.jaeger.input,
-        ]
+        traces = [otelcol.exporter.otlp.tempo.input]
       }
     }
     otelcol.processor.batch "metrics" {
@@ -78,13 +71,6 @@ data:
     otelcol.exporter.otlp "tempo" {
       client {
         endpoint = "tempo.monitoring.svc.cluster.local:4317"
-        tls { insecure = true }
-      }
-    }
-
-    otelcol.exporter.otlp "jaeger" {
-      client {
-        endpoint = "jaeger.monitoring.svc.cluster.local:4317"
         tls { insecure = true }
       }
     }

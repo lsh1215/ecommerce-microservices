@@ -118,7 +118,8 @@ ecommerce-microservices/
 │   ├── namespace.yml
 │   ├── base/                # MySQL StatefulSet、Kafka Deployment、ConfigMap、Secrets
 │   ├── services/            # 各服务 Deployment + Service 清单
-│   └── ingress/             # nginx IngressRoute
+│   ├── ingress/             # nginx IngressRoute
+│   └── monitoring/          # Grafana、Prometheus、Loki、Tempo、Alloy 清单与仪表盘
 ├── scripts/                 # 辅助脚本 (k8s-deploy.sh、k8s-teardown.sh 等)
 └── frontend/                # Next.js 16 店面（独立线）
 ```

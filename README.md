@@ -118,7 +118,8 @@ ecommerce-microservices/
 │   ├── namespace.yml
 │   ├── base/                # MySQL StatefulSet, Kafka Deployment, ConfigMap, Secrets
 │   ├── services/            # 서비스별 Deployment + Service 매니페스트
-│   └── ingress/             # nginx IngressRoute
+│   ├── ingress/             # nginx IngressRoute
+│   └── monitoring/          # Grafana, Prometheus, Loki, Tempo, Alloy 매니페스트와 대시보드
 ├── scripts/                 # 헬퍼 스크립트 (k8s-deploy.sh, k8s-teardown.sh 등)
 └── frontend/                # Next.js 16 스토어프론트 (별도 트랙)
 ```

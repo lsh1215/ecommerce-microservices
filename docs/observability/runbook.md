@@ -1,123 +1,139 @@
-# Observability Runbook
+# Observability 운영 런북
 
-## Stack
+## 스택
 
-| Component            | Role                                                     | Image                        |
-| -------------------- | -------------------------------------------------------- | ---------------------------- |
-| **Grafana Alloy**    | Single collector: OTLP receive + pod log scrape + Prometheus scrape + kafka exporter + servicegraph | `grafana/alloy:v1.4.2` (DaemonSet) |
-| **Prometheus**       | Metrics TSDB + remote_write receiver (for k6 + Tempo generator) | `prom/prometheus:v2.54.1`    |
-| **Loki**             | Log store (filesystem, `local-path` PVC)                | `grafana/loki:3.1.1`         |
-| **Tempo**            | Trace store + `metrics_generator` (service graph, span metrics) | `grafana/tempo:2.6.0`        |
-| **Grafana**          | UI, anonymous Admin, dashboard sidecar                  | `grafana/grafana:11.2.0`     |
-| **mysqld-exporter**  | MySQL metrics                                           | `prom/mysqld-exporter:v0.15.1` |
-| **OTel Java agent**  | Baked into each service image at `/app/otel/`           | `v2.20.1`                    |
+| 컴포넌트 | 역할 | 이미지 |
+| --- | --- | --- |
+| **Grafana Alloy** | OTLP 수신, pod 로그 수집, Prometheus scrape, kafka exporter, service graph 수집 | `grafana/alloy:v1.4.2` |
+| **Prometheus** | Metrics TSDB, k6와 Tempo metrics generator용 remote-write receiver | `prom/prometheus:v2.54.1` |
+| **Loki** | 파일시스템 기반 로그 저장소 | `grafana/loki:3.1.1` |
+| **Tempo** | Trace 저장소, service graph와 span metrics 생성 | `grafana/tempo:2.6.0` |
+| **Grafana** | UI, anonymous Admin, dashboard sidecar | `grafana/grafana:11.2.0` |
+| **mysqld-exporter** | MySQL 지표 수집 | `prom/mysqld-exporter:v0.15.1` |
+| **OTel Java agent** | 각 서비스 이미지의 `/app/otel/`에 포함된 Java agent | `v2.20.1` |
 
-## Entrypoint contract
+## 진입점 계약
 
-Services start with the baked-in agent inert by default:
+서비스 이미지는 OTel Java agent를 포함하지만 기본 상태에서는 비활성이다.
 
-- `OTEL_EXPORTER_OTLP_ENDPOINT` unset → no `-javaagent`, zero overhead
-- `OTEL_EXPORTER_OTLP_ENDPOINT` present → agent attached, telemetry flows
+- `OTEL_EXPORTER_OTLP_ENDPOINT`가 없으면 `-javaagent`를 붙이지 않는다.
+- `OTEL_EXPORTER_OTLP_ENDPOINT`가 있으면 agent를 붙이고 telemetry를 Alloy로 보낸다.
 
-The activation switch is the `otel-config` ConfigMap:
+활성화는 `otel-config` ConfigMap으로 제어한다.
 
-- `k8s/monitoring/otel-config.yml`         empty stub (shipped everywhere)
-- `k8s/monitoring/otel-config-active.yml`  populated overlay (applied only on clusters where Alloy is reachable)
+- `k8s/monitoring/otel-config.yml`: 빈 stub. 모든 환경에 배포 가능하다.
+- `k8s/monitoring/otel-config-active.yml`: Alloy가 있는 클러스터에서만 적용하는 활성 overlay이다.
 
-Local flows such as IDE `./gradlew bootRun` or plain Docker Compose skip the active overlay, so services stay non-traced.
+IDE `./gradlew bootRun`이나 일반 Docker Compose 실행은 active overlay를 적용하지 않으므로 tracing overhead가 없다.
 
-## Cluster URLs (GCE)
+## 클러스터 접근 URL
 
-| Path                         | Value                                          |
-| ---------------------------- | ---------------------------------------------- |
-| API                          | `http://34.64.219.137/api/{products,brands,orders,payments,customers}` |
-| Grafana (anonymous Admin)    | `http://34.64.219.137/grafana/`                |
-| Prometheus remote-write (k6) | `http://34.64.219.137:30090/api/v1/write` (NodePort, firewalled to owner IP only) |
+배포 환경마다 ingress IP나 도메인이 달라지므로 문서에는 고정 IP를 남기지 않는다.
 
-## Dashboards (auto-loaded by sidecar)
+| 경로 | 값 |
+| --- | --- |
+| API | `http://<ingress-ip-or-domain>/api/{products,brands,orders,payments,customers}` |
+| Grafana | `http://<ingress-ip-or-domain>/grafana/` |
+| Prometheus remote-write | `http://<node-or-lb-ip>:30090/api/v1/write` |
 
-ConfigMaps labelled `grafana_dashboard: "1"` in the `monitoring` namespace are picked up on sidecar startup. Current set:
+## 대시보드
 
-- **10939** — JVM / Spring Boot Micrometer
-- **15661** — Kubernetes Pods overview
-- **18941** — Kafka Exporter Overview (consumer lag + ISR)
-- **7362**  — MySQL Overview
-- **13639** — Loki Logs / App
-- **19665** — k6 Prometheus remote_write
+`monitoring` namespace에서 `grafana_dashboard: "1"` label이 붙은 ConfigMap은 Grafana sidecar가 자동으로 읽는다. 현재 Kubernetes 매니페스트에 포함된 대시보드는 다음과 같다.
 
-Apply dashboard ConfigMaps:
+| 대시보드 | 목적 |
+| --- | --- |
+| Ecommerce Service Fleet | 서비스별 상태, RPS, error rate, p95/p99를 한 화면에서 비교 |
+| Ecommerce Service Detail | 선택한 서비스의 endpoint, JVM, HikariCP, DB span, 로그 상세 확인 |
+| Ecommerce Gateway | Traefik entrypoint 기준 성공률, 상태 코드, 경로별 처리량 확인 |
+| Ecommerce Trace Drilldown | 느린 span 후보를 보고 Tempo trace와 Loki 로그로 이동 |
+| Ecommerce Traces | 서비스 간 호출 관계와 trace 기반 병목 확인 |
+| Ecommerce Operations Overview | 주문/결제 운영 흐름, DB/Kafka/서비스 상태 요약 |
+| Ecommerce Load Test / k6 | k6 테스트의 RPS, VU, p95/p99, 실패율 확인 |
+| Ecommerce JVM | JVM memory, GC, thread, CPU 확인 |
+| Ecommerce MySQL per DB | 서비스별 MySQL 상태 확인 |
+| Ecommerce Outbox | outbox publish와 이벤트 흐름 확인 |
+| Ecommerce Idempotency Flow | 중복 이벤트 수신과 idempotency 차단 흐름 확인 |
+| Ecommerce Dualwrite Flow | DB 저장과 Kafka 이벤트 발행 간 흐름 확인 |
+| Ecommerce Circuit Breaker | product client 장애, circuit breaker 상태, fast-fail 확인 |
+
+대시보드 ConfigMap 적용:
 
 ```bash
 kubectl apply -f k8s/monitoring/dashboards/
 ```
 
-## Running a k6 load test with live metrics
+## k6 부하테스트와 실시간 지표
 
 ```bash
-export K6_PROMETHEUS_RW_SERVER_URL="http://34.64.219.137:30090/api/v1/write"
+export BASE_URL="http://<ingress-ip-or-domain>"
+export K6_PROMETHEUS_RW_SERVER_URL="http://<node-or-lb-ip>:30090/api/v1/write"
 export K6_PROMETHEUS_RW_TREND_STATS="avg,p(95),p(99)"
 export K6_PROMETHEUS_RW_PUSH_INTERVAL=5s
-export PRODUCT_API=http://34.64.219.137
-export ORDER_API=http://34.64.219.137
-export PAYMENT_API=http://34.64.219.137
-export CUSTOMER_API=http://34.64.219.137
+export PRODUCT_API="$BASE_URL"
+export ORDER_API="$BASE_URL"
+export PAYMENT_API="$BASE_URL"
+export CUSTOMER_API="$BASE_URL"
 
 k6 run -o experimental-prometheus-rw k6/scenarios/smoke-test.js
 ```
 
-Open **Dashboards → k6 Prometheus (19665)** in Grafana to watch VUs / iterations / p95 live.
+Grafana에서는 **Dashboards → Ecommerce Load Test / k6**로 들어가 VU, iteration, p95/p99, 실패율을 확인한다.
 
-## Cross-signal navigation
+## 신호 간 이동
 
-- **Metric → Trace**: exemplar on any Prometheus graph → opens the trace in Tempo.
-- **Log → Trace**: Loki lines contain `traceId=<hex>` from the Logback pattern. Click the derived `TraceID` field → opens Tempo.
-- **Trace → Log**: Tempo datasource has `tracesToLogsV2` pre-wired → click any span, "Logs for this span" button opens Loki filtered to that `service.name`.
-- **Trace → Service Graph**: Tempo `serviceMap` reads `traces_service_graph_*` metrics the generator pushes to Prometheus.
+- **Metric → Trace**: Prometheus graph의 exemplar를 눌러 Tempo trace로 이동한다.
+- **Log → Trace**: Loki 로그의 `traceId=<hex>` derived field를 눌러 Tempo trace로 이동한다.
+- **Trace → Log**: Tempo datasource의 `tracesToLogsV2` 설정으로 span에서 해당 서비스 로그를 연다.
+- **Trace → Service Graph**: Tempo metrics generator가 Prometheus로 보낸 `traces_service_graph_*` 지표를 사용한다.
 
-## Common operations
+## 자주 쓰는 작업
 
-### Tail logs for one request across all services
+### 단일 요청 로그 추적
 
 ```bash
-TRACE_ID=<hex_from_tempo>
+TRACE_ID=<tempo에서_확인한_trace_id>
 # Grafana → Explore → Loki
 {namespace="ecommerce"} |~ "traceId=${TRACE_ID}"
 ```
 
-### Check Kafka consumer lag
+### Kafka consumer lag 확인
 
-Dashboards → Kafka Exporter Overview (18941). Filter `consumergroup` to `service-order`, `service-payment`, etc.
+Grafana의 Kafka 관련 패널에서 `consumergroup`을 `service-order`, `service-payment` 등으로 필터링한다.
 
-### Snapshot disk before risky changes
+### 위험 작업 전 디스크 스냅샷
 
 ```bash
-DISK=$(gcloud compute instances describe ecommerce-k3s --zone=asia-northeast3-a \
+DISK=$(gcloud compute instances describe <instance-name> --zone=<zone> \
   --format='value(disks[0].source)' | awk -F'/' '{print $NF}')
-gcloud compute disks snapshot "$DISK" --zone=asia-northeast3-a \
+gcloud compute disks snapshot "$DISK" --zone=<zone> \
   --snapshot-names="pre-ops-$(date +%Y%m%d-%H%M)"
 ```
 
-### Rollback the monitoring stack
+### 모니터링 스택 롤백
 
 ```bash
 kubectl delete namespace monitoring
-kubectl -n ecommerce delete configmap otel-config  # removes activation
+kubectl -n ecommerce delete configmap otel-config
 kubectl -n ecommerce rollout restart deploy -l 'app in (service-product,service-order,service-payment,service-customer)'
 ```
 
-Services fall back to inert-agent mode (verified by absence of `-javaagent:` in `kubectl exec <pod> -- cat /proc/1/cmdline`).
+서비스는 inert-agent 모드로 돌아간다. 필요하면 `kubectl exec <pod> -- cat /proc/1/cmdline`에서 `-javaagent:`가 없는지 확인한다.
 
-## Resource sizing
+## 리소스 기준
 
-Current target node: `e2-standard-4` (4 vCPU / 16 GiB RAM, asia-northeast3-a).
+권장 모니터링 노드는 `e2-standard-4` 수준이다.
 
-Baseline request usage (Prometheus `kubectl top node`): ~400 m CPU / ~5 GiB memory.
+| 리소스 | 기준 |
+| --- | --- |
+| CPU | 4 vCPU |
+| Memory | 16 GiB |
+| 용도 | Prometheus, Grafana, Loki, Tempo, Alloy 수집/저장 |
 
-If you must run on e2-standard-2 (2 vCPU / 8 GiB), disable Prometheus+Loki PVC retention (drop to emptyDir), lower Tempo/Loki/Grafana memory limits to 256 Mi each, and skip the Node Exporter Full dashboard (annotation-size cap).
+`e2-standard-2` 수준에서 실행해야 한다면 Prometheus/Loki retention을 줄이고, Tempo/Loki/Grafana memory limit을 낮추며, 고카디널리티 대시보드는 제외한다.
 
-## Known gaps
+## 알려진 한계
 
-- **Node Exporter Full (1860)** — 468 KiB JSON exceeds the 262 KiB `kubectl apply` last-applied-config annotation limit. Either use `kubectl apply --server-side` or slim the dashboard before re-adding.
-- **Kafka JMX broker internals** — `prometheus.exporter.kafka` covers topic/partition/consumer-lag metrics only. For broker JVM metrics (UnderReplicatedPartitions, ActiveControllerCount) an initContainer-based JMX exporter on the Kafka StatefulSet is the accepted extension.
-- **Traefik IPAllowList** — the plan called for a middleware restricting Grafana anonymous-Admin to owner IP. Not yet enforced in manifests; the GCE firewall on tcp:80 is still `0.0.0.0/0`. Tighten via a Traefik `Middleware` CRD before exposing to the public internet.
-- **Phase worktree rollout** — the overnight run stopped after verifying `main`. phase0/phase5 deploy sweeps are deferred.
+- **Node Exporter Full (1860)**: JSON이 커서 `kubectl apply`의 last-applied-config annotation 제한을 넘을 수 있다. 필요하면 server-side apply 또는 slim dashboard를 사용한다.
+- **Kafka broker JVM 내부 지표**: 현재 kafka exporter는 topic/partition/consumer lag 중심이다. UnderReplicatedPartitions, ActiveControllerCount 같은 broker JVM 지표는 Kafka StatefulSet에 JMX exporter를 추가해야 한다.
+- **Grafana anonymous Admin 외부 노출**: 공개 인터넷에 노출할 경우 Traefik middleware 또는 GCP firewall로 접근 대역을 제한해야 한다.
+- **DataDog 수준의 code-path drilldown**: CPU time, socket read, thread pending, 코드 경로 flame graph는 Grafana/Tempo dashboard만으로 완전히 대체되지 않는다. 필요하면 Pyroscope 같은 continuous profiler를 추가한다.

@@ -1,51 +1,35 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: grafana-dashboard-ecommerce-k6
+  name: grafana-dashboard-ecommerce-gateway
   namespace: monitoring
   labels:
     grafana_dashboard: "1"
 data:
-  ecommerce-k6.json: |
+  ecommerce-gateway.json: |
     {
-      "uid": "ecommerce-k6",
-      "title": "Ecommerce Load Test / k6",
+      "uid": "ecommerce-gateway",
+      "title": "Ecommerce API Gateway / Traefik",
       "tags": [
         "ecommerce",
-        "k6",
-        "loadtest"
+        "gateway",
+        "traefik"
       ],
       "timezone": "browser",
       "schemaVersion": 39,
-      "version": 3,
+      "version": 2,
       "editable": true,
       "graphTooltip": 1,
-      "refresh": "10s",
+      "refresh": "15s",
       "time": {
         "from": "now-30m",
         "to": "now"
-      },
-      "templating": {
-        "list": [
-          {
-            "name": "testid",
-            "type": "query",
-            "datasource": {
-              "type": "prometheus",
-              "uid": "prometheus"
-            },
-            "query": "label_values(k6_http_reqs_total, testid)",
-            "includeAll": true,
-            "multi": true,
-            "refresh": 2
-          }
-        ]
       },
       "panels": [
         {
           "id": 1,
           "type": "stat",
-          "title": "Peak RPS",
+          "title": "Gateway RPS",
           "gridPos": {
             "x": 0,
             "y": 0,
@@ -59,7 +43,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "max_over_time((sum(rate(k6_http_reqs_total{testid=~\"$testid\"}[1m])))[30m:]) or vector(0)",
+              "expr": "sum(rate(traefik_entrypoint_requests_total{entrypoint=\"web\"}[5m])) or vector(0)",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -82,7 +66,7 @@ data:
         {
           "id": 2,
           "type": "stat",
-          "title": "Failure rate",
+          "title": "Gateway 5xx rate",
           "gridPos": {
             "x": 4,
             "y": 0,
@@ -96,7 +80,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "(sum(max_over_time(k6_http_reqs_total{testid=~\"$testid\",expected_response=\"false\"}[30m])) / clamp_min(sum(max_over_time(k6_http_reqs_total{testid=~\"$testid\"}[30m])), 1)) or vector(0)",
+              "expr": "sum(rate(traefik_entrypoint_requests_total{entrypoint=\"web\",code=~\"5..\"}[5m])) or vector(0)",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -105,7 +89,7 @@ data:
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "percentunit",
+              "unit": "reqps",
               "color": {
                 "mode": "thresholds"
               },
@@ -121,7 +105,7 @@ data:
                     "color": "yellow"
                   },
                   {
-                    "value": 0.05,
+                    "value": 0.1,
                     "color": "red"
                   }
                 ]
@@ -139,7 +123,7 @@ data:
         {
           "id": 3,
           "type": "stat",
-          "title": "Order/API p99 latency",
+          "title": "Auth denials / s",
           "gridPos": {
             "x": 8,
             "y": 0,
@@ -153,7 +137,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "((max(max_over_time(k6_order_create_duration_p99{testid=~\"$testid\"}[30m])) or max(max_over_time(k6_http_req_duration_p99{testid=~\"$testid\", method=\"POST\", url=~\".*/api/orders\"}[30m]))) * 1000) or vector(0)",
+              "expr": "sum(rate(traefik_entrypoint_requests_total{entrypoint=\"web\",code=~\"401|403\"}[5m])) or vector(0)",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -162,7 +146,7 @@ data:
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ms"
+              "unit": "reqps"
             },
             "overrides": []
           },
@@ -176,7 +160,7 @@ data:
         {
           "id": 4,
           "type": "stat",
-          "title": "Product/Browse p99 latency",
+          "title": "Gateway p95",
           "gridPos": {
             "x": 12,
             "y": 0,
@@ -190,7 +174,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "((max(max_over_time(k6_browse_duration_p99{testid=~\"$testid\"}[30m])) or max(max_over_time(k6_http_req_duration_p99{testid=~\"$testid\", method=\"GET\", url=~\".*/api/products.*\"}[30m]))) * 1000) or vector(0)",
+              "expr": "(histogram_quantile(0.95, sum by (le) (rate(traefik_entrypoint_request_duration_seconds_bucket{entrypoint=\"web\"}[5m]))) >= 0) or vector(0)",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -199,7 +183,7 @@ data:
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ms"
+              "unit": "s"
             },
             "overrides": []
           },
@@ -213,7 +197,7 @@ data:
         {
           "id": 5,
           "type": "stat",
-          "title": "Peak VUs",
+          "title": "Open web connections",
           "gridPos": {
             "x": 16,
             "y": 0,
@@ -227,7 +211,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "max(max_over_time(k6_vus{testid=~\"$testid\"}[30m])) or vector(0)",
+              "expr": "sum(traefik_open_connections{entrypoint=\"web\"}) or vector(0)",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -250,7 +234,7 @@ data:
         {
           "id": 6,
           "type": "stat",
-          "title": "Peak iterations / s",
+          "title": "Config reload success",
           "gridPos": {
             "x": 20,
             "y": 0,
@@ -264,7 +248,7 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "max_over_time((sum(rate(k6_iterations_total{testid=~\"$testid\"}[1m])))[30m:]) or vector(0)",
+              "expr": "traefik_config_last_reload_success",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
@@ -273,7 +257,23 @@ data:
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ops"
+              "unit": "short",
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "value": null,
+                    "color": "red"
+                  },
+                  {
+                    "value": 1,
+                    "color": "green"
+                  }
+                ]
+              }
             },
             "overrides": []
           },
@@ -287,7 +287,7 @@ data:
         {
           "id": 7,
           "type": "timeseries",
-          "title": "Throughput by test",
+          "title": "Requests by status code",
           "gridPos": {
             "x": 0,
             "y": 4,
@@ -301,12 +301,12 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum by (testid) (rate(k6_http_reqs_total{testid=~\"$testid\"}[5m]))",
+              "expr": "sum by (code) (rate(traefik_entrypoint_requests_total{entrypoint=\"web\"}[5m]))",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "legendFormat": "{{testid}}"
+              "legendFormat": "{{code}}"
             }
           ],
           "fieldConfig": {
@@ -319,7 +319,7 @@ data:
         {
           "id": 8,
           "type": "timeseries",
-          "title": "Scenario p99 latency",
+          "title": "Requests by backend service",
           "gridPos": {
             "x": 12,
             "y": 4,
@@ -333,35 +333,17 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "max by (testid) (k6_http_req_duration_p99{testid=~\"$testid\"}) * 1000",
+              "expr": "sum by (service, code) (rate(traefik_service_requests_total[5m]))",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "legendFormat": "http {{testid}}"
-            },
-            {
-              "refId": "B",
-              "expr": "max by (testid) (k6_order_create_duration_p99{testid=~\"$testid\"}) * 1000",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "legendFormat": "order {{testid}}"
-            },
-            {
-              "refId": "C",
-              "expr": "max by (testid) (k6_browse_duration_p99{testid=~\"$testid\"}) * 1000",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "legendFormat": "browse {{testid}}"
+              "legendFormat": "{{service}} {{code}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ms"
+              "unit": "reqps"
             },
             "overrides": []
           }
@@ -369,7 +351,7 @@ data:
         {
           "id": 9,
           "type": "timeseries",
-          "title": "Failures by test",
+          "title": "Gateway latency percentiles",
           "gridPos": {
             "x": 0,
             "y": 12,
@@ -383,17 +365,35 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum by (testid) (rate(k6_http_reqs_total{testid=~\"$testid\",expected_response=\"false\"}[5m])) or (0 * sum by (testid) (rate(k6_http_reqs_total{testid=~\"$testid\"}[5m])))",
+              "expr": "(histogram_quantile(0.50, sum by (le) (rate(traefik_entrypoint_request_duration_seconds_bucket{entrypoint=\"web\"}[5m]))) >= 0) or vector(0)",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "legendFormat": "failed {{testid}}"
+              "legendFormat": "p50"
+            },
+            {
+              "refId": "B",
+              "expr": "(histogram_quantile(0.95, sum by (le) (rate(traefik_entrypoint_request_duration_seconds_bucket{entrypoint=\"web\"}[5m]))) >= 0) or vector(0)",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "legendFormat": "p95"
+            },
+            {
+              "refId": "C",
+              "expr": "(histogram_quantile(0.99, sum by (le) (rate(traefik_entrypoint_request_duration_seconds_bucket{entrypoint=\"web\"}[5m]))) >= 0) or vector(0)",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+              },
+              "legendFormat": "p99"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "reqps"
+              "unit": "s"
             },
             "overrides": []
           }
@@ -401,7 +401,7 @@ data:
         {
           "id": 10,
           "type": "timeseries",
-          "title": "HTTP status mix",
+          "title": "Backend latency p95",
           "gridPos": {
             "x": 12,
             "y": 12,
@@ -415,17 +415,17 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "sum by (status) (rate(k6_http_reqs_total{testid=~\"$testid\"}[5m]))",
+              "expr": "(histogram_quantile(0.95, sum by (service, le) (rate(traefik_service_request_duration_seconds_bucket[5m]))) >= 0)",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "legendFormat": "{{status}}"
+              "legendFormat": "{{service}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "reqps"
+              "unit": "s"
             },
             "overrides": []
           }
@@ -433,7 +433,7 @@ data:
         {
           "id": 11,
           "type": "timeseries",
-          "title": "VUs and iteration rate",
+          "title": "Request and response bytes",
           "gridPos": {
             "x": 0,
             "y": 20,
@@ -447,62 +447,21 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "max by (testid) (k6_vus{testid=~\"$testid\"})",
+              "expr": "sum by (entrypoint) (rate(traefik_entrypoint_requests_bytes_total[5m]))",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "legendFormat": "vus {{testid}}"
+              "legendFormat": "request {{entrypoint}}"
             },
             {
               "refId": "B",
-              "expr": "sum by (testid) (rate(k6_iterations_total{testid=~\"$testid\"}[5m]))",
+              "expr": "sum by (entrypoint) (rate(traefik_entrypoint_responses_bytes_total[5m]))",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "legendFormat": "iter/s {{testid}}"
-            }
-          ],
-          "fieldConfig": {
-            "defaults": {
-              "unit": "short"
-            },
-            "overrides": []
-          }
-        },
-        {
-          "id": 12,
-          "type": "timeseries",
-          "title": "Network throughput",
-          "gridPos": {
-            "x": 12,
-            "y": 20,
-            "w": 12,
-            "h": 8
-          },
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "targets": [
-            {
-              "refId": "A",
-              "expr": "sum by (testid) (rate(k6_data_sent_total{testid=~\"$testid\"}[5m]))",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "legendFormat": "sent {{testid}}"
-            },
-            {
-              "refId": "B",
-              "expr": "sum by (testid) (rate(k6_data_received_total{testid=~\"$testid\"}[5m]))",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "legendFormat": "received {{testid}}"
+              "legendFormat": "response {{entrypoint}}"
             }
           ],
           "fieldConfig": {
@@ -513,13 +472,13 @@ data:
           }
         },
         {
-          "id": 13,
+          "id": 12,
           "type": "timeseries",
-          "title": "Request timing breakdown p99",
+          "title": "Open connections",
           "gridPos": {
-            "x": 0,
-            "y": 28,
-            "w": 24,
+            "x": 12,
+            "y": 20,
+            "w": 12,
             "h": 8
           },
           "datasource": {
@@ -529,44 +488,17 @@ data:
           "targets": [
             {
               "refId": "A",
-              "expr": "max by (testid) (k6_http_req_waiting_p99{testid=~\"$testid\"}) * 1000",
+              "expr": "sum by (entrypoint) (traefik_open_connections)",
               "datasource": {
                 "type": "prometheus",
                 "uid": "prometheus"
               },
-              "legendFormat": "waiting {{testid}}"
-            },
-            {
-              "refId": "B",
-              "expr": "max by (testid) (k6_http_req_connecting_p99{testid=~\"$testid\"}) * 1000",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "legendFormat": "connecting {{testid}}"
-            },
-            {
-              "refId": "C",
-              "expr": "max by (testid) (k6_http_req_receiving_p99{testid=~\"$testid\"}) * 1000",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "legendFormat": "receiving {{testid}}"
-            },
-            {
-              "refId": "D",
-              "expr": "max by (testid) (k6_http_req_sending_p99{testid=~\"$testid\"}) * 1000",
-              "datasource": {
-                "type": "prometheus",
-                "uid": "prometheus"
-              },
-              "legendFormat": "sending {{testid}}"
+              "legendFormat": "{{entrypoint}}"
             }
           ],
           "fieldConfig": {
             "defaults": {
-              "unit": "ms"
+              "unit": "short"
             },
             "overrides": []
           }
