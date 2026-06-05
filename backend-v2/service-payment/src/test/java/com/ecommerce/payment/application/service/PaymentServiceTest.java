@@ -3,6 +3,7 @@ package com.ecommerce.payment.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.never;
@@ -59,13 +60,13 @@ class PaymentServiceTest {
     }
 
     @Test
-    @DisplayName("order.created 수신 시 PG 호출 없이 결제 요청 행과 요청 이력을 남긴다")
-    void should_record_payment_attempt_when_order_created() {
+    @DisplayName("payment.requested 수신 시 PG 호출 없이 결제 요청 행과 요청 이력을 남긴다")
+    void should_record_payment_attempt_when_payment_requested() {
         given(paymentRepository.findByOrderId(1L)).willReturn(Optional.empty());
         given(paymentRepository.saveAndFlush(any(Payment.class))).willAnswer(inv -> inv.getArgument(0));
         given(attemptRepository.saveAndFlush(any(PaymentAttempt.class))).willAnswer(inv -> inv.getArgument(0));
 
-        paymentService.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
+        paymentService.requestFromPaymentRequested(1L, "ORD-001", new BigDecimal("100.00"));
 
         ArgumentCaptor<Payment> paymentCaptor = ArgumentCaptor.forClass(Payment.class);
         verify(paymentRepository).saveAndFlush(paymentCaptor.capture());
@@ -84,17 +85,53 @@ class PaymentServiceTest {
     }
 
     @Test
-    @DisplayName("중복 order.created는 새 결제 요청을 만들지 않는다")
-    void should_skip_duplicate_order_created_when_payment_already_exists() {
+    @DisplayName("중복 payment.requested는 새 결제 요청을 만들지 않는다")
+    void should_skip_duplicate_payment_requested_when_payment_already_exists() {
         Payment payment = Payment.create(1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD);
         given(paymentRepository.findByOrderId(1L)).willReturn(Optional.of(payment));
 
-        paymentService.processFromEvent(1L, "ORD-001", new BigDecimal("100.00"));
+        paymentService.requestFromPaymentRequested(1L, "ORD-001", new BigDecimal("100.00"));
 
         verify(paymentRepository, never()).saveAndFlush(any());
         verify(attemptRepository, never()).saveAndFlush(any());
         verify(historyRepository, never()).save(any());
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("confirm 요청은 요청된 결제 시도를 provider 결제키와 함께 PROCESSING으로 claim한다")
+    void should_claim_requested_attempt_for_confirmation() {
+        PaymentAttempt attempt = PaymentAttempt.request(1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD);
+        given(attemptRepository.findFirstByOrderIdAndStatusInOrderByRequestedAtDesc(eq(1L), any()))
+                .willReturn(Optional.of(attempt));
+
+        Optional<com.ecommerce.payment.application.dto.PaymentGatewayCommand> command =
+                paymentService.claimAttemptForConfirmation(1L, "pay-key-001");
+
+        assertThat(command).isPresent();
+        assertThat(command.get().providerPaymentKey()).isEqualTo("pay-key-001");
+        assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PROCESSING);
+        assertThat(attempt.getProviderPaymentKey()).isEqualTo("pay-key-001");
+        verify(historyRepository).save(argThat(history ->
+                history.getType() == PaymentAttemptHistoryType.PROCESSING_STARTED));
+    }
+
+    @Test
+    @DisplayName("스케줄러용 claim은 retryable 실패 상태만 대상으로 한다")
+    void should_claim_only_retryable_attempt_for_scheduler() {
+        PaymentAttempt attempt = PaymentAttempt.request(1L, "ORD-001", new BigDecimal("100.00"), PaymentMethod.CARD);
+        attempt.markProcessing("pay-key-001");
+        attempt.markRetryableFailed("pg timeout");
+        given(attemptRepository.findFirstByStatusInOrderByRequestedAtAsc(any()))
+                .willReturn(Optional.of(attempt));
+
+        Optional<com.ecommerce.payment.application.dto.PaymentGatewayCommand> command =
+                paymentService.claimNextRetryableAttempt();
+
+        assertThat(command).isPresent();
+        verify(attemptRepository).findFirstByStatusInOrderByRequestedAtAsc(argThat(statuses ->
+                statuses.contains(PaymentAttemptStatus.RETRYABLE_FAILED)
+                        && !statuses.contains(PaymentAttemptStatus.REQUESTED)));
     }
 
     @Test

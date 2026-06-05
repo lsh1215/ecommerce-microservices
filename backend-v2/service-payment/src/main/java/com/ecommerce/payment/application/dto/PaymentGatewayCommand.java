@@ -9,5 +9,6 @@ public record PaymentGatewayCommand(
         String orderNumber,
         BigDecimal amount,
         PaymentMethod paymentMethod,
-        String idempotencyKey
+        String idempotencyKey,
+        String providerPaymentKey
 ) {}

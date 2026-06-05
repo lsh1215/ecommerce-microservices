@@ -4,6 +4,7 @@ import com.ecommerce.common.outbox.OutboxEvent;
 import com.ecommerce.common.outbox.OutboxEventRepository;
 import com.ecommerce.order.domain.event.OrderCancelledEvent;
 import com.ecommerce.order.domain.event.OrderCreatedEvent;
+import com.ecommerce.order.domain.event.PaymentRequestedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -21,6 +22,18 @@ public class OrderOutboxEventHandler {
     @SneakyThrows
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void handleOrderCreated(OrderCreatedEvent event) {
+        outboxRepository.save(OutboxEvent.create(
+            "Order",
+            String.valueOf(event.getOrderId()),
+            event.getEventType(),
+            objectMapper.writeValueAsString(event),
+            event.getOrderNumber()
+        ));
+    }
+
+    @SneakyThrows
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    public void handlePaymentRequested(PaymentRequestedEvent event) {
         outboxRepository.save(OutboxEvent.create(
             "Order",
             String.valueOf(event.getOrderId()),

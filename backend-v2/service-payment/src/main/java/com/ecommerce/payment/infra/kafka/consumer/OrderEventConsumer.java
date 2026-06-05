@@ -40,20 +40,20 @@ public class OrderEventConsumer {
     private final IdempotentEventHandler idempotentEventHandler;
 
     @KafkaListener(
-            topics = KafkaTopics.ORDER_CREATED,
+            topics = KafkaTopics.PAYMENT_REQUESTED,
             groupId = "${spring.kafka.consumer.group-id}",
             containerFactory = "stringKafkaListenerContainerFactory"
     )
-    public void handleOrderCreated(String message) {
+    public void handlePaymentRequested(String message) {
         JsonNode node = parsePayload(message);
         String eventId = node.get("eventId").asText();
         Long orderId = node.get("orderId").asLong();
         String orderNumber = node.get("orderNumber").asText();
         BigDecimal totalAmount = new BigDecimal(node.get("totalAmount").asText());
 
-        log.info("order.created 이벤트 수신: orderNumber={}, orderId={}", orderNumber, orderId);
-        idempotentEventHandler.tryProcess(eventId, KafkaTopics.ORDER_CREATED,
-                () -> paymentService.processFromEvent(orderId, orderNumber, totalAmount));
+        log.info("payment.requested 이벤트 수신: orderNumber={}, orderId={}", orderNumber, orderId);
+        idempotentEventHandler.tryProcess(eventId, KafkaTopics.PAYMENT_REQUESTED,
+                () -> paymentService.requestFromPaymentRequested(orderId, orderNumber, totalAmount));
     }
 
     @KafkaListener(
