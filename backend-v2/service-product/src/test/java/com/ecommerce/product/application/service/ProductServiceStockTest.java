@@ -78,6 +78,19 @@ class ProductServiceStockTest {
     }
 
     @Test
+    void reserveStockWithSnapshotReturnsVariantWithProductSnapshotData() {
+        ProductVariant variant = saveVariant(10);
+
+        ProductVariant reserved = productService.reserveStockWithSnapshot(1L, variant.getId(), 3);
+        ProductVariant repeated = productService.reserveStockWithSnapshot(1L, variant.getId(), 3);
+
+        assertThat(reserved.getId()).isEqualTo(variant.getId());
+        assertThat(reserved.getProduct().getName()).startsWith("Hot Row Product");
+        assertThat(reserved.effectivePrice()).isEqualByComparingTo(BigDecimal.valueOf(10_000));
+        assertThat(repeated.getId()).isEqualTo(variant.getId());
+    }
+
+    @Test
     void releaseReservationIsIdempotentForSameOrderAndVariant() {
         ProductVariant variant = saveVariant(10);
         productService.reserveStock(1L, variant.getId(), 3);

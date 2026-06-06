@@ -193,6 +193,18 @@ class ProductCatalogRestClientCircuitBreakerTest {
     }
 
     @Test
+    @DisplayName("OPEN 상태의 reserveStockAndFetchSnapshot은 PRODUCT_SERVICE_UNAVAILABLE을 반환한다")
+    void openCircuit_reserveStockAndFetchSnapshot_throwsServiceUnavailable() {
+        // 준비
+        circuitBreaker.transitionToOpenState();
+
+        // 실행 및 검증
+        assertThatThrownBy(() -> proxiedClient.reserveStockAndFetchSnapshot(10L, 1L, 1))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE);
+    }
+
+    @Test
     @DisplayName("OPEN 상태의 releaseStock은 보상 재시도 판단을 위해 PRODUCT_SERVICE_UNAVAILABLE을 전파한다")
     void openCircuit_releaseStock_throwsServiceUnavailable() {
         // 준비

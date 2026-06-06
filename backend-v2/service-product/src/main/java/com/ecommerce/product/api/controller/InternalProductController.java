@@ -1,6 +1,8 @@
 package com.ecommerce.product.api.controller;
 
 import com.ecommerce.common.dto.ApiResponse;
+import com.ecommerce.common.exception.BusinessException;
+import com.ecommerce.product.ProductErrorCode;
 import com.ecommerce.product.api.dto.request.StockReserveRequest;
 import com.ecommerce.product.api.dto.request.StockReservationActionRequest;
 import com.ecommerce.product.api.dto.response.ProductVariantResponse;
@@ -37,6 +39,18 @@ public class InternalProductController {
                 ? productService.reserveStock(variantId, request.quantity())
                 : productService.reserveStock(request.orderId(), variantId, request.quantity());
         return ApiResponse.ok(ProductVariantResponse.from(variant));
+    }
+
+    @PostMapping("/variants/{variantId}/reserve-stock-and-snapshot")
+    public ApiResponse<VariantDetailResponse> reserveStockAndSnapshot(
+            @PathVariable Long variantId,
+            @Valid @RequestBody StockReserveRequest request) {
+        if (request.orderId() == null) {
+            throw new BusinessException(ProductErrorCode.INVALID_VARIANT_OPERATION, "orderId is required");
+        }
+        ProductVariant variant = productService.reserveStockWithSnapshot(
+                request.orderId(), variantId, request.quantity());
+        return ApiResponse.ok(VariantDetailResponse.from(variant));
     }
 
     @PostMapping("/variants/{variantId}/release-stock")

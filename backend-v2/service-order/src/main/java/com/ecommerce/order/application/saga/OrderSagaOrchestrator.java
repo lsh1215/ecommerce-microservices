@@ -34,9 +34,8 @@ public class OrderSagaOrchestrator {
         List<StockReservation> reservations = new ArrayList<>();
         try {
             for (OrderItemCommand item : command.items()) {
-                // 외부 I/O 구간: Order DB 트랜잭션이 열려 있지 않아야 한다.
-                ProductSnapshotDto snapshot = productCatalog.fetchSnapshot(item.productVariantId());
-                productCatalog.reserveStock(pendingOrder.orderId(), item.productVariantId(), item.quantity());
+                ProductSnapshotDto snapshot = productCatalog.reserveStockAndFetchSnapshot(
+                        pendingOrder.orderId(), item.productVariantId(), item.quantity());
                 reservedItems.add(new ReservedOrderItem(snapshot, item.quantity()));
                 reservations.add(new StockReservation(
                         pendingOrder.orderId(), item.productVariantId(), item.quantity()));

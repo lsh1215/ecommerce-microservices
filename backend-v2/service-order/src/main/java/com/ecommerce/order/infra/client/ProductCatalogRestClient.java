@@ -83,14 +83,7 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
         // 5xx나 커넥션 실패는 Spring RestClient가 던지는 원시 예외로 CB에 전파됨
 
         Map<String, Object> data = extractData(body);
-        return new ProductSnapshotDto(
-                toLong(data.get("productId")),
-                toLong(data.get("variantId")),
-                (String) data.get("productName"),
-                (String) data.get("size"),
-                (String) data.get("color"),
-                new java.math.BigDecimal(data.get("unitPrice").toString())
-        );
+        return toSnapshot(data);
     }
 
     @Override
@@ -106,6 +99,23 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
                             "Stock reservation failed for variant: " + variantId);
                 })
                 .toBodilessEntity();
+    }
+
+    @Override
+    @CircuitBreaker(name = CB_NAME, fallbackMethod = "reserveStockAndFetchSnapshotFallback")
+    public ProductSnapshotDto reserveStockAndFetchSnapshot(Long orderId, Long variantId, int quantity) {
+        Map<String, Object> body = restClient.post()
+                .uri("/api/internal/products/variants/{variantId}/reserve-stock-and-snapshot", variantId)
+                .body(Map.of("orderId", orderId, "quantity", quantity))
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    throw new BusinessException(OrderErrorCode.STOCK_RESERVATION_FAILED,
+                            "Stock reservation failed for variant: " + variantId);
+                })
+                .body(new ParameterizedTypeReference<>() {});
+
+        Map<String, Object> data = extractData(body);
+        return toSnapshot(data);
     }
 
     @Override
@@ -169,6 +179,20 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
                 "Stock reservation temporarily unavailable");
     }
 
+    @SuppressWarnings("unused")
+    private ProductSnapshotDto reserveStockAndFetchSnapshotFallback(Long orderId, Long variantId, int quantity,
+                                                                    Throwable t) {
+        if (t instanceof BusinessException be) throw be;
+        log.warn("[CB] reserveStockAndFetchSnapshot fallback for orderId={}, variantId={}, qty={}: {}",
+                orderId, variantId, quantity, t.toString());
+        if (t instanceof CallNotPermittedException) {
+            throw new BusinessException(OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE,
+                    "Stock reservation unavailable (circuit open)");
+        }
+        throw new BusinessException(OrderErrorCode.PRODUCT_SERVICE_UNAVAILABLE,
+                "Stock reservation temporarily unavailable");
+    }
+
     /**
      * releaseStock fallback은 Saga가 재시도 필요 상태를 기록할 수 있도록 예외를 전파한다.
      */
@@ -206,6 +230,17 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
                     "Unexpected response from product service");
         }
         return (Map<String, Object>) response.get("data");
+    }
+
+    private ProductSnapshotDto toSnapshot(Map<String, Object> data) {
+        return new ProductSnapshotDto(
+                toLong(data.get("productId")),
+                toLong(data.get("variantId")),
+                (String) data.get("productName"),
+                (String) data.get("size"),
+                (String) data.get("color"),
+                new java.math.BigDecimal(data.get("unitPrice").toString())
+        );
     }
 
     private Long toLong(Object value) {
