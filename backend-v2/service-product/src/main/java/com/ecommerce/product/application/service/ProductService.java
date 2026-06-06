@@ -113,15 +113,26 @@ public class ProductService {
 
     @Transactional
     public ProductVariant reserveStock(Long orderId, Long variantId, int quantity) {
+        reserveStockForOrder(orderId, variantId, quantity);
+        return productVariantRepository.findById(variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+    }
+
+    @Transactional
+    public ProductVariant reserveStockWithSnapshot(Long orderId, Long variantId, int quantity) {
+        reserveStockForOrder(orderId, variantId, quantity);
+        return productVariantRepository.findWithProductAndBrandById(variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+    }
+
+    private void reserveStockForOrder(Long orderId, Long variantId, int quantity) {
         if (quantity <= 0) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
                     "Reserve quantity must be positive");
         }
         var existingReservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId);
         if (existingReservation.isPresent()) {
-            // 동일 주문/옵션 예약은 이미 재고를 차감했으므로 다시 차감하지 않는다.
-            return productVariantRepository.findById(variantId)
-                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+            return;
         }
 
         ProductVariant variant = productVariantRepository.findById(variantId)
@@ -133,7 +144,6 @@ public class ProductService {
                             quantity, variant.getStockQuantity()));
         }
         stockReservationRepository.save(StockReservation.reserve(orderId, variantId, quantity));
-        return variant;
     }
 
     /**

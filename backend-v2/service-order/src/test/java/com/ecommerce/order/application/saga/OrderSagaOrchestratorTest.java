@@ -53,8 +53,8 @@ class OrderSagaOrchestratorTest {
     void startSaga_reservesStockOutsideOrderTransaction() {
         given(transactions.createPendingOrder(any()))
                 .willReturn(new PendingOrder(1L, "ORD-001"));
-        given(productCatalog.fetchSnapshot(anyLong())).willAnswer(inv -> snapshotDto(inv.getArgument(0)));
-        willDoNothing().given(productCatalog).reserveStock(anyLong(), anyLong(), anyInt());
+        given(productCatalog.reserveStockAndFetchSnapshot(anyLong(), anyLong(), anyInt()))
+                .willAnswer(inv -> snapshotDto(inv.getArgument(1)));
         Order completedOrder = buildOrderWithItem(100L, 1);
         given(transactions.completeStockReservation(eq(1L), any()))
                 .willReturn(completedOrder);
@@ -64,8 +64,7 @@ class OrderSagaOrchestratorTest {
         assertThat(result).isSameAs(completedOrder);
         InOrder inOrder = inOrder(transactions, productCatalog);
         inOrder.verify(transactions).createPendingOrder(any());
-        inOrder.verify(productCatalog).fetchSnapshot(100L);
-        inOrder.verify(productCatalog).reserveStock(1L, 100L, 1);
+        inOrder.verify(productCatalog).reserveStockAndFetchSnapshot(1L, 100L, 1);
         inOrder.verify(transactions).completeStockReservation(eq(1L), any());
     }
 
@@ -74,14 +73,14 @@ class OrderSagaOrchestratorTest {
     void startSaga_productCall_hasNoActiveOrderTransaction() {
         given(transactions.createPendingOrder(any()))
                 .willReturn(new PendingOrder(1L, "ORD-001"));
-        given(productCatalog.fetchSnapshot(anyLong())).willReturn(snapshotDto(100L));
-        willDoNothing().given(productCatalog).reserveStock(anyLong(), anyLong(), anyInt());
+        given(productCatalog.reserveStockAndFetchSnapshot(anyLong(), anyLong(), anyInt()))
+                .willReturn(snapshotDto(100L));
         given(transactions.completeStockReservation(eq(1L), any()))
                 .willReturn(buildOrderWithItem(100L, 1));
 
         orchestrator.startSaga(validCommand());
 
-        verify(productCatalog).reserveStock(eq(1L), eq(100L), eq(1));
+        verify(productCatalog).reserveStockAndFetchSnapshot(eq(1L), eq(100L), eq(1));
         assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
     }
 
@@ -90,10 +89,11 @@ class OrderSagaOrchestratorTest {
     void startSaga_partialReservationFailure_releasesReservedItemsAndRecordsFailure() {
         given(transactions.createPendingOrder(any()))
                 .willReturn(new PendingOrder(1L, "ORD-001"));
-        given(productCatalog.fetchSnapshot(anyLong())).willAnswer(inv -> snapshotDto(inv.getArgument(0)));
-        willDoNothing().given(productCatalog).reserveStock(eq(1L), eq(100L), anyInt());
+        given(productCatalog.reserveStockAndFetchSnapshot(eq(1L), eq(100L), anyInt()))
+                .willReturn(snapshotDto(100L));
         BusinessException failure = new BusinessException(OrderErrorCode.STOCK_RESERVATION_FAILED);
-        willThrow(failure).given(productCatalog).reserveStock(eq(1L), eq(200L), anyInt());
+        given(productCatalog.reserveStockAndFetchSnapshot(eq(1L), eq(200L), anyInt()))
+                .willThrow(failure);
 
         CreateOrderCommand twoItemCommand = new CreateOrderCommand(
                 1L,
