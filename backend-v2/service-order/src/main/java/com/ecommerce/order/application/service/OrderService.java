@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -26,7 +27,7 @@ public class OrderService {
      * 주문 생성 - SAGA Orchestrator에 위임.
      * Phase 0의 동기 try-catch 보상을 이벤트 기반 SAGA로 교체.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Order createOrder(CreateOrderCommand command) {
         return sagaOrchestrator.startSaga(command);
     }
