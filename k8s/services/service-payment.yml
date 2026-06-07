@@ -29,6 +29,8 @@ spec:
       labels:
         app: service-payment
     spec:
+      nodeSelector:
+        role: svc-payment
       containers:
         - name: service-payment
           image: ecommerce/service-payment:latest
@@ -61,11 +63,11 @@ spec:
               value: "%d{ISO8601} %-5level [%thread] [traceId=%X{trace_id:-},spanId=%X{span_id:-}] %logger{36} - %msg%n"
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "200m"
-            limits:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "400m"
+            limits:
+              memory: "1024Mi"
+              cpu: "1000m"
           # 90 × 5s = 7.5 min budget. OTel javaagent's first OTLP export to
           # Alloy can stall for ~1-2 min on cold start; default 30 fails when
           # a chaos cycle happens to coincide with Alloy restart.

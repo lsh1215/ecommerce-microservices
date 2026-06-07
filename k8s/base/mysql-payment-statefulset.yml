@@ -56,18 +56,18 @@ spec:
           timeoutSeconds: 1
         resources:
           limits:
-            cpu: 500m
-            memory: 768Mi
+            cpu: 800m
+            memory: 1024Mi
           requests:
-            cpu: 100m
-            memory: 256Mi
+            cpu: 300m
+            memory: 512Mi
         volumeMounts:
         - mountPath: /var/lib/mysql
           name: mysql-data
         - mountPath: /docker-entrypoint-initdb.d
           name: init
       nodeSelector:
-        role: svc-payment
+        role: db
       volumes:
       - configMap:
           defaultMode: 420
