@@ -98,16 +98,10 @@ public class ProductService {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
                     "Reserve quantity must be positive");
         }
-        int affected = productVariantRepository.decreaseStock(variantId, quantity);
-        if (affected == 0) {
-            ProductVariant variant = productVariantRepository.findById(variantId)
-                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
-                    String.format("Requested %d but only %d available",
-                            quantity, variant.getStockQuantity()));
-        }
-        return productVariantRepository.findById(variantId)
+        ProductVariant variant = productVariantRepository.findWithLockById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        variant.reserveStock(quantity);
+        return variant;
     }
 
     @Transactional
@@ -135,14 +129,9 @@ public class ProductService {
             return;
         }
 
-        int affected = productVariantRepository.decreaseStock(variantId, quantity);
-        if (affected == 0) {
-            ProductVariant variant = productVariantRepository.findById(variantId)
-                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
-                    String.format("Requested %d but only %d available",
-                            quantity, variant.getStockQuantity()));
-        }
+        ProductVariant variant = productVariantRepository.findWithLockById(variantId)
+                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+        variant.reserveStock(quantity);
         stockReservationRepository.save(StockReservation.reserve(orderId, variantId, quantity));
     }
 
