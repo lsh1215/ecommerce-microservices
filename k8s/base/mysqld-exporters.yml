@@ -35,6 +35,8 @@ spec:
         app: mysqld-exporter
         db: customer
     spec:
+      nodeSelector:
+        role: monitoring
       containers:
         - name: exporter
           image: prom/mysqld-exporter:v0.15.1
@@ -109,6 +111,8 @@ spec:
         app: mysqld-exporter
         db: order
     spec:
+      nodeSelector:
+        role: monitoring
       containers:
         - name: exporter
           image: prom/mysqld-exporter:v0.15.1
@@ -183,6 +187,8 @@ spec:
         app: mysqld-exporter
         db: payment
     spec:
+      nodeSelector:
+        role: monitoring
       containers:
         - name: exporter
           image: prom/mysqld-exporter:v0.15.1
@@ -257,6 +263,8 @@ spec:
         app: mysqld-exporter
         db: product
     spec:
+      nodeSelector:
+        role: monitoring
       containers:
         - name: exporter
           image: prom/mysqld-exporter:v0.15.1

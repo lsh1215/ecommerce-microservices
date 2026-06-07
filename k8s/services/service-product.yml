@@ -29,6 +29,8 @@ spec:
       labels:
         app: service-product
     spec:
+      nodeSelector:
+        role: svc-product
       containers:
         - name: service-product
           image: ecommerce/service-product:latest
@@ -56,11 +58,11 @@ spec:
               value: "service.namespace=ecommerce,deployment.environment=gce,k8s.cluster.name=ecommerce-k3s"
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "200m"
+              memory: "768Mi"
+              cpu: "600m"
             limits:
-              memory: "512Mi"
-              cpu: "500m"
+              memory: "1536Mi"
+              cpu: "1500m"
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

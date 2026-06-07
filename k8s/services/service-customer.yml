@@ -29,6 +29,8 @@ spec:
       labels:
         app: service-customer
     spec:
+      nodeSelector:
+        role: svc-customer
       containers:
         - name: service-customer
           image: ecommerce/service-customer:latest
@@ -56,11 +58,11 @@ spec:
               value: "service.namespace=ecommerce,deployment.environment=gce,k8s.cluster.name=ecommerce-k3s"
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "200m"
-            limits:
               memory: "512Mi"
-              cpu: "500m"
+              cpu: "300m"
+            limits:
+              memory: "1024Mi"
+              cpu: "800m"
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
