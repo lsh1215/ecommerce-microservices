@@ -56,10 +56,10 @@ spec:
           timeoutSeconds: 1
         resources:
           limits:
-            cpu: 800m
+            cpu: 700m
             memory: 1024Mi
           requests:
-            cpu: 300m
+            cpu: 200m
             memory: 512Mi
         volumeMounts:
         - mountPath: /var/lib/mysql
