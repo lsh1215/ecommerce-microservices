@@ -19,7 +19,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class ProductService {
     private final ProductQueryRepository productQueryRepository;
     private final BrandRepository brandRepository;
     private final StockReservationRepository stockReservationRepository;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * 지정한 브랜드 하위에 신규 상품을 생성한다.
@@ -110,18 +113,22 @@ public class ProductService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ProductVariant reserveStock(Long orderId, Long variantId, int quantity) {
-        reserveStockForOrder(orderId, variantId, quantity);
+        reserveStockForOrderInTransaction(orderId, variantId, quantity);
         return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public ProductVariant reserveStockWithSnapshot(Long orderId, Long variantId, int quantity) {
-        reserveStockForOrder(orderId, variantId, quantity);
+        reserveStockForOrderInTransaction(orderId, variantId, quantity);
         return productVariantRepository.findWithProductAndBrandById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+    }
+
+    private void reserveStockForOrderInTransaction(Long orderId, Long variantId, int quantity) {
+        transactionTemplate.executeWithoutResult(status -> reserveStockForOrder(orderId, variantId, quantity));
     }
 
     private void reserveStockForOrder(Long orderId, Long variantId, int quantity) {
