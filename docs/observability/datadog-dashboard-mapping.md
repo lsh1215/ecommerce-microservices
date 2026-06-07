@@ -13,7 +13,7 @@ DataDog 대시보드를 그대로 변환하지 않는다. 대신 다음 정보 �
 | Endpoint-Level Bottleneck Detection | Service Detail의 endpoint p95/p99, error count, request volume |
 | JVM Performance | Service Detail의 heap, GC, thread, CPU |
 | Database / HikariCP | Service Detail의 Hikari active/pending/acquire/usage, DB span latency |
-| Redis | Product 재고 예약 저장소와 hot-row contention 관측에서 사용한다. 기본 서비스 대시보드는 API/JVM/Hikari/trace를 우선하고, Redis 세부 지표는 재고 병목 분석 화면에서 분리한다. |
+| Cache / Runtime Store | 현재 atomic baseline에는 별도 runtime store를 두지 않는다. 기본 서비스 대시보드는 API/JVM/Hikari/trace를 우선하고, 외부 저장소를 별도 도입할 때 전용 화면으로 분리한다. |
 | Logs & Observability Gaps | Loki 로그, traceId 기반 Tempo 이동 |
 
 ## 메트릭 매핑

@@ -31,7 +31,6 @@ public class ProductService {
     private final ProductQueryRepository productQueryRepository;
     private final BrandRepository brandRepository;
     private final StockReservationRepository stockReservationRepository;
-    private final StockReservationStore stockReservationStore;
 
     /**
      * 지정한 브랜드 하위에 신규 상품을 생성한다.
@@ -132,13 +131,14 @@ public class ProductService {
         }
         var existingReservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId);
         if (existingReservation.isPresent()) {
+            validateExistingReservation(existingReservation.get(), quantity);
             return;
         }
 
-        ProductVariant variant = productVariantRepository.findById(variantId)
-                .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-        boolean reserved = stockReservationStore.reserve(variantId, orderId, quantity, variant.getStockQuantity());
-        if (!reserved) {
+        int affected = productVariantRepository.decreaseStock(variantId, quantity);
+        if (affected == 0) {
+            ProductVariant variant = productVariantRepository.findById(variantId)
+                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
                     String.format("Requested %d but only %d available",
                             quantity, variant.getStockQuantity()));
@@ -173,12 +173,15 @@ public class ProductService {
     public ProductVariant releaseReservation(Long orderId, Long variantId) {
         StockReservation reservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.RESERVATION_NOT_FOUND));
+        if (reservation.isConfirmed()) {
+            throw new BusinessException(ProductErrorCode.INVALID_VARIANT_OPERATION);
+        }
         int claimed = stockReservationRepository.markReleasedIfReserved(
                 reservation.getId(),
                 StockReservationStatus.RESERVED,
                 StockReservationStatus.RELEASED);
         if (claimed == 1) {
-            stockReservationStore.release(reservation.getVariantId(), reservation.getOrderId());
+            productVariantRepository.increaseStock(reservation.getVariantId(), reservation.getQuantity());
         }
         return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
@@ -199,18 +202,20 @@ public class ProductService {
                 reservation.getId(),
                 StockReservationStatus.RESERVED,
                 StockReservationStatus.CONFIRMED);
-        if (claimed == 1) {
-            int affected = productVariantRepository.decreaseStock(variantId, reservation.getQuantity());
-            if (affected == 0) {
-                ProductVariant variant = productVariantRepository.findById(variantId)
-                        .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-                throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
-                        String.format("Requested %d but only %d available",
-                                reservation.getQuantity(), variant.getStockQuantity()));
-            }
-            stockReservationStore.release(reservation.getVariantId(), reservation.getOrderId());
+        if (claimed == 0 && !reservation.isConfirmed()) {
+            throw new BusinessException(ProductErrorCode.INVALID_VARIANT_OPERATION);
         }
         return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+    }
+
+    private void validateExistingReservation(StockReservation reservation, int quantity) {
+        if (reservation.isReleased()) {
+            throw new BusinessException(ProductErrorCode.RESERVATION_NOT_FOUND);
+        }
+        if (reservation.getQuantity() != quantity) {
+            throw new BusinessException(ProductErrorCode.INVALID_VARIANT_OPERATION,
+                    "Reservation quantity does not match existing reservation");
+        }
     }
 }

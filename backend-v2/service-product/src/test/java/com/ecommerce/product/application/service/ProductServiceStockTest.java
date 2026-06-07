@@ -73,8 +73,22 @@ class ProductServiceStockTest {
         ProductVariant first = productService.reserveStock(1L, variant.getId(), 3);
         ProductVariant second = productService.reserveStock(1L, variant.getId(), 3);
 
-        assertThat(first.getStockQuantity()).isEqualTo(10);
-        assertThat(second.getStockQuantity()).isEqualTo(10);
+        assertThat(first.getStockQuantity()).isEqualTo(7);
+        assertThat(second.getStockQuantity()).isEqualTo(7);
+        assertThat(productService.getVariantDetail(variant.getId()).getStockQuantity()).isEqualTo(7);
+    }
+
+    @Test
+    void reserveStockForOrderRejectsRepeatedReservationWithDifferentQuantity() {
+        ProductVariant variant = saveVariant(10);
+        productService.reserveStock(1L, variant.getId(), 3);
+
+        assertThatThrownBy(() -> productService.reserveStock(1L, variant.getId(), 2))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ProductErrorCode.INVALID_VARIANT_OPERATION);
+
+        assertThat(productService.getVariantDetail(variant.getId()).getStockQuantity()).isEqualTo(7);
     }
 
     @Test
@@ -87,7 +101,9 @@ class ProductServiceStockTest {
         assertThat(reserved.getId()).isEqualTo(variant.getId());
         assertThat(reserved.getProduct().getName()).startsWith("Hot Row Product");
         assertThat(reserved.effectivePrice()).isEqualByComparingTo(BigDecimal.valueOf(10_000));
+        assertThat(reserved.getStockQuantity()).isEqualTo(7);
         assertThat(repeated.getId()).isEqualTo(variant.getId());
+        assertThat(repeated.getStockQuantity()).isEqualTo(7);
     }
 
     @Test
@@ -100,6 +116,47 @@ class ProductServiceStockTest {
 
         assertThat(first.getStockQuantity()).isEqualTo(10);
         assertThat(second.getStockQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    void releasedReservationCannotBeReservedAgainForSameOrderAndVariant() {
+        ProductVariant variant = saveVariant(10);
+        productService.reserveStock(1L, variant.getId(), 3);
+        productService.releaseReservation(1L, variant.getId());
+
+        assertThatThrownBy(() -> productService.reserveStock(1L, variant.getId(), 3))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ProductErrorCode.RESERVATION_NOT_FOUND);
+
+        assertThat(productService.getVariantDetail(variant.getId()).getStockQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    void confirmReservationDoesNotDecrementStockAgain() {
+        ProductVariant variant = saveVariant(10);
+        productService.reserveStock(1L, variant.getId(), 3);
+
+        ProductVariant first = productService.confirmReservation(1L, variant.getId());
+        ProductVariant second = productService.confirmReservation(1L, variant.getId());
+
+        assertThat(first.getStockQuantity()).isEqualTo(7);
+        assertThat(second.getStockQuantity()).isEqualTo(7);
+        assertThat(productService.getVariantDetail(variant.getId()).getStockQuantity()).isEqualTo(7);
+    }
+
+    @Test
+    void releaseReservationRejectsConfirmedReservation() {
+        ProductVariant variant = saveVariant(10);
+        productService.reserveStock(1L, variant.getId(), 3);
+        productService.confirmReservation(1L, variant.getId());
+
+        assertThatThrownBy(() -> productService.releaseReservation(1L, variant.getId()))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ProductErrorCode.INVALID_VARIANT_OPERATION);
+
+        assertThat(productService.getVariantDetail(variant.getId()).getStockQuantity()).isEqualTo(7);
     }
 
     @Test
