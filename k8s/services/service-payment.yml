@@ -17,6 +17,8 @@ metadata:
   namespace: ecommerce
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: service-payment
