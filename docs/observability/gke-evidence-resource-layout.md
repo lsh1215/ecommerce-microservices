@@ -35,5 +35,6 @@
 
 - `kubectl get nodes -L role`에서 `monitoring`, `db`, `kafka`, `svc-*` 역할이 모두 보여야 한다.
 - `kubectl get pods -A -o wide`에서 WAS, DB, Kafka, LGTM/Traefik/k6/exporter가 의도한 노드에 있어야 한다.
+- DB, Kafka, LGTM PVC는 `standard` storageClass를 사용해야 한다. 노드 boot disk가 `pd-balanced` quota를 사용하므로 evidence 저장용 PVC까지 SSD quota를 쓰면 재생성 시 quota를 초과할 수 있다.
 - Grafana 대시보드에 query error, 의도하지 않은 No data, NaN이 없어야 한다.
 - k6 로그의 p95, p99, throughput, error rate와 대시보드 수치가 같은 시간대에서 일치해야 한다.
