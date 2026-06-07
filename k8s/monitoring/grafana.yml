@@ -135,6 +135,8 @@ spec:
       labels:
         app: grafana
     spec:
+      nodeSelector:
+        role: monitoring
       serviceAccountName: grafana
       securityContext:
         fsGroup: 472

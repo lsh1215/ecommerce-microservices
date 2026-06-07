@@ -88,6 +88,8 @@ spec:
       labels:
         app: tempo
     spec:
+      nodeSelector:
+        role: monitoring
       securityContext:
         fsGroup: 10001
       containers:
