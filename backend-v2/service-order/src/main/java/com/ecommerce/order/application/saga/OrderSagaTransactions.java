@@ -7,9 +7,12 @@ import com.ecommerce.order.application.dto.ShippingAddressCommand;
 import com.ecommerce.order.application.dto.StockReservation;
 import com.ecommerce.order.domain.event.OrderCreatedEvent;
 import com.ecommerce.order.domain.event.PaymentRequestedEvent;
+import com.ecommerce.order.domain.event.StockReservationConfirmRequestedEvent;
+import com.ecommerce.order.domain.event.StockReservationReleaseRequestedEvent;
 import com.ecommerce.order.domain.model.Order;
 import com.ecommerce.order.domain.model.OrderItem;
 import com.ecommerce.order.domain.model.SagaInstance;
+import com.ecommerce.order.domain.model.SagaState;
 import com.ecommerce.order.domain.model.ShippingAddress;
 import com.ecommerce.order.domain.model.VariantSnapshot;
 import com.ecommerce.order.domain.repository.OrderRepository;
@@ -100,55 +103,77 @@ public class OrderSagaTransactions {
                 .toList();
     }
 
-    /**
-     * 결제 완료 이벤트를 로컬 주문 상태 전이로 반영한다.
-     */
     @Transactional
-    public void completePayment(String orderNumber, Long orderId, Long paymentId,
-                                String transactionId, BigDecimal amount) {
+    public void requestStockConfirmation(String orderNumber, Long orderId, Long paymentId,
+                                         String transactionId, BigDecimal amount) {
         SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
         Order order = orderRepository.findById(saga.getOrderId())
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
 
+        if (saga.getState() == SagaState.COMPLETED) {
+            return;
+        }
+        eventPublisher.publishEvent(new StockReservationConfirmRequestedEvent(
+                order.getId(),
+                order.getOrderNumber(),
+                order.getItems().stream()
+                        .map(item -> new StockReservationConfirmRequestedEvent.ReservationLine(
+                                item.getVariantSnapshot().getProductVariantId(),
+                                item.getQuantity()))
+                        .toList()));
+
+        log.info("Stock confirmation requested: orderNumber={}, paymentId={}, transactionId={}",
+                orderNumber, paymentId, transactionId);
+    }
+
+    @Transactional
+    public void completePaymentAfterStockConfirmed(String orderNumber) {
+        SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+        Order order = orderRepository.findById(saga.getOrderId())
+                .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+
+        if (saga.getState() == SagaState.COMPLETED) {
+            return;
+        }
         order.markConfirmed();
         order.markPaid();
         saga.moveToCompleted();
 
-        log.info("SAGA completed: orderNumber={}, paymentId={}, transactionId={}",
-                orderNumber, paymentId, transactionId);
+        log.info("SAGA completed after stock confirmation: orderNumber={}", orderNumber);
     }
 
-    /**
-     * 보상 트랜잭션의 DB 구간을 시작한다.
-     *
-     * <p>주문 취소와 Saga 상태 전이만 처리하고, 실제 Product 재고 해제 호출은 반환 이후
-     * Orchestrator가 트랜잭션 밖에서 수행한다.
-     */
     @Transactional
-    public List<StockReservation> startCompensation(String orderNumber) {
+    public void requestStockRelease(String orderNumber, Long orderId, String reason) {
         SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
         Order order = orderRepository.findById(saga.getOrderId())
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
 
+        if (saga.getState() == SagaState.COMPENSATING || saga.getState() == SagaState.COMPENSATED) {
+            return;
+        }
         saga.moveToCompensating();
         order.cancel();
-        return order.getItems().stream()
-                .map(item -> new StockReservation(
-                        order.getId(),
-                        item.getVariantSnapshot().getProductVariantId(),
-                        item.getQuantity()))
-                .toList();
+        eventPublisher.publishEvent(new StockReservationReleaseRequestedEvent(
+                order.getId(),
+                order.getOrderNumber(),
+                reason,
+                order.getItems().stream()
+                        .map(item -> new StockReservationReleaseRequestedEvent.ReservationLine(
+                                item.getVariantSnapshot().getProductVariantId(),
+                                item.getQuantity()))
+                        .toList()));
     }
 
-    /**
-     * Product 재고 해제가 모두 끝난 뒤 Saga 보상 완료 상태를 기록한다.
-     */
     @Transactional
-    public void markCompensated(String orderNumber) {
+    public void completeCompensationAfterStockReleased(String orderNumber) {
         SagaInstance saga = sagaRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new BusinessException(OrderErrorCode.ORDER_NOT_FOUND));
+        if (saga.getState() == SagaState.COMPENSATED) {
+            return;
+        }
         saga.moveToCompensated();
     }
 

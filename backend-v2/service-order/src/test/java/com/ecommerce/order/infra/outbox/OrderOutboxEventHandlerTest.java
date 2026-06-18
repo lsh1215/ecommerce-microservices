@@ -11,9 +11,12 @@ import com.ecommerce.common.outbox.OutboxEventRepository;
 import com.ecommerce.order.domain.event.OrderCancelledEvent;
 import com.ecommerce.order.domain.event.OrderCreatedEvent;
 import com.ecommerce.order.domain.event.PaymentRequestedEvent;
+import com.ecommerce.order.domain.event.StockReservationConfirmRequestedEvent;
+import com.ecommerce.order.domain.event.StockReservationReleaseRequestedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -86,6 +89,47 @@ class OrderOutboxEventHandlerTest {
         assertThat(saved.getAggregateId()).isEqualTo("2");
         assertThat(saved.getEventType()).isEqualTo(KafkaTopics.ORDER_CANCELLED);
         assertThat(saved.getPartitionKey()).isEqualTo("ORDER-002");
+        assertThat(saved.getPayload()).contains("payment failed");
+    }
+
+    @Test
+    void handleStockReservationConfirmRequested_savesOutboxEvent() {
+        StockReservationConfirmRequestedEvent event = new StockReservationConfirmRequestedEvent(
+                1L,
+                "ORDER-001",
+                List.of(new StockReservationConfirmRequestedEvent.ReservationLine(100L, 2)));
+        given(outboxRepository.save(any(OutboxEvent.class))).willAnswer(inv -> inv.getArgument(0));
+
+        handler.handleStockReservationConfirmRequested(event);
+
+        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxRepository).save(captor.capture());
+
+        OutboxEvent saved = captor.getValue();
+        assertThat(saved.getAggregateType()).isEqualTo("Order");
+        assertThat(saved.getEventType()).isEqualTo(KafkaTopics.STOCK_RESERVATION_CONFIRM_REQUESTED);
+        assertThat(saved.getPartitionKey()).isEqualTo("ORDER-001");
+        assertThat(saved.getPayload()).contains("\"variantId\":100");
+    }
+
+    @Test
+    void handleStockReservationReleaseRequested_savesOutboxEvent() {
+        StockReservationReleaseRequestedEvent event = new StockReservationReleaseRequestedEvent(
+                1L,
+                "ORDER-001",
+                "payment failed",
+                List.of(new StockReservationReleaseRequestedEvent.ReservationLine(100L, 2)));
+        given(outboxRepository.save(any(OutboxEvent.class))).willAnswer(inv -> inv.getArgument(0));
+
+        handler.handleStockReservationReleaseRequested(event);
+
+        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxRepository).save(captor.capture());
+
+        OutboxEvent saved = captor.getValue();
+        assertThat(saved.getAggregateType()).isEqualTo("Order");
+        assertThat(saved.getEventType()).isEqualTo(KafkaTopics.STOCK_RESERVATION_RELEASE_REQUESTED);
+        assertThat(saved.getPartitionKey()).isEqualTo("ORDER-001");
         assertThat(saved.getPayload()).contains("payment failed");
     }
 }

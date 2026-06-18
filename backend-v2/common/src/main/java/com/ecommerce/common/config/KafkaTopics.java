@@ -14,6 +14,10 @@ public final class KafkaTopics {
 
     public static final String PRODUCT_STOCK_RESERVED = "product.stock-reserved";
     public static final String PRODUCT_STOCK_RELEASED = "product.stock-released";
+    public static final String STOCK_RESERVATION_CONFIRM_REQUESTED = "stock.reservation.confirm.requested";
+    public static final String STOCK_RESERVATION_RELEASE_REQUESTED = "stock.reservation.release.requested";
+    public static final String STOCK_RESERVATION_CONFIRMED = "stock.reservation.confirmed";
+    public static final String STOCK_RESERVATION_RELEASED = "stock.reservation.released";
 
     public static final String CUSTOMER_REGISTERED = "customer.registered";
 }

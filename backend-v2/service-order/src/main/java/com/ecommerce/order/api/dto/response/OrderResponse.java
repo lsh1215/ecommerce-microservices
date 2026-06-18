@@ -1,6 +1,6 @@
 package com.ecommerce.order.api.dto.response;
 
-import com.ecommerce.order.domain.model.Order;
+import com.ecommerce.order.application.dto.OrderDetailResult;
 import com.ecommerce.order.domain.model.OrderStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,23 +20,23 @@ public record OrderResponse(
         LocalDateTime updatedAt
 ) {
 
-    public static OrderResponse from(Order order) {
-        List<OrderItemResponse> itemResponses = order.getItems().stream()
+    public static OrderResponse from(OrderDetailResult order) {
+        List<OrderItemResponse> itemResponses = order.items().stream()
                 .map(OrderItemResponse::from)
                 .toList();
 
         return new OrderResponse(
-                order.getId(),
-                order.getCustomerId(),
-                order.getOrderNumber(),
-                order.getStatus(),
-                order.getTotalAmount(),
-                ShippingAddressResponse.from(order.getShippingAddress()),
-                order.getMemo(),
+                order.id(),
+                order.customerId(),
+                order.orderNumber(),
+                order.status(),
+                order.totalAmount(),
+                ShippingAddressResponse.from(order.shippingAddress()),
+                order.memo(),
                 itemResponses,
-                order.getExpiresAt(),
-                order.getCreatedAt(),
-                order.getUpdatedAt()
+                order.expiresAt(),
+                order.createdAt(),
+                order.updatedAt()
         );
     }
 }

@@ -1,6 +1,6 @@
 package com.ecommerce.order.api.dto.response;
 
-import com.ecommerce.order.domain.model.OrderItem;
+import com.ecommerce.order.application.dto.OrderItemResult;
 import java.math.BigDecimal;
 
 public record OrderItemResponse(
@@ -15,17 +15,17 @@ public record OrderItemResponse(
         BigDecimal totalPrice
 ) {
 
-    public static OrderItemResponse from(OrderItem item) {
+    public static OrderItemResponse from(OrderItemResult item) {
         return new OrderItemResponse(
-                item.getId(),
-                item.getVariantSnapshot().getProductId(),
-                item.getVariantSnapshot().getProductVariantId(),
-                item.getVariantSnapshot().getProductName(),
-                item.getVariantSnapshot().getSize(),
-                item.getVariantSnapshot().getColor(),
-                item.getVariantSnapshot().getUnitPrice(),
-                item.getQuantity(),
-                item.getTotalPrice()
+                item.id(),
+                item.productId(),
+                item.productVariantId(),
+                item.productName(),
+                item.size(),
+                item.color(),
+                item.unitPrice(),
+                item.quantity(),
+                item.totalPrice()
         );
     }
 }
