@@ -1,12 +1,12 @@
 package com.ecommerce.product.infra.persistence;
 
-import com.ecommerce.product.domain.model.Product;
+import com.ecommerce.product.application.dto.ProductListItemResult;
+import com.ecommerce.product.application.port.ProductQueryRepository;
 import com.ecommerce.product.domain.model.QBrand;
 import com.ecommerce.product.domain.model.QProduct;
 import com.ecommerce.product.domain.model.QProductImage;
-import com.ecommerce.product.domain.repository.ProductQueryRepository;
 import com.querydsl.core.BooleanBuilder;
-import com.querydsl.jpa.impl.JPAQuery;
+import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.math.BigDecimal;
 import java.util.List;
@@ -23,8 +23,8 @@ public class ProductQueryRepositoryImpl implements ProductQueryRepository {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Page<Product> search(String keyword, Long brandId, String category,
-                                BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
+    public Page<ProductListItemResult> search(String keyword, Long brandId, String category,
+                                              BigDecimal minPrice, BigDecimal maxPrice, Pageable pageable) {
         QProduct product = QProduct.product;
         QBrand brand = QBrand.brand;
         QProductImage image = QProductImage.productImage;
@@ -48,20 +48,32 @@ public class ProductQueryRepositoryImpl implements ProductQueryRepository {
             builder.and(product.price.loe(maxPrice));
         }
 
-        JPAQuery<Product> query = queryFactory
-                .selectFrom(product)
-                .leftJoin(product.brand, brand).fetchJoin()
-                .leftJoin(product.images, image).fetchJoin()
+        Long total = queryFactory
+                .select(product.id.countDistinct())
+                .from(product)
                 .where(builder)
-                .distinct();
+                .fetchOne();
 
-        long total = query.fetchCount();
-
-        List<Product> content = query
+        List<ProductListItemResult> content = queryFactory
+                .select(Projections.constructor(
+                        ProductListItemResult.class,
+                        product.id,
+                        product.name,
+                        product.price,
+                        product.status,
+                        brand.name,
+                        product.category,
+                        image.url,
+                        product.createdAt))
+                .from(product)
+                .leftJoin(product.brand, brand)
+                .leftJoin(product.images, image).on(image.isPrimary.isTrue())
+                .where(builder)
+                .distinct()
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
                 .fetch();
 
-        return new PageImpl<>(content, pageable, total);
+        return new PageImpl<>(content, pageable, total != null ? total : 0);
     }
 }

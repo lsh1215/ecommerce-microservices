@@ -1,6 +1,6 @@
 package com.ecommerce.product.api.dto.response;
 
-import com.ecommerce.product.domain.model.Product;
+import com.ecommerce.product.application.dto.ProductListItemResult;
 import com.ecommerce.product.domain.model.ProductStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -16,22 +16,16 @@ public record ProductResponse(
         LocalDateTime createdAt
 ) {
 
-    public static ProductResponse from(Product product) {
-        String primaryUrl = product.getImages().stream()
-                .filter(img -> img.isPrimary())
-                .findFirst()
-                .map(img -> img.getUrl())
-                .orElse(null);
-
+    public static ProductResponse from(ProductListItemResult product) {
         return new ProductResponse(
-                product.getId(),
-                product.getName(),
-                product.getPrice(),
-                product.getStatus(),
-                product.getBrand() != null ? product.getBrand().getName() : null,
-                product.getCategory(),
-                primaryUrl,
-                product.getCreatedAt()
+                product.id(),
+                product.name(),
+                product.price(),
+                product.status(),
+                product.brandName(),
+                product.category(),
+                product.primaryImageUrl(),
+                product.createdAt()
         );
     }
 }

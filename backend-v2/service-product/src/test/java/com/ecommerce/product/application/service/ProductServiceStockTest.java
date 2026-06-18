@@ -5,15 +5,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.product.ProductErrorCode;
+import com.ecommerce.product.application.dto.ProductListItemResult;
+import com.ecommerce.product.application.dto.ProductSearchCommand;
 import com.ecommerce.product.domain.model.Brand;
 import com.ecommerce.product.domain.model.Product;
 import com.ecommerce.product.domain.model.ProductVariant;
 import com.ecommerce.product.domain.repository.BrandRepository;
 import com.ecommerce.product.domain.repository.ProductRepository;
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -146,6 +151,34 @@ class ProductServiceStockTest {
     }
 
     @Test
+    void confirmReservationsAndPublishConfirmsAllRequestedReservations() {
+        ProductVariant first = saveVariant(10);
+        ProductVariant second = saveVariant(10);
+        productService.reserveStock(1L, first.getId(), 3);
+        productService.reserveStock(1L, second.getId(), 2);
+
+        productService.confirmReservationsAndPublish(1L, "ORD-001", List.of(first.getId(), second.getId()));
+        productService.confirmReservationsAndPublish(1L, "ORD-001", List.of(first.getId(), second.getId()));
+
+        assertThat(productService.getVariantDetail(first.getId()).getStockQuantity()).isEqualTo(7);
+        assertThat(productService.getVariantDetail(second.getId()).getStockQuantity()).isEqualTo(8);
+    }
+
+    @Test
+    void releaseReservationsAndPublishReleasesAllRequestedReservations() {
+        ProductVariant first = saveVariant(10);
+        ProductVariant second = saveVariant(10);
+        productService.reserveStock(1L, first.getId(), 3);
+        productService.reserveStock(1L, second.getId(), 2);
+
+        productService.releaseReservationsAndPublish(1L, "ORD-001", List.of(first.getId(), second.getId()));
+        productService.releaseReservationsAndPublish(1L, "ORD-001", List.of(first.getId(), second.getId()));
+
+        assertThat(productService.getVariantDetail(first.getId()).getStockQuantity()).isEqualTo(10);
+        assertThat(productService.getVariantDetail(second.getId()).getStockQuantity()).isEqualTo(10);
+    }
+
+    @Test
     void releaseReservationRejectsConfirmedReservation() {
         ProductVariant variant = saveVariant(10);
         productService.reserveStock(1L, variant.getId(), 3);
@@ -183,6 +216,35 @@ class ProductServiceStockTest {
 
         ProductVariant reloaded = productService.getVariantDetail(variant.getId());
         assertThat(reloaded.getStockQuantity()).isEqualTo(10);
+    }
+
+    @Test
+    void searchProductsReturnsListProjectionWithPrimaryImage() {
+        String suffix = "projection-" + System.nanoTime();
+        Brand brand = brandRepository.save(Brand.create(
+                "Projection Brand " + suffix,
+                "brand for projection test",
+                null,
+                "KR"));
+        Product product = Product.create(
+                brand,
+                "Projection Product " + suffix,
+                "product for projection test",
+                BigDecimal.valueOf(20_000),
+                suffix);
+        product.addImage("https://cdn.example.com/non-primary.jpg", 0, false);
+        product.addImage("https://cdn.example.com/primary.jpg", 1, true);
+        productRepository.saveAndFlush(product);
+
+        Page<ProductListItemResult> result = productService.searchProducts(
+                new ProductSearchCommand(null, brand.getId(), suffix, null, null),
+                PageRequest.of(0, 10));
+
+        assertThat(result.getTotalElements()).isEqualTo(1);
+        ProductListItemResult item = result.getContent().getFirst();
+        assertThat(item.name()).startsWith("Projection Product");
+        assertThat(item.brandName()).startsWith("Projection Brand");
+        assertThat(item.primaryImageUrl()).isEqualTo("https://cdn.example.com/primary.jpg");
     }
 
     private ProductVariant saveVariant(int stockQuantity) {

@@ -3,19 +3,24 @@ package com.ecommerce.product.application.service;
 import com.ecommerce.common.exception.BusinessException;
 import com.ecommerce.product.ProductErrorCode;
 import com.ecommerce.product.application.dto.CreateProductCommand;
+import com.ecommerce.product.application.dto.ProductListItemResult;
 import com.ecommerce.product.application.dto.ProductSearchCommand;
 import com.ecommerce.product.application.dto.UpdateProductCommand;
+import com.ecommerce.product.application.port.ProductQueryRepository;
 import com.ecommerce.product.domain.model.Brand;
 import com.ecommerce.product.domain.model.Product;
 import com.ecommerce.product.domain.model.ProductVariant;
 import com.ecommerce.product.domain.model.StockReservation;
 import com.ecommerce.product.domain.model.StockReservationStatus;
+import com.ecommerce.product.domain.event.StockReservationConfirmedEvent;
+import com.ecommerce.product.domain.event.StockReservationReleasedEvent;
 import com.ecommerce.product.domain.repository.BrandRepository;
-import com.ecommerce.product.domain.repository.ProductQueryRepository;
 import com.ecommerce.product.domain.repository.ProductRepository;
 import com.ecommerce.product.domain.repository.ProductVariantRepository;
 import com.ecommerce.product.domain.repository.StockReservationRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -34,6 +39,7 @@ public class ProductService {
     private final BrandRepository brandRepository;
     private final StockReservationRepository stockReservationRepository;
     private final TransactionTemplate transactionTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 지정한 브랜드 하위에 신규 상품을 생성한다.
@@ -74,7 +80,7 @@ public class ProductService {
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.PRODUCT_NOT_FOUND));
     }
 
-    public Page<Product> searchProducts(ProductSearchCommand command, Pageable pageable) {
+    public Page<ProductListItemResult> searchProducts(ProductSearchCommand command, Pageable pageable) {
         return productQueryRepository.search(
                 command.keyword(), command.brandId(), command.category(),
                 command.minPrice(), command.maxPrice(), pageable);
@@ -214,6 +220,22 @@ public class ProductService {
         }
         return productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
+    }
+
+    @Transactional
+    public void confirmReservationsAndPublish(Long orderId, String orderNumber, List<Long> variantIds) {
+        for (Long variantId : variantIds) {
+            confirmReservation(orderId, variantId);
+        }
+        eventPublisher.publishEvent(new StockReservationConfirmedEvent(orderId, orderNumber));
+    }
+
+    @Transactional
+    public void releaseReservationsAndPublish(Long orderId, String orderNumber, List<Long> variantIds) {
+        for (Long variantId : variantIds) {
+            releaseReservation(orderId, variantId);
+        }
+        eventPublisher.publishEvent(new StockReservationReleasedEvent(orderId, orderNumber));
     }
 
     private void validateExistingReservation(StockReservation reservation, int quantity) {

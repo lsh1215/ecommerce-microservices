@@ -6,10 +6,10 @@ import com.ecommerce.order.api.dto.request.CancelOrderRequest;
 import com.ecommerce.order.api.dto.request.CreateOrderRequest;
 import com.ecommerce.order.api.dto.response.OrderResponse;
 import com.ecommerce.order.application.dto.CreateOrderCommand;
+import com.ecommerce.order.application.dto.OrderDetailResult;
 import com.ecommerce.order.application.dto.OrderItemCommand;
 import com.ecommerce.order.application.dto.ShippingAddressCommand;
 import com.ecommerce.order.application.service.OrderService;
-import com.ecommerce.order.domain.model.Order;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,9 +37,6 @@ public class OrderController {
     public ApiResponse<OrderResponse> createOrder(
             @RequestHeader("X-Customer-Id") Long customerId,
             @Valid @RequestBody CreateOrderRequest request) {
-        // customerId comes from the trusted header populated by Traefik's
-        // forwardAuth middleware (which calls service-customer's /internal/verify).
-        // The body field is ignored — clients can omit it.
         CreateOrderCommand command = new CreateOrderCommand(
                 customerId,
                 request.items().stream()
@@ -55,20 +52,20 @@ public class OrderController {
                         request.shippingAddress().address2()),
                 request.memo()
         );
-        Order order = orderService.createOrder(command);
+        OrderDetailResult order = orderService.createOrder(command);
         return ApiResponse.created(OrderResponse.from(order));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<OrderResponse> getOrder(@PathVariable Long id) {
-        Order order = orderService.getOrder(id);
+        OrderDetailResult order = orderService.getOrder(id);
         return ApiResponse.ok(OrderResponse.from(order));
     }
 
     @GetMapping("/my")
     public ApiResponse<PageResponse<OrderResponse>> getMyOrders(
             @RequestParam Long customerId, Pageable pageable) {
-        Page<Order> orders = orderService.getMyOrders(customerId, pageable);
+        Page<OrderDetailResult> orders = orderService.getMyOrders(customerId, pageable);
         Page<OrderResponse> responsePage = orders.map(OrderResponse::from);
         return ApiResponse.ok(PageResponse.from(responsePage));
     }
@@ -77,7 +74,7 @@ public class OrderController {
     public ApiResponse<OrderResponse> cancelOrder(
             @PathVariable Long id,
             @RequestBody(required = false) CancelOrderRequest request) {
-        Order order = orderService.cancelOrder(id);
+        OrderDetailResult order = orderService.cancelOrder(id);
         return ApiResponse.ok(OrderResponse.from(order));
     }
 }

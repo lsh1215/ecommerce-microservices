@@ -51,27 +51,20 @@ public class OrderSagaOrchestrator {
 
     public void handlePaymentCompleted(String orderNumber, Long orderId, Long paymentId,
                                        String transactionId, BigDecimal amount) {
-        List<StockReservation> reservations = transactions.findReservations(orderNumber);
-        for (StockReservation reservation : reservations) {
-            productCatalog.confirmReservation(reservation.orderId(), reservation.variantId());
-        }
-        transactions.completePayment(orderNumber, orderId, paymentId, transactionId, amount);
+        transactions.requestStockConfirmation(orderNumber, orderId, paymentId, transactionId, amount);
     }
 
     public void handlePaymentFailed(String orderNumber, Long orderId, String reason) {
-        List<StockReservation> reservations = transactions.startCompensation(orderNumber);
-        try {
-            for (StockReservation reservation : reservations) {
-                // 보상 재고 해제도 Product 서비스 호출이므로 Order DB 트랜잭션 밖에서 실행한다.
-                productCatalog.releaseStock(reservation.orderId(), reservation.variantId(), reservation.quantity());
-            }
-        } catch (Exception e) {
-            // 실패를 삼키면 재고 보상이 누락되므로 Saga 상태에 재시도 필요를 남긴다.
-            transactions.markCompensationRetryRequired(orderNumber, e);
-            throw e;
-        }
-        transactions.markCompensated(orderNumber);
-        log.info("SAGA compensation completed: orderNumber={}, reason={}", orderNumber, reason);
+        transactions.requestStockRelease(orderNumber, orderId, reason);
+        log.info("SAGA stock release requested: orderNumber={}, reason={}", orderNumber, reason);
+    }
+
+    public void handleStockReservationConfirmed(String orderNumber) {
+        transactions.completePaymentAfterStockConfirmed(orderNumber);
+    }
+
+    public void handleStockReservationReleased(String orderNumber) {
+        transactions.completeCompensationAfterStockReleased(orderNumber);
     }
 
     private void releaseAllStock(List<StockReservation> reservations) {

@@ -7,8 +7,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
-import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -115,45 +113,37 @@ class OrderSagaOrchestratorTest {
     }
 
     @Test
-    @DisplayName("결제 완료 이벤트는 짧은 로컬 트랜잭션으로 위임한다")
+    @DisplayName("결제 완료 이벤트는 재고 확정 요청 트랜잭션으로 위임한다")
     void handlePaymentCompleted_delegatesToTransactionBoundary() {
-        given(transactions.findReservations("ORD-001"))
-                .willReturn(List.of(new StockReservation(1L, 100L, 1)));
-
         orchestrator.handlePaymentCompleted("ORD-001", 1L, 10L, "TX-001", new BigDecimal("100.00"));
 
-        verify(productCatalog).confirmReservation(1L, 100L);
-        verify(transactions).completePayment("ORD-001", 1L, 10L, "TX-001", new BigDecimal("100.00"));
+        verify(transactions).requestStockConfirmation("ORD-001", 1L, 10L, "TX-001", new BigDecimal("100.00"));
+        verify(productCatalog, never()).confirmReservation(anyLong(), anyLong());
     }
 
     @Test
-    @DisplayName("결제 실패 보상은 주문 취소 트랜잭션 후 트랜잭션 밖에서 재고를 해제하고 보상 완료를 기록한다")
-    void handlePaymentFailed_releasesStockOutsideOrderTransaction() {
-        given(transactions.startCompensation("ORD-001"))
-                .willReturn(List.of(new StockReservation(1L, 100L, 2)));
-        willDoNothing().given(productCatalog).releaseStock(anyLong(), anyLong(), anyInt());
-
+    @DisplayName("결제 실패 이벤트는 재고 해제 요청 트랜잭션으로 위임한다")
+    void handlePaymentFailed_requestsStockRelease() {
         orchestrator.handlePaymentFailed("ORD-001", 1L, "stub rejection");
 
-        InOrder inOrder = inOrder(transactions, productCatalog);
-        inOrder.verify(transactions).startCompensation("ORD-001");
-        inOrder.verify(productCatalog).releaseStock(1L, 100L, 2);
-        inOrder.verify(transactions).markCompensated("ORD-001");
+        verify(transactions).requestStockRelease("ORD-001", 1L, "stub rejection");
+        verify(productCatalog, never()).releaseStock(anyLong(), anyLong(), anyInt());
     }
 
     @Test
-    @DisplayName("보상 재고 해제 실패 시 보상 재시도 필요 상태를 기록하고 예외를 전파한다")
-    void handlePaymentFailed_releaseFailure_recordsRetryRequiredAndRethrows() {
-        RuntimeException failure = new RuntimeException("product timeout");
-        given(transactions.startCompensation("ORD-001"))
-                .willReturn(List.of(new StockReservation(1L, 100L, 2)));
-        willThrow(failure).given(productCatalog).releaseStock(1L, 100L, 2);
+    @DisplayName("재고 확정 완료 이벤트는 결제 완료 마무리 트랜잭션으로 위임한다")
+    void handleStockReservationConfirmed_delegatesToCompletion() {
+        orchestrator.handleStockReservationConfirmed("ORD-001");
 
-        assertThatThrownBy(() -> orchestrator.handlePaymentFailed("ORD-001", 1L, "stub rejection"))
-                .isSameAs(failure);
+        verify(transactions).completePaymentAfterStockConfirmed("ORD-001");
+    }
 
-        verify(transactions).markCompensationRetryRequired("ORD-001", failure);
-        verify(transactions, never()).markCompensated("ORD-001");
+    @Test
+    @DisplayName("재고 해제 완료 이벤트는 보상 완료 트랜잭션으로 위임한다")
+    void handleStockReservationReleased_delegatesToCompensationCompletion() {
+        orchestrator.handleStockReservationReleased("ORD-001");
+
+        verify(transactions).completeCompensationAfterStockReleased("ORD-001");
     }
 
     private CreateOrderCommand validCommand() {

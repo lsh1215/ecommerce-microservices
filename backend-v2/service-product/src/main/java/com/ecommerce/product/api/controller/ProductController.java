@@ -7,6 +7,7 @@ import com.ecommerce.product.api.dto.request.UpdateProductRequest;
 import com.ecommerce.product.api.dto.response.ProductDetailResponse;
 import com.ecommerce.product.api.dto.response.ProductResponse;
 import com.ecommerce.product.application.dto.CreateProductCommand;
+import com.ecommerce.product.application.dto.ProductListItemResult;
 import com.ecommerce.product.application.dto.ProductSearchCommand;
 import com.ecommerce.product.application.dto.UpdateProductCommand;
 import com.ecommerce.product.application.service.ProductService;
@@ -45,7 +46,7 @@ public class ProductController {
             Pageable pageable) {
         ProductSearchCommand command = new ProductSearchCommand(
                 keyword, brandId, category, minPrice, maxPrice);
-        Page<Product> products = productService.searchProducts(command, pageable);
+        Page<ProductListItemResult> products = productService.searchProducts(command, pageable);
         Page<ProductResponse> responsePage = products.map(ProductResponse::from);
         return ApiResponse.ok(PageResponse.from(responsePage));
     }

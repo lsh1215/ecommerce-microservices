@@ -16,6 +16,8 @@ spring:
       hibernate:
         format_sql: true
         default_batch_fetch_size: 100
+        query:
+          fail_on_pagination_over_collection_fetch: true
     open-in-view: false
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}

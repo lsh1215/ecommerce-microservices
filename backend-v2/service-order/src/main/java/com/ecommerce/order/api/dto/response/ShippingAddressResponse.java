@@ -1,6 +1,6 @@
 package com.ecommerce.order.api.dto.response;
 
-import com.ecommerce.order.domain.model.ShippingAddress;
+import com.ecommerce.order.application.dto.ShippingAddressResult;
 
 public record ShippingAddressResponse(
         String recipientName,
@@ -10,13 +10,13 @@ public record ShippingAddressResponse(
         String address2
 ) {
 
-    public static ShippingAddressResponse from(ShippingAddress address) {
+    public static ShippingAddressResponse from(ShippingAddressResult address) {
         return new ShippingAddressResponse(
-                address.getRecipientName(),
-                address.getPhone(),
-                address.getZipCode(),
-                address.getAddress1(),
-                address.getAddress2()
+                address.recipientName(),
+                address.phone(),
+                address.zipCode(),
+                address.address1(),
+                address.address2()
         );
     }
 }

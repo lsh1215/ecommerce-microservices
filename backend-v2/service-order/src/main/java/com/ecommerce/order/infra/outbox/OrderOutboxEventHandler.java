@@ -5,6 +5,8 @@ import com.ecommerce.common.outbox.OutboxEventRepository;
 import com.ecommerce.order.domain.event.OrderCancelledEvent;
 import com.ecommerce.order.domain.event.OrderCreatedEvent;
 import com.ecommerce.order.domain.event.PaymentRequestedEvent;
+import com.ecommerce.order.domain.event.StockReservationConfirmRequestedEvent;
+import com.ecommerce.order.domain.event.StockReservationReleaseRequestedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -46,6 +48,30 @@ public class OrderOutboxEventHandler {
     @SneakyThrows
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void handleOrderCancelled(OrderCancelledEvent event) {
+        outboxRepository.save(OutboxEvent.create(
+            "Order",
+            String.valueOf(event.getOrderId()),
+            event.getEventType(),
+            objectMapper.writeValueAsString(event),
+            event.getOrderNumber()
+        ));
+    }
+
+    @SneakyThrows
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    public void handleStockReservationConfirmRequested(StockReservationConfirmRequestedEvent event) {
+        outboxRepository.save(OutboxEvent.create(
+            "Order",
+            String.valueOf(event.getOrderId()),
+            event.getEventType(),
+            objectMapper.writeValueAsString(event),
+            event.getOrderNumber()
+        ));
+    }
+
+    @SneakyThrows
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    public void handleStockReservationReleaseRequested(StockReservationReleaseRequestedEvent event) {
         outboxRepository.save(OutboxEvent.create(
             "Order",
             String.valueOf(event.getOrderId()),
