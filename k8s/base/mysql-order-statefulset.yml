@@ -27,6 +27,9 @@ spec:
               key: DB_ROOT_PASSWORD
               name: ecommerce-secrets
         image: mysql:8.0
+        args:
+          - --innodb-flush-log-at-trx-commit=2
+          - --sync-binlog=0
         livenessProbe:
           exec:
             command:
@@ -56,18 +59,18 @@ spec:
           timeoutSeconds: 1
         resources:
           limits:
-            cpu: 500m
-            memory: 768Mi
+            cpu: "6"
+            memory: 3Gi
           requests:
-            cpu: 100m
-            memory: 256Mi
+            cpu: "1"
+            memory: 1Gi
         volumeMounts:
         - mountPath: /var/lib/mysql
           name: mysql-data
         - mountPath: /docker-entrypoint-initdb.d
           name: init
       nodeSelector:
-        role: svc-order
+        role: db
       volumes:
       - configMap:
           defaultMode: 420

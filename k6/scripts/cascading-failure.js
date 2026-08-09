@@ -9,12 +9,23 @@ import { check, sleep } from 'k6';
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
 const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.sig'}`;
 
+// 부하 모델 주의: open model이어야 한다. constant-vus로는 Order가 느려질 때 제공 부하도 함께
+// 줄어들어 "스레드/커넥션이 얼마나 빨리 소모되는가"를 과소평가한다. 도착률을 고정해야
+// 압박이 유지된 상태의 소모 속도가 보인다. 결과 해석 전 dropped_iterations를 확인한다.
+const RATE = Number(__ENV.RATE || 20); // 도착률(req/s)
+const DURATION = __ENV.DURATION || '60s';
+
 export const options = {
+  tags: { testid: __ENV.TESTID || 'cascading-failure' },
+  summaryTrendStats: ['min', 'avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
   scenarios: {
     constant_load: {
-      executor: 'constant-vus',
-      vus: 20,
-      duration: '60s',
+      executor: 'constant-arrival-rate',
+      rate: RATE,
+      timeUnit: '1s',
+      duration: DURATION,
+      preAllocatedVUs: Number(__ENV.PRE_VUS || RATE * 8),
+      maxVUs: Number(__ENV.MAX_VUS || RATE * 20),
     },
   },
   thresholds: {

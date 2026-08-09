@@ -50,7 +50,7 @@ services:
     container_name: ecommerce-redis-product
     ports:
       - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
       - redis-product-data:/data
     healthcheck:

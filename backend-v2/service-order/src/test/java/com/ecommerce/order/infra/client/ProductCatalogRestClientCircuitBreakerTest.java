@@ -164,6 +164,23 @@ class ProductCatalogRestClientCircuitBreakerTest {
     }
 
     @Test
+    @DisplayName("Admission gate가 429로 거절한 응답은 PRODUCT_ADMISSION_REJECTED로 분류되고 Circuit Breaker를 OPEN시키지 않는다")
+    void reserveStock_admissionRejected429_mapsToBusyOutcomeAndKeepsCircuitClosed() {
+        // 준비: Product의 admission gate가 429 + Retry-After로 거절
+        stubFactory.respondWith(HttpStatus.TOO_MANY_REQUESTS, "{\"success\":false}");
+
+        // 실행: minimumNumberOfCalls(5)만큼 반복 호출 — 전부 429
+        for (int i = 0; i < 5; i++) {
+            assertThatThrownBy(() -> proxiedClient.reserveStock(10L, 1L, 1))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("errorCode", OrderErrorCode.PRODUCT_ADMISSION_REJECTED);
+        }
+
+        // 검증: 429/BusinessException은 recordExceptions에 없으므로 CB는 CLOSED 유지
+        assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+    }
+
+    @Test
     @DisplayName("Circuit이 OPEN이면 실제 HTTP 호출 없이 fallback이 즉시 실행된다 (fast-fail)")
     void openCircuit_invokesFallbackImmediately_noHttpCall() {
         // 준비: CB를 강제로 OPEN 상태로 전환

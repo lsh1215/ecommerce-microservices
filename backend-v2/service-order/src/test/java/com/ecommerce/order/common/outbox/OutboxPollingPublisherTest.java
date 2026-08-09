@@ -51,7 +51,7 @@ class OutboxPollingPublisherTest {
     void publishPendingEvents_dispatchesEachRowToRowPublisher() throws Exception {
         OutboxEvent event1 = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
         OutboxEvent event2 = withId(OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002"), 2L);
-        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
+        given(outboxRepository.findTop100ByStatusOrderByIdAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event1, event2));
         doNothing().when(outboxRowPublisher).publishOne(any());
 
@@ -65,7 +65,7 @@ class OutboxPollingPublisherTest {
     void publishPendingEvents_optimisticLock_skipsRowAndContinues() throws Exception {
         OutboxEvent event1 = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
         OutboxEvent event2 = withId(OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002"), 2L);
-        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
+        given(outboxRepository.findTop100ByStatusOrderByIdAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event1, event2));
 
         // event1 의 publishOne 이 ObjectOptimisticLockingFailureException 을 던짐
@@ -88,7 +88,7 @@ class OutboxPollingPublisherTest {
     void publishPendingEvents_kafkaSendFails_recordsRetryAndContinues() throws Exception {
         OutboxEvent event1 = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
         OutboxEvent event2 = withId(OutboxEvent.create("Order", "2", "order.created", "{}", "ORD-002"), 2L);
-        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
+        given(outboxRepository.findTop100ByStatusOrderByIdAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event1, event2));
 
         doThrow(new RuntimeException("Kafka unavailable"))
@@ -106,7 +106,7 @@ class OutboxPollingPublisherTest {
     @DisplayName("recordRetryOrMarkFailed 가 OptimisticLockException 던지면 outer loop 는 swallow 후 다음 row 진행")
     void publishPendingEvents_recordRetryRaceLost_swallowedAndContinues() throws Exception {
         OutboxEvent event = withId(OutboxEvent.create("Order", "1", "order.created", "{}", "ORD-001"), 1L);
-        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
+        given(outboxRepository.findTop100ByStatusOrderByIdAsc(OutboxEventStatus.PENDING))
                 .willReturn(List.of(event));
 
         doThrow(new RuntimeException("Kafka unavailable"))
@@ -124,7 +124,7 @@ class OutboxPollingPublisherTest {
     @Test
     @DisplayName("미발행 이벤트가 없으면 RowPublisher 와 상호작용하지 않는다")
     void publishPendingEvents_emptyQueue_doesNotInvokeRowPublisher() throws Exception {
-        given(outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING))
+        given(outboxRepository.findTop100ByStatusOrderByIdAsc(OutboxEventStatus.PENDING))
                 .willReturn(Collections.emptyList());
 
         publisher.publishPendingEvents();

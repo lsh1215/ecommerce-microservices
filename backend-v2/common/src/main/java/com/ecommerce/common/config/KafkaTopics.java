@@ -15,4 +15,9 @@ public final class KafkaTopics {
     public static final String PRODUCT_STOCK_RELEASED = "product.stock-released";
 
     public static final String CUSTOMER_REGISTERED = "customer.registered";
+
+    // 선착순 예약 (비동기 · Outbox → Kafka → granter). 요청은 variantId로 파티셔닝해
+    // 한 상품이 한 파티션에 도착(offset) 순서로 쌓이고, granter가 그 순서대로 직렬 처리한다.
+    public static final String FLASH_RESERVE_REQUESTED = "flash.reserve.requested";
+    public static final String FLASH_RESERVE_RESULT = "flash.reserve.result";
 }

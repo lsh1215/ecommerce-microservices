@@ -1,0 +1,71 @@
+# 부하 테스트용 이미지 빌드.
+#
+# GKE 노드는 x86이고 개발 맥은 arm64라 로컬 buildx 크로스 빌드는 QEMU 에뮬레이션으로
+# gradle 빌드가 매우 느려진다. Cloud Build에서 네이티브로 빌드한다.
+#
+#   gcloud builds submit --config cloudbuild.loadtest.yaml \
+#     --substitutions=_IMG=<registry-path>,_TAG=<run-id> .
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'product'
+    waitFor: ['-']
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'SERVICE_NAME=service-product'
+      - '-t'
+      - '${_IMG}/service-product:${_TAG}'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'order'
+    waitFor: ['-']
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'SERVICE_NAME=service-order'
+      - '-t'
+      - '${_IMG}/service-order:${_TAG}'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'payment'
+    waitFor: ['-']
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'SERVICE_NAME=service-payment'
+      - '-t'
+      - '${_IMG}/service-payment:${_TAG}'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'customer'
+    waitFor: ['-']
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'SERVICE_NAME=service-customer'
+      - '-t'
+      - '${_IMG}/service-customer:${_TAG}'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+images:
+  - '${_IMG}/service-product:${_TAG}'
+  - '${_IMG}/service-order:${_TAG}'
+  - '${_IMG}/service-payment:${_TAG}'
+  - '${_IMG}/service-customer:${_TAG}'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '3600s'

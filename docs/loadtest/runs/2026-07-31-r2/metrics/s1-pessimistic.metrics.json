@@ -1,0 +1,219 @@
+{
+"label": "s1-pessimistic", "window": "10m", "capturedAt": "2026-07-31T06:39:55Z",
+"metrics": [
+{
+  "name": "cpu_throttled_ratio_order",
+  "query": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*\"}[10m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*\"}[10m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785479995.804,
+            "0.15618762999086253"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "cpu_throttled_ratio_product",
+  "query": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-product.*\"}[10m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-product.*\"}[10m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785479995.849,
+            "0.0007765600853729735"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "cpu_usage_cores",
+  "query": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"ecommerce\",pod=~\"service-(order|product).*\"}[10m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-order-66bbd65dc-lkjsb"
+          },
+          "value": [
+            1785479995.892,
+            "1.3222604552745307"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-6d84cf8cd-2l4p8"
+          },
+          "value": [
+            1785479995.892,
+            "0.46906420939177595"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_pending",
+  "query": "max by (application,pod) (hikaricp_connections_pending{namespace=\"ecommerce\"} or hikaricp_connections_pending)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-customer-cdb559d79-bbc6n"
+          },
+          "value": [
+            1785479995.937,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-payment-68cbc94777-vm6bx"
+          },
+          "value": [
+            1785479995.937,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-6d84cf8cd-2l4p8"
+          },
+          "value": [
+            1785479995.937,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_active",
+  "query": "max by (application,pod) (hikaricp_connections_active or hikaricp_connections_active)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-customer-cdb559d79-bbc6n"
+          },
+          "value": [
+            1785479995.978,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-payment-68cbc94777-vm6bx"
+          },
+          "value": [
+            1785479995.978,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-6d84cf8cd-2l4p8"
+          },
+          "value": [
+            1785479995.978,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "http_5xx_ratio_order",
+  "query": "sum(rate(http_server_requests_seconds_count{app=\"service-order\",status=~\"5..\"}[10m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=\"service-order\"}[10m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785479996.023,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "server_span_p95_order",
+  "query": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{app=\"service-order\",uri=\"/api/orders\"}[10m])))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}
+,
+{
+  "name": "server_span_p99_order",
+  "query": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{app=\"service-order\",uri=\"/api/orders\"}[10m])))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}
+,
+{
+  "name": "server_rps_order",
+  "query": "sum(rate(http_server_requests_seconds_count{app=\"service-order\",uri=\"/api/orders\"}[10m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785479996.142,
+            "6.623506944444444"
+          ]
+        }
+      ]
+    }
+  }
+}
+]
+}

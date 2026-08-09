@@ -1,0 +1,186 @@
+{
+    "root_group": {
+        "checks": {
+            "enqueue accepted (2xx/4xx, no 5xx)": {
+                "fails": 0,
+                "name": "enqueue accepted (2xx/4xx, no 5xx)",
+                "path": "::enqueue accepted (2xx/4xx, no 5xx)",
+                "id": "cbb2f6af206186c41bd7cee268332612",
+                "passes": 1000
+            }
+        },
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {}
+    },
+    "metrics": {
+        "stock_observed": {
+            "p(90)": 1000,
+            "p(95)": 1000,
+            "p(99)": 1000,
+            "max": 1000,
+            "min": 1000,
+            "avg": 1000,
+            "med": 1000
+        },
+        "iterations": {
+            "count": 170950,
+            "rate": 949.6998309171598
+        },
+        "fcfs_granted": {
+            "count": 1000,
+            "rate": 5.555424573952383
+        },
+        "vus": {
+            "value": 0,
+            "min": 0,
+            "max": 43
+        },
+        "oversell_probe_negative": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count<1": false
+            }
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(90)": 5.273806,
+            "p(95)": 5.686239,
+            "p(99)": 6.349754,
+            "max": 71.881723,
+            "min": 0.559952,
+            "avg": 2.951871781454676,
+            "med": 2.845944
+        },
+        "vus_max": {
+            "value": 805,
+            "min": 805,
+            "max": 805
+        },
+        "fcfs_time_to_decision_ms": {
+            "med": 7,
+            "p(90)": 8,
+            "p(95)": 8,
+            "p(99)": 9,
+            "max": 17,
+            "min": 5,
+            "avg": 6.687
+        },
+        "data_received": {
+            "count": 46699352,
+            "rate": 259434.72768845237
+        },
+        "http_reqs": {
+            "count": 171950,
+            "rate": 955.2552554911123
+        },
+        "http_req_waiting": {
+            "min": 0.348053,
+            "avg": 0.7204826110322786,
+            "med": 0.5789005,
+            "p(90)": 0.6801601,
+            "p(95)": 0.7458955499999997,
+            "p(99)": 4.66032115000004,
+            "max": 78.045144
+        },
+        "iteration_duration": {
+            "p(90)": 0.9252973000000001,
+            "p(95)": 1.0367890499999999,
+            "p(99)": 6.3713377100000095,
+            "max": 78.251379,
+            "min": 0.511027,
+            "avg": 0.9562001411757687,
+            "med": 0.7892475
+        },
+        "fcfs_enqueue_5xx": {
+            "count": 0,
+            "rate": 0,
+            "thresholds": {
+                "count<1": false
+            }
+        },
+        "http_req_failed": {
+            "passes": 169049,
+            "fails": 2901,
+            "thresholds": {
+                "rate<1": false
+            },
+            "value": 0.9831288165164292
+        },
+        "checks": {
+            "passes": 1000,
+            "fails": 0,
+            "value": 1
+        },
+        "http_req_tls_handshaking": {
+            "max": 0,
+            "min": 0,
+            "avg": 0,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "p(99)": 0
+        },
+        "http_req_duration": {
+            "min": 0.43517,
+            "avg": 0.8010691401919153,
+            "med": 0.654876,
+            "p(90)": 0.7654453000000001,
+            "p(95)": 0.837683,
+            "p(99)": 4.848545220000004,
+            "max": 78.105991
+        },
+        "http_req_sending": {
+            "p(90)": 0.031103,
+            "p(95)": 0.038528,
+            "p(99)": 0.07297659000000008,
+            "max": 17.010523,
+            "min": 0.00804,
+            "avg": 0.025293516167490055,
+            "med": 0.021982
+        },
+        "data_sent": {
+            "count": 48480448,
+            "rate": 269329.47217542067
+        },
+        "http_req_blocked": {
+            "p(95)": 0.007818549999999988,
+            "p(99)": 0.3056720700000005,
+            "max": 50.211177,
+            "min": 0.00223,
+            "avg": 0.01103227917999408,
+            "med": 0.004848,
+            "p(90)": 0.00652
+        },
+        "http_req_receiving": {
+            "avg": 0.05529301299215012,
+            "med": 0.049823,
+            "p(90)": 0.0705972,
+            "p(95)": 0.081736,
+            "p(99)": 0.12148191000000039,
+            "max": 69.276523,
+            "min": 0.014988
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "p(99)": 0.24287201000000047,
+            "max": 8.111111,
+            "min": 0,
+            "avg": 0.004165877528351263
+        },
+        "oversell_probe_observed": {
+            "count": 901,
+            "rate": 5.005437541131097,
+            "thresholds": {
+                "count>0": false
+            }
+        },
+        "fcfs_rejected_429": {
+            "count": 169049,
+            "rate": 939.1389688020764
+        }
+    }
+}

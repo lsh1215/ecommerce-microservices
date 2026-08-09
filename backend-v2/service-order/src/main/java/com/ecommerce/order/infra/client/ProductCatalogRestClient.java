@@ -100,6 +100,12 @@ public class ProductCatalogRestClient implements ProductCatalogPort {
                 .uri("/api/internal/products/variants/{variantId}/reserve-stock", variantId)
                 .body(Map.of("orderId", orderId, "quantity", quantity))
                 .retrieve()
+                .onStatus(status -> status.value() == 429, (req, res) -> {
+                    // Admission gate(레이어 1)가 스파이크를 걸러낸 결과 — 재고 실패가 아니라
+                    // "시스템 바쁨" 비즈니스 결과로 분류한다. Product 장애가 아니므로 CB에 기록되지 않는다.
+                    throw new BusinessException(OrderErrorCode.PRODUCT_ADMISSION_REJECTED,
+                            "Product service admission gate rejected reserve-stock for variant: " + variantId);
+                })
                 .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
                     // 재고 부족 같은 4xx는 Product 장애가 아니라 주문 비즈니스 실패로 처리한다.
                     throw new BusinessException(OrderErrorCode.STOCK_RESERVATION_FAILED,

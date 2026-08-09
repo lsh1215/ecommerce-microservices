@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "outbox_event", indexes = {
-    @Index(name = "idx_outbox_status_created", columnList = "status, createdAt")
+    @Index(name = "idx_outbox_status_id", columnList = "status, id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

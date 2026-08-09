@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - configmap.yml
+  - secrets.yml
+  - kafka-statefulset.yml
+  - mysql-customer-statefulset.yml
+  - mysql-order-statefulset.yml
+  - mysql-payment-statefulset.yml
+  - mysql-product-statefulset.yml
+  - redis-product-statefulset.yml
+  - mysqld-exporters.yml
+  - mysql-product-replica-statefulset.yml

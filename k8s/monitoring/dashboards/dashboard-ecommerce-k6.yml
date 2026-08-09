@@ -68,7 +68,7 @@ data:
             {"refId": "B", "expr": "max by (testid) (k6_http_req_duration_p99{testid=~\"$testid\"})", "legendFormat": "p99 {{testid}}"},
             {"refId": "C", "expr": "avg by (testid) (k6_http_req_duration_avg{testid=~\"$testid\"})", "legendFormat": "avg {{testid}}"}
           ],
-          "fieldConfig": {"defaults": {"unit": "ms"}}
+          "fieldConfig": {"defaults": {"unit": "s"}}
         },
         {
           "id": 4,

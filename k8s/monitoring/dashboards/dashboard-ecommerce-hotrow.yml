@@ -1,0 +1,337 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-hotrow
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-hotrow.json: |
+    {
+      "uid": "ecommerce-hotrow",
+      "title": "Ecommerce Hot Row — 단일 재고 row 경합 (비관적 락 vs Atomic UPDATE)",
+      "tags": ["ecommerce", "hotrow", "loadtest"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "graphTooltip": 1,
+      "refresh": "",
+      "time": {"from": "now-1h", "to": "now"},
+      "templating": {
+        "list": [
+          {
+            "name": "testid",
+            "type": "query",
+            "datasource": {"type": "prometheus", "uid": "prometheus"},
+            "query": "label_values(k6_http_reqs_total, testid)",
+            "includeAll": true,
+            "multi": true,
+            "refresh": 2
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 10,
+          "type": "row",
+          "title": "증상 — 클라이언트가 겪은 것 (k6)",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+          "collapsed": false
+        },
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "성공 주문 처리량 (orders_created_2xx/s)",
+          "description": "실패 응답을 제외한 실제 성공 주문 처리량. http_reqs 에는 5xx 도 포함되므로 용량 판단에는 이 값을 본다.",
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 1},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {"lineWidth": 2, "fillOpacity": 12, "showPoints": "never"},
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum by (testid) (rate(k6_orders_created_2xx_total{testid=~\"$testid\"}[1m]))",
+              "legendFormat": "{{testid}}"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "주문 응답시간 p95 / p99 (성공 응답 기준)",
+          "description": "단일 hot row 에 대한 경합이 사용자 지연으로 나타나는 지점. 비관적 락은 램프가 올라갈수록 급격히 벌어진다.",
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 1},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {"lineWidth": 2, "fillOpacity": 8, "showPoints": "never"},
+              "min": 0
+            },
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "max_over_time(k6_http_req_duration_p95{testid=~\"$testid\", expected_response=\"true\"}[$__interval])",
+              "legendFormat": "p95 {{testid}}"
+            },
+            {
+              "refId": "B",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "max_over_time(k6_http_req_duration_p99{testid=~\"$testid\", expected_response=\"true\"}[$__interval])",
+              "legendFormat": "p99 {{testid}}"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "제공 부하 (k6 VUs · 요청률)",
+          "description": "두 arm 의 제공 부하가 같아야 비교가 성립한다. VU 가 치솟으면 응답이 느려져 도착률을 따라가지 못한다는 뜻이다.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 10},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"custom": {"lineWidth": 2, "fillOpacity": 6, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "k6_vus{testid=~\"$testid\"}",
+              "legendFormat": "VUs {{testid}}"
+            },
+            {
+              "refId": "B",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum by (testid) (rate(k6_http_reqs_total{testid=~\"$testid\"}[1m]))",
+              "legendFormat": "req/s {{testid}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "실패율 · 타임아웃",
+          "description": "비관적 락 arm 에서 락 대기가 클라이언트 타임아웃(30s)으로 넘어가는 구간.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 10},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"unit": "percentunit", "custom": {"lineWidth": 2, "fillOpacity": 14, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum by (testid) (rate(k6_http_reqs_total{testid=~\"$testid\", expected_response=\"false\"}[1m])) / clamp_min(sum by (testid) (rate(k6_http_reqs_total{testid=~\"$testid\"}[1m])), 0.001)",
+              "legendFormat": "실패율 {{testid}}"
+            }
+          ]
+        },
+        {
+          "id": 20,
+          "type": "row",
+          "title": "원인 — DB 계층에서 벌어진 것 (InnoDB · HikariCP)",
+          "gridPos": {"h": 1, "w": 24, "x": 0, "y": 18},
+          "collapsed": false
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "InnoDB 행 락 평균 대기 시간 (product DB)",
+          "description": "핵심 인과. 같은 row 를 두고 트랜잭션이 X-lock 을 얼마나 오래 쥐고 기다리는지. 비관적 락은 read-modify-write 전 구간을 잡고, Atomic UPDATE 는 한 문장으로 끝낸다.",
+          "gridPos": {"h": 9, "w": 12, "x": 0, "y": 19},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"unit": "ms", "custom": {"lineWidth": 2, "fillOpacity": 12, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "max by (db) (mysql_global_status_innodb_row_lock_time_avg)",
+              "legendFormat": "{{db}} DB"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "InnoDB 행 락 대기 발생률 · 현재 대기 중인 트랜잭션",
+          "description": "락을 기다리는 트랜잭션이 실제로 쌓이는지. 단일 row 직렬화에서는 대기 '건수'보다 대기 '시간'이 지연을 가른다.",
+          "gridPos": {"h": 9, "w": 12, "x": 12, "y": 19},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum by (db) (rate(mysql_global_status_innodb_row_lock_waits[1m]))",
+              "legendFormat": "대기 발생/s {{db}}"
+            },
+            {
+              "refId": "B",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum by (db) (mysql_global_status_innodb_row_lock_current_waits)",
+              "legendFormat": "현재 대기 중 {{db}}"
+            }
+          ]
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "HikariCP — 대기 중인 요청 / 사용 중인 커넥션 (order · product)",
+          "description": "커넥션 풀이 병목인지 가르는 패널. 이 측정에서는 pending 이 0 을 넘지 않아, 병목이 커넥션이 아니라 row 락임을 보여준다.",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"custom": {"lineWidth": 2, "fillOpacity": 8, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "max by (app) (max_over_time(hikaricp_connections_pending{app=~\"service-order|service-product\"}[$__interval]))",
+              "legendFormat": "pending {{app}}"
+            },
+            {
+              "refId": "B",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "max by (app) (max_over_time(hikaricp_connections_active{app=~\"service-order|service-product\"}[$__interval]))",
+              "legendFormat": "active {{app}}"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "컨테이너 CPU 스로틀 비율 (order · product)",
+          "description": "0 에 가까워야 이 런이 유효하다. 0 이 아니면 코드가 아니라 CPU limit 을 측정한 것이다.",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"unit": "percentunit", "custom": {"lineWidth": 2, "fillOpacity": 10, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum by (pod) (rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*|service-product.*\"}[2m])) / clamp_min(sum by (pod) (rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*|service-product.*\"}[2m])), 0.001)",
+              "legendFormat": "throttled {{pod}}"
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "product DB 쓰기량 (insert · commit /s)",
+          "description": "S2 의 인과. 동기 정산은 예약 1건마다 stock_reservation 을 요청 경로에서 INSERT 한다. 정산을 비동기로 밀면 이 쓰기가 응답 경로에서 사라진다.",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 36},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"unit": "ops", "custom": {"lineWidth": 2, "fillOpacity": 12, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum by (db) (rate(mysql_global_status_commands_total{db=\"product\", command=\"insert\"}[1m]))",
+              "legendFormat": "insert/s {{db}} DB"
+            },
+            {
+              "refId": "B",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum by (db) (rate(mysql_global_status_commands_total{db=\"product\", command=\"commit\"}[1m]))",
+              "legendFormat": "commit/s {{db}} DB"
+            }
+          ]
+        },
+        {
+          "id": 11,
+          "type": "timeseries",
+          "title": "서버 처리 시간 vs 클라이언트 응답시간 — 큐잉의 증거",
+          "description": "서버가 요청을 집어든 뒤부터 재는 시간은 거의 변하지 않는데 클라이언트 지연만 폭발하면, 요청이 서버에 닿기 전에 큐에서 기다린 것이다. 자원이 부족한 것이 아니라 처리 순서가 직렬화된 것이다.",
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 44},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"unit": "s", "custom": {"lineWidth": 2, "fillOpacity": 6, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum(rate(http_server_requests_seconds_sum{uri=\"/api/orders\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{uri=\"/api/orders\"}[1m])), 0.001)",
+              "legendFormat": "서버 처리 시간 (order /api/orders, 평균)"
+            },
+            {
+              "refId": "B",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "sum(rate(http_server_requests_seconds_sum{uri=~\".*reserve-stock\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{uri=~\".*reserve-stock\"}[1m])), 0.001)",
+              "legendFormat": "서버 처리 시간 (product reserve-stock, 평균)"
+            },
+            {
+              "refId": "C",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "max_over_time(k6_http_req_duration_avg{testid=~\"$testid\", expected_response=\"true\"}[$__interval])",
+              "legendFormat": "클라이언트 응답시간 평균 {{testid}}"
+            },
+            {
+              "refId": "D",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "max_over_time(k6_http_req_duration_p95{testid=~\"$testid\", expected_response=\"true\"}[$__interval])",
+              "legendFormat": "클라이언트 p95 {{testid}}"
+            }
+          ]
+        },
+        {
+          "id": 12,
+          "type": "timeseries",
+          "title": "DB 커넥션 획득 대기 시간 — 풀 고갈의 직접 증거",
+          "description": "스레드가 HikariCP 에서 커넥션을 받기까지 기다린 시간. 풀이 가득 차면 여기서 초 단위 대기가 발생하고, 그 대기가 그대로 사용자 응답시간이 된다. 이 값이 0 이면 커넥션 풀은 병목이 아니다.",
+          "gridPos": {"h": 9, "w": 24, "x": 0, "y": 53},
+          "datasource": {"type": "prometheus", "uid": "prometheus"},
+          "fieldConfig": {
+            "defaults": {"unit": "s", "custom": {"lineWidth": 2, "fillOpacity": 14, "showPoints": "never"}, "min": 0},
+            "overrides": []
+          },
+          "options": {"legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"]}, "tooltip": {"mode": "multi"}},
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {"type": "prometheus", "uid": "prometheus"},
+              "expr": "max by (app) (max_over_time(hikaricp_connections_acquire_seconds_max{app=~\"service-order|service-product\"}[$__interval]))",
+              "legendFormat": "커넥션 획득 대기 {{app}}"
+            }
+          ]
+        }
+      ]
+    }

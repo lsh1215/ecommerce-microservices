@@ -1,0 +1,69 @@
+# Grafana 이미지 렌더러.
+#
+# 왜 필요한가: 포트폴리오 근거로 쓸 대시보드 화면을 파일로 남겨야 하는데,
+# 로컬 브라우저 + `kubectl port-forward` 조합은 Grafana SPA 가 동시에 수십 개 에셋을 요청하면서
+# 터널이 막혀 빈 화면이 찍힌다. 렌더링을 클러스터 안에서 시키고 결과 PNG 만 받아오면
+# 요청이 한 번으로 끝나 이 문제가 사라진다.
+#
+# 사용:
+#   curl "http://localhost:3000/render/d-solo/ecommerce-hotrow/x?panelId=2&from=..&to=..&width=1500&height=620" -o panel.png
+#
+# 이 배포는 부하 테스트 클러스터 전용이다(임시 클러스터라 인증을 따로 두지 않는다).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-image-renderer
+  namespace: monitoring
+  labels:
+    app: grafana-image-renderer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-image-renderer
+  template:
+    metadata:
+      labels:
+        app: grafana-image-renderer
+    spec:
+      containers:
+        - name: renderer
+          image: grafana/grafana-image-renderer:3.11.6
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: ENABLE_METRICS
+              value: "false"
+            # 렌더러가 띄우는 헤드리스 크롬이 패널 쿼리를 기다릴 시간.
+            # 기본값(30s)이면 넓은 구간에서 빈 패널이 찍힐 수 있다.
+            - name: RENDERING_TIMEOUT
+              value: "60"
+            - name: RENDERING_VIEWPORT_MAX_WIDTH
+              value: "2400"
+            - name: RENDERING_VIEWPORT_MAX_HEIGHT
+              value: "2400"
+            - name: RENDERING_VIEWPORT_DEVICE_SCALE_FACTOR
+              value: "2"
+            - name: LOG_LEVEL
+              value: "info"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1536Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-image-renderer
+  namespace: monitoring
+spec:
+  selector:
+    app: grafana-image-renderer
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081

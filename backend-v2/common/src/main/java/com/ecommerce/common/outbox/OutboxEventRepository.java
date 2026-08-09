@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> {
 
-    List<OutboxEvent> findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus status);
+    List<OutboxEvent> findTop100ByStatusOrderByIdAsc(OutboxEventStatus status);
 
     long countByStatus(OutboxEventStatus status);
 }

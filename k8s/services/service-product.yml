@@ -54,6 +54,21 @@ spec:
               value: "redis-product-service"
             - name: SPRING_DATA_REDIS_PORT
               value: "6379"
+            # Flash-sale toggles (default sync/off = unchanged behavior; per-phase override via `kubectl set env`).
+            - name: RESERVE_SETTLE_MODE
+              value: "sync"
+            - name: ADMISSION_MODE
+              value: "off"
+            - name: ADMISSION_RATE
+              value: "200"
+            - name: ADMISSION_BURST
+              value: "400"
+            - name: FLASH_RESERVE_MODE
+              value: "off" # queue = FCFS DB SKIP LOCKED 예약 경로(부하 단계별 override)
+            # Read replica 라우팅: 설정 시 @Transactional(readOnly) 조회가 replica로 감.
+            # 미설정 = 단일 DataSource(기본). read-heavy/혼합 단계에서 kubectl set env로 켠다.
+            # - name: SPRING_DATASOURCE_REPLICA_URL
+            #   value: "jdbc:mysql://mysql-product-replica-service:3306/ecommerce_product?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
             - name: OTEL_SERVICE_NAME
               value: "service-product"
             - name: OTEL_RESOURCE_ATTRIBUTES

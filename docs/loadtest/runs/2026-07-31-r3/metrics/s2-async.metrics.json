@@ -1,0 +1,228 @@
+{
+"label": "s2-async", "window": "5m", "capturedAt": "2026-07-31T15:35:56Z",
+"metrics": [
+{
+  "name": "cpu_throttled_ratio_order",
+  "query": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*\"}[5m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*\"}[5m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785512156.956,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "cpu_throttled_ratio_product",
+  "query": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-product.*\"}[5m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-product.*\"}[5m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785512157.003,
+            "0.060116713072425026"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "cpu_usage_cores",
+  "query": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"ecommerce\",pod=~\"service-(order|product).*\"}[5m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-order-f77fdddb9-85vw7"
+          },
+          "value": [
+            1785512157.045,
+            "0.5321784994842609"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-8677679fd4-krltf"
+          },
+          "value": [
+            1785512157.045,
+            "0.010814210711550844"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-5dc5457b69-vjfd7"
+          },
+          "value": [
+            1785512157.045,
+            "0.703217407265785"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_pending",
+  "query": "max by (application,pod) (hikaricp_connections_pending{namespace=\"ecommerce\"} or hikaricp_connections_pending)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-customer-cdb559d79-jw4s8"
+          },
+          "value": [
+            1785512157.082,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-payment-68cbc94777-t2t8k"
+          },
+          "value": [
+            1785512157.082,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-5dc5457b69-vjfd7"
+          },
+          "value": [
+            1785512157.082,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_active",
+  "query": "max by (application,pod) (hikaricp_connections_active or hikaricp_connections_active)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-customer-cdb559d79-jw4s8"
+          },
+          "value": [
+            1785512157.120,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-payment-68cbc94777-t2t8k"
+          },
+          "value": [
+            1785512157.120,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-5dc5457b69-vjfd7"
+          },
+          "value": [
+            1785512157.120,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "http_5xx_ratio_order",
+  "query": "sum(rate(http_server_requests_seconds_count{app=\"service-order\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=\"service-order\"}[5m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785512157.159,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "server_span_p95_order",
+  "query": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{app=\"service-order\",uri=\"/api/orders\"}[5m])))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}
+,
+{
+  "name": "server_span_p99_order",
+  "query": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{app=\"service-order\",uri=\"/api/orders\"}[5m])))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}
+,
+{
+  "name": "server_rps_order",
+  "query": "sum(rate(http_server_requests_seconds_count{app=\"service-order\",uri=\"/api/orders\"}[5m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785512157.266,
+            "1.6091639342841324"
+          ]
+        }
+      ]
+    }
+  }
+}
+]
+}

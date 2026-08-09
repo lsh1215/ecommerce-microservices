@@ -1,0 +1,98 @@
+# in-cluster k6 Job 템플릿.
+#
+# 로컬 kubectl port-forward 로 부하를 주면 단일 커넥션 프록시가 ~20 rps에서 막혀
+# 서비스가 아니라 터널을 측정하게 된다(G006에서 실측 확인). 반드시 클러스터 안에서 돌린다.
+#
+# 스크립트는 ConfigMap(k6-scripts)에서 마운트한다:
+#   kubectl create configmap k6-scripts --from-file=k6/scripts -n ecommerce
+#
+# 실행은 scripts/loadtest/run-scenario.sh 가 이 템플릿을 envsubst 로 채워 apply 한다.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-${TESTID}
+  namespace: ecommerce
+  labels:
+    app: k6
+    testid: ${TESTID}
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: k6
+        testid: ${TESTID}
+    spec:
+      restartPolicy: Never
+      # R2에서 k6가 서비스와 CPU를 다퉈 dropped_iterations가 31~78%까지 났다.
+      # 제공 부하가 목표에 못 미치면 어떤 rps 라벨도 쓸 수 없으므로
+      # 부하 생성기는 전용 노드에 격리한다(taint + toleration으로 다른 pod 배제).
+      nodeSelector:
+        role: loadgen
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: loadgen
+          effect: NoSchedule
+      containers:
+        - name: k6
+          image: grafana/k6:0.55.0
+          # summary JSON을 stdout으로 흘려 kubectl logs 만으로 회수할 수 있게 한다.
+          # Job pod는 끝나면 사라지므로 파일로만 남기면 회수 경로가 없다.
+          command: ["sh", "-c"]
+          args:
+            - |
+              set +e
+              k6 run \
+                --summary-export=/tmp/summary.json \
+                --tag testid=${TESTID} \
+                ${K6_FLAGS} \
+                /scripts/${SCRIPT}
+              rc=$?
+              echo "===K6_SUMMARY_JSON_BEGIN==="
+              cat /tmp/summary.json
+              echo "===K6_SUMMARY_JSON_END==="
+              exit $rc
+          env:
+            # k6 지표를 Prometheus 로 원격 기록한다. 이게 없으면 summary JSON 은 남지만
+            # Grafana 의 k6 대시보드가 비어 있어 **포트폴리오용 근거 화면을 만들 수 없다**.
+            # Prometheus 는 --web.enable-remote-write-receiver 로 이미 수신을 열어 두었다.
+            - name: K6_OUT
+              value: "experimental-prometheus-rw"
+            - name: K6_PROMETHEUS_RW_SERVER_URL
+              value: "http://prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+            # Trend 지표를 백분위까지 남긴다. 기본값은 avg/max 뿐이라 p95/p99 패널이 빈다.
+            - name: K6_PROMETHEUS_RW_TREND_STATS
+              value: "p(95),p(99),avg,min,max"
+            # testid 를 시계열 라벨로 유지해야 arm 별로 갈라 볼 수 있다.
+            - name: K6_PROMETHEUS_RW_STALE_MARKERS
+              value: "true"
+            - name: ORDER_API
+              value: "http://service-order:8082"
+            - name: PRODUCT_API
+              value: "http://service-product:8081"
+            - name: PROBE_URL
+              value: "http://service-product:8081/api/internal/products/variants"
+            - name: TESTID
+              value: "${TESTID}"
+          envFrom:
+            - configMapRef:
+                name: k6-env-${TESTID}
+                optional: true
+          resources:
+            # 부하 생성기가 스로틀되면 제공 부하가 목표에 못 미친다(dropped_iterations 증가).
+            # 측정 대상 서비스보다 넉넉히 준다.
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: k6-scripts

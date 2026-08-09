@@ -1,0 +1,47 @@
+# 부하 테스트 전용 오버레이.
+#
+# 개발 기본값(cpu limit 500m / mem 512Mi)으로 부하 테스트를 돌리면
+# 코드가 아니라 CPU 스로틀을 측정하게 된다. docs/loadtest/README.md §2.2 참고.
+#
+#   kubectl apply -k k8s/overlays/loadtest
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ecommerce
+
+resources:
+  - ../../base
+  - ../../services
+
+# 기본 매니페스트는 로컬 이미지(ecommerce/service-*:latest)를 가리킨다.
+# 부하 테스트는 Cloud Build로 만든 Artifact Registry 이미지를 쓴다.
+images:
+  - name: ecommerce/service-product
+    newName: asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-product
+    newTag: flash-fcfs3
+  - name: ecommerce/service-order
+    newName: asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-order
+    newTag: flash-fcfs
+  - name: ecommerce/service-payment
+    newName: asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-payment
+    newTag: flash-fcfs
+  - name: ecommerce/service-customer
+    newName: asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-customer
+    newTag: flash-fcfs
+
+patches:
+  # 부하 진입점 — 스로틀 knee 위로
+  - target:
+      kind: Deployment
+      name: service-order
+    path: patch-order.yaml
+  # 재고 경합 대상 — 스로틀 knee 위로
+  - target:
+      kind: Deployment
+      name: service-product
+    path: patch-product.yaml
+  # SAGA 소비자
+  - target:
+      kind: Deployment
+      name: service-payment
+    path: patch-payment.yaml

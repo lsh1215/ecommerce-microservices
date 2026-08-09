@@ -67,7 +67,7 @@ spec:
         - mountPath: /docker-entrypoint-initdb.d
           name: init
       nodeSelector:
-        role: svc-customer
+        role: db
       volumes:
       - configMap:
           defaultMode: 420

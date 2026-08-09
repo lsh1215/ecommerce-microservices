@@ -1,0 +1,475 @@
+{
+  "runId": "r6",
+  "phase": "post",
+  "capturedAt": "2026-08-01T04:51:25Z",
+  "cluster": {
+    "context": "gke_project-4605f2b6-fff1-4fc2-bdf_asia-northeast3-a_loadtest-r6",
+    "namespace": "ecommerce",
+    "nodes": [
+      {
+        "name": "gke-loadtest-r6-default-pool-e3fcea5f-20fr",
+        "machineType": "e2-standard-8",
+        "zone": "asia-northeast3-a",
+        "capacity": {
+          "cpu": "8",
+          "memory": "32869460Ki"
+        },
+        "allocatable": {
+          "cpu": "7910m",
+          "memory": "29074516Ki"
+        }
+      },
+      {
+        "name": "gke-loadtest-r6-default-pool-e3fcea5f-50vv",
+        "machineType": "e2-standard-8",
+        "zone": "asia-northeast3-a",
+        "capacity": {
+          "cpu": "8",
+          "memory": "32869464Ki"
+        },
+        "allocatable": {
+          "cpu": "7910m",
+          "memory": "29074520Ki"
+        }
+      },
+      {
+        "name": "gke-loadtest-r6-default-pool-e3fcea5f-9r27",
+        "machineType": "e2-standard-8",
+        "zone": "asia-northeast3-a",
+        "capacity": {
+          "cpu": "8",
+          "memory": "32869464Ki"
+        },
+        "allocatable": {
+          "cpu": "7910m",
+          "memory": "29074520Ki"
+        }
+      },
+      {
+        "name": "gke-loadtest-r6-default-pool-e3fcea5f-bbz7",
+        "machineType": "e2-standard-8",
+        "zone": "asia-northeast3-a",
+        "capacity": {
+          "cpu": "8",
+          "memory": "32869468Ki"
+        },
+        "allocatable": {
+          "cpu": "7910m",
+          "memory": "29074524Ki"
+        }
+      }
+    ]
+  },
+  "code": {
+    "branch": "flash-sale-async-settle",
+    "commit": "ec6fcdc93be649a21f04be4e8bb04ea288cb5878",
+    "dirty": true
+  },
+  "workloads": [
+    {
+      "kind": "Deployment",
+      "name": "mysqld-exporter-customer",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "exporter",
+          "image": "prom/mysqld-exporter:v0.15.1",
+          "resources": {
+            "limits": {
+              "cpu": "100m",
+              "memory": "64Mi"
+            },
+            "requests": {
+              "cpu": "20m",
+              "memory": "32Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "Deployment",
+      "name": "mysqld-exporter-order",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "exporter",
+          "image": "prom/mysqld-exporter:v0.15.1",
+          "resources": {
+            "limits": {
+              "cpu": "100m",
+              "memory": "64Mi"
+            },
+            "requests": {
+              "cpu": "20m",
+              "memory": "32Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "Deployment",
+      "name": "mysqld-exporter-payment",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "exporter",
+          "image": "prom/mysqld-exporter:v0.15.1",
+          "resources": {
+            "limits": {
+              "cpu": "100m",
+              "memory": "64Mi"
+            },
+            "requests": {
+              "cpu": "20m",
+              "memory": "32Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "Deployment",
+      "name": "mysqld-exporter-product",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "exporter",
+          "image": "prom/mysqld-exporter:v0.15.1",
+          "resources": {
+            "limits": {
+              "cpu": "100m",
+              "memory": "64Mi"
+            },
+            "requests": {
+              "cpu": "20m",
+              "memory": "32Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "Deployment",
+      "name": "service-customer",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "service-customer",
+          "image": "asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-customer:loadtest-r1",
+          "resources": {
+            "limits": {
+              "cpu": "500m",
+              "memory": "512Mi"
+            },
+            "requests": {
+              "cpu": "200m",
+              "memory": "256Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "Deployment",
+      "name": "service-order",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "service-order",
+          "image": "asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-order:loadtest-r1",
+          "resources": {
+            "limits": {
+              "cpu": "4",
+              "memory": "4Gi"
+            },
+            "requests": {
+              "cpu": "2",
+              "memory": "2Gi"
+            }
+          },
+          "javaOpts": [
+            {
+              "name": "JAVA_TOOL_OPTIONS",
+              "value": "-XX:MaxRAMPercentage=75"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Deployment",
+      "name": "service-payment",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "service-payment",
+          "image": "asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-payment:loadtest-r1",
+          "resources": {
+            "limits": {
+              "cpu": "1",
+              "memory": "2Gi"
+            },
+            "requests": {
+              "cpu": "500m",
+              "memory": "1Gi"
+            }
+          },
+          "javaOpts": [
+            {
+              "name": "JAVA_TOOL_OPTIONS",
+              "value": "-XX:MaxRAMPercentage=75"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Deployment",
+      "name": "service-product",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "service-product",
+          "image": "asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-product:loadtest-r1-pess",
+          "resources": {
+            "limits": {
+              "cpu": "2",
+              "memory": "2Gi"
+            },
+            "requests": {
+              "cpu": "1",
+              "memory": "1Gi"
+            }
+          },
+          "javaOpts": [
+            {
+              "name": "JAVA_TOOL_OPTIONS",
+              "value": "-XX:MaxRAMPercentage=75"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "kafka",
+      "replicas": 3,
+      "containers": [
+        {
+          "name": "kafka",
+          "image": "apache/kafka:3.8.1",
+          "resources": {
+            "limits": {
+              "cpu": "500m",
+              "memory": "768Mi"
+            },
+            "requests": {
+              "cpu": "100m",
+              "memory": "400Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "mysql-customer",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "mysql",
+          "image": "mysql:8.0",
+          "resources": {
+            "limits": {
+              "cpu": "500m",
+              "memory": "768Mi"
+            },
+            "requests": {
+              "cpu": "100m",
+              "memory": "256Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "mysql-order",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "mysql",
+          "image": "mysql:8.0",
+          "resources": {
+            "limits": {
+              "cpu": "500m",
+              "memory": "768Mi"
+            },
+            "requests": {
+              "cpu": "100m",
+              "memory": "256Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "mysql-payment",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "mysql",
+          "image": "mysql:8.0",
+          "resources": {
+            "limits": {
+              "cpu": "500m",
+              "memory": "768Mi"
+            },
+            "requests": {
+              "cpu": "100m",
+              "memory": "256Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "mysql-product",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "mysql",
+          "image": "mysql:8.0",
+          "resources": {
+            "limits": {
+              "cpu": "500m",
+              "memory": "768Mi"
+            },
+            "requests": {
+              "cpu": "100m",
+              "memory": "256Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "redis-product",
+      "replicas": 1,
+      "containers": [
+        {
+          "name": "redis",
+          "image": "redis:7.2-alpine",
+          "resources": {
+            "limits": {
+              "cpu": "250m",
+              "memory": "256Mi"
+            },
+            "requests": {
+              "cpu": "100m",
+              "memory": "128Mi"
+            }
+          },
+          "javaOpts": []
+        }
+      ]
+    }
+  ],
+  "resourceUsage": [
+    {
+      "pod": "kafka-0",
+      "cpu": "16m",
+      "memory": "340Mi"
+    },
+    {
+      "pod": "kafka-1",
+      "cpu": "24m",
+      "memory": "372Mi"
+    },
+    {
+      "pod": "kafka-2",
+      "cpu": "19m",
+      "memory": "340Mi"
+    },
+    {
+      "pod": "mysql-customer-0",
+      "cpu": "10m",
+      "memory": "411Mi"
+    },
+    {
+      "pod": "mysql-order-0",
+      "cpu": "491m",
+      "memory": "471Mi"
+    },
+    {
+      "pod": "mysql-payment-0",
+      "cpu": "16m",
+      "memory": "415Mi"
+    },
+    {
+      "pod": "mysql-product-0",
+      "cpu": "106m",
+      "memory": "471Mi"
+    },
+    {
+      "pod": "mysqld-exporter-customer-68bc97769-f9wwt",
+      "cpu": "4m",
+      "memory": "8Mi"
+    },
+    {
+      "pod": "mysqld-exporter-order-6cf76c9567-ptj7p",
+      "cpu": "3m",
+      "memory": "8Mi"
+    },
+    {
+      "pod": "mysqld-exporter-payment-c95cb9f9f-44z68",
+      "cpu": "3m",
+      "memory": "8Mi"
+    },
+    {
+      "pod": "mysqld-exporter-product-5bb4964ff-wml5r",
+      "cpu": "4m",
+      "memory": "8Mi"
+    },
+    {
+      "pod": "redis-product-0",
+      "cpu": "3m",
+      "memory": "3Mi"
+    },
+    {
+      "pod": "service-customer-cdb559d79-6g45j",
+      "cpu": "5m",
+      "memory": "345Mi"
+    },
+    {
+      "pod": "service-order-f77fdddb9-6s885",
+      "cpu": "165m",
+      "memory": "844Mi"
+    },
+    {
+      "pod": "service-payment-68cbc94777-dhzqs",
+      "cpu": "31m",
+      "memory": "408Mi"
+    },
+    {
+      "pod": "service-product-6d84cf8cd-lxxl8",
+      "cpu": "59m",
+      "memory": "476Mi"
+    }
+  ]
+}

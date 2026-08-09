@@ -1,0 +1,237 @@
+{
+"label": "s1-atomic", "window": "12m", "capturedAt": "2026-08-01T04:38:15Z",
+"metrics": [
+{
+  "name": "cpu_throttled_ratio_order",
+  "query": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*\"}[12m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*\"}[12m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785559095.491,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "cpu_throttled_ratio_product",
+  "query": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-product.*\"}[12m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-product.*\"}[12m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785559095.539,
+            "0.00044716429969028084"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "cpu_usage_cores",
+  "query": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"ecommerce\",pod=~\"service-(order|product).*\"}[12m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-order-f77fdddb9-6s885"
+          },
+          "value": [
+            1785559095.578,
+            "0.5527237542862338"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-8677679fd4-jwqpl"
+          },
+          "value": [
+            1785559095.578,
+            "0.4106976703633434"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_pending",
+  "query": "max by (application,pod) (hikaricp_connections_pending{namespace=\"ecommerce\"} or hikaricp_connections_pending)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-customer-cdb559d79-6g45j"
+          },
+          "value": [
+            1785559095.618,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-order-f77fdddb9-6s885"
+          },
+          "value": [
+            1785559095.618,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-payment-68cbc94777-dhzqs"
+          },
+          "value": [
+            1785559095.618,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-8677679fd4-jwqpl"
+          },
+          "value": [
+            1785559095.618,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_active",
+  "query": "max by (application,pod) (hikaricp_connections_active or hikaricp_connections_active)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-customer-cdb559d79-6g45j"
+          },
+          "value": [
+            1785559095.901,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-order-f77fdddb9-6s885"
+          },
+          "value": [
+            1785559095.901,
+            "1"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-payment-68cbc94777-dhzqs"
+          },
+          "value": [
+            1785559095.901,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-8677679fd4-jwqpl"
+          },
+          "value": [
+            1785559095.901,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "http_5xx_ratio_order",
+  "query": "sum(rate(http_server_requests_seconds_count{app=\"service-order\",status=~\"5..\"}[12m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=\"service-order\"}[12m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785559096.150,
+            "0.020976180073269186"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "server_span_p95_order",
+  "query": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{app=\"service-order\",uri=\"/api/orders\"}[12m])))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}
+,
+{
+  "name": "server_span_p99_order",
+  "query": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{app=\"service-order\",uri=\"/api/orders\"}[12m])))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}
+,
+{
+  "name": "server_rps_order",
+  "query": "sum(rate(http_server_requests_seconds_count{app=\"service-order\",uri=\"/api/orders\"}[12m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785559096.340,
+            "20.18881825416741"
+          ]
+        }
+      ]
+    }
+  }
+}
+]
+}

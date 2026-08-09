@@ -16,6 +16,9 @@ spring:
       hibernate:
         format_sql: true
         default_batch_fetch_size: 100
+        jdbc:
+          batch_size: 100
+        order_inserts: true
     open-in-view: false
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -35,3 +38,42 @@ springdoc:
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+# 예약 경로 동기/비동기 처리 모드. sync(기본값)=기존 동작(동기 INSERT 유지),
+# async=동기 INSERT 생략, StockReservationSettler가 Redis settle queue를 드레인해 채운다.
+# 주의: G002(예약 확정/취소 경로가 아직 정산되지 않은 행을 Redis로부터 재구성하는
+# read-your-writes 보강)가 배포되기 전까지는 절대 async로 설정하지 말 것 — 그 전에
+# 켜면 settler와의 레이스로 인해 결제 완료(PAID) 주문의 confirm 시점에
+# RESERVATION_NOT_FOUND가 발생할 수 있다.
+reserve:
+  settle:
+    mode: ${RESERVE_SETTLE_MODE:sync}
+    batch-size: ${RESERVE_SETTLE_BATCH_SIZE:200}
+    fixed-delay-ms: ${RESERVE_SETTLE_FIXED_DELAY_MS:200}
+    max-attempts: ${RESERVE_SETTLE_MAX_ATTEMPTS:5}
+
+# Admission gate (레이어 1): reserve-stock 진입점 전용 Redis 토큰 버킷.
+# mode=off(기본값) => rate limiting 없음, 오늘과 동일한 무제한 통과.
+# mode=on => 버킷 소진 시 429 + Retry-After 응답(FAIL-CLOSED: limiter store 장애 시에도 거부).
+admission:
+  mode: ${ADMISSION_MODE:off}
+  rate: ${ADMISSION_RATE:200}
+  burst: ${ADMISSION_BURST:400}
+  fail-open: ${ADMISSION_FAIL_OPEN:false}
+
+# 재고 게이트 세그먼트 수(예약 설정). 기본 1 = 세그먼트 없음(단일 Redis 키).
+# 세그먼테이션은 승인된 REV2 설계에서 보류됨 — 단일 인스턴스 Redis는 per-key 락이 없어
+# 단일 hot key를 쪼개도 이득이 거의 없기 때문(실제 병목은 동기 stock_reservation INSERT).
+# 향후 다중 인스턴스 Redis에서 재검토할 기본값 자리이며, 현재 값 1에서는 코드 경로가 바뀌지 않는다.
+stock:
+  gate:
+    segments: ${STOCK_GATE_SEGMENTS:1}
+
+# 선착순 재고 예약(Shopify식 · 동기 SKIP LOCKED · 재고 1개=row 1줄). reserve-unit 엔드포인트는 항상
+# 동작한다(유닛이 없으면 SOLD_OUT). mode=unit이면 TTL 유닛 reaper가 활성(언더셀 방지).
+flash:
+  reserve:
+    mode: ${FLASH_RESERVE_MODE:off}
+    reaper:
+      ttl-seconds: ${FLASH_RESERVE_TTL_SECONDS:600}
+      fixed-delay-ms: ${FLASH_RESERVE_REAPER_FIXED_DELAY_MS:5000}

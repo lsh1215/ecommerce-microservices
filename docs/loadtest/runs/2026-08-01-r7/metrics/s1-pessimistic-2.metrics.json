@@ -1,0 +1,286 @@
+{
+"label": "s1-pessimistic-2", "window": "12m", "capturedAt": "2026-08-01T05:54:15Z",
+"metrics": [
+{
+  "name": "cpu_throttled_ratio_order",
+  "query": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*\"}[12m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-order.*\"}[12m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785563655.560,
+            "0.0038060440746240545"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "cpu_throttled_ratio_product",
+  "query": "sum(rate(container_cpu_cfs_throttled_periods_total{namespace=\"ecommerce\",pod=~\"service-product.*\"}[12m])) / clamp_min(sum(rate(container_cpu_cfs_periods_total{namespace=\"ecommerce\",pod=~\"service-product.*\"}[12m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785563655.603,
+            "0.000620973170369344"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "cpu_usage_cores",
+  "query": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"ecommerce\",pod=~\"service-(order|product).*\"}[12m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "pod": "service-order-f77fdddb9-8765r"
+          },
+          "value": [
+            1785563655.647,
+            "0.424884497902728"
+          ]
+        },
+        {
+          "metric": {
+            "pod": "service-product-68dcdf66dc-qlmp6"
+          },
+          "value": [
+            1785563655.647,
+            "0.4153304232169559"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_pending_max",
+  "query": "max by (app) (max_over_time(hikaricp_connections_pending{app=~\"service-.*\"}[12m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "app": "service-customer"
+          },
+          "value": [
+            1785563655.689,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-order"
+          },
+          "value": [
+            1785563655.689,
+            "191"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-payment"
+          },
+          "value": [
+            1785563655.689,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-product"
+          },
+          "value": [
+            1785563655.689,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_active_max",
+  "query": "max by (app) (max_over_time(hikaricp_connections_active{app=~\"service-.*\"}[12m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "app": "service-customer"
+          },
+          "value": [
+            1785563655.728,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-order"
+          },
+          "value": [
+            1785563655.728,
+            "10"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-payment"
+          },
+          "value": [
+            1785563655.728,
+            "0"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-product"
+          },
+          "value": [
+            1785563655.728,
+            "4"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "hikari_acquire_wait_max_seconds",
+  "query": "max by (app) (max_over_time(hikaricp_connections_acquire_seconds_max{app=~\"service-.*\"}[12m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {
+            "app": "service-customer"
+          },
+          "value": [
+            1785563655.768,
+            "0.00302717"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-order"
+          },
+          "value": [
+            1785563655.768,
+            "25.475314466"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-payment"
+          },
+          "value": [
+            1785563655.768,
+            "0.001969499"
+          ]
+        },
+        {
+          "metric": {
+            "app": "service-product"
+          },
+          "value": [
+            1785563655.768,
+            "0.001697279"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "http_5xx_ratio_order",
+  "query": "sum(rate(http_server_requests_seconds_count{app=\"service-order\",status=~\"5..\"}[12m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=\"service-order\"}[12m])),0.001)",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785563655.806,
+            "0"
+          ]
+        }
+      ]
+    }
+  }
+}
+,
+{
+  "name": "server_span_p95_order",
+  "query": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{app=\"service-order\",uri=\"/api/orders\"}[12m])))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}
+,
+{
+  "name": "server_span_p99_order",
+  "query": "histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket{app=\"service-order\",uri=\"/api/orders\"}[12m])))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": []
+    }
+  }
+}
+,
+{
+  "name": "server_rps_order",
+  "query": "sum(rate(http_server_requests_seconds_count{app=\"service-order\",uri=\"/api/orders\"}[12m]))",
+  "result": {
+    "status": "success",
+    "data": {
+      "resultType": "vector",
+      "result": [
+        {
+          "metric": {},
+          "value": [
+            1785563655.910,
+            "14.294753086419753"
+          ]
+        }
+      ]
+    }
+  }
+}
+]
+}

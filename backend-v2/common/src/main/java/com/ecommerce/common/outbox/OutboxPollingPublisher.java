@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>Critically the loop itself runs OUTSIDE a write transaction. The
  * scheduled invocation arrives with no transactional context, the only
- * read here is {@code findTop100ByStatusOrderByCreatedAtAsc} (Spring Data
+ * read here is {@code findTop100ByStatusOrderByIdAsc} (Spring Data
  * JPA opens its own short read transaction for that one query), and
  * the per-row write happens inside
  * {@link OutboxRowPublisher#publishOne(Long)}'s {@code REQUIRES_NEW}
@@ -37,7 +37,7 @@ public class OutboxPollingPublisher {
 
     @Scheduled(fixedDelay = 500)
     public void publishPendingEvents() {
-        List<OutboxEvent> events = outboxRepository.findTop100ByStatusOrderByCreatedAtAsc(OutboxEventStatus.PENDING);
+        List<OutboxEvent> events = outboxRepository.findTop100ByStatusOrderByIdAsc(OutboxEventStatus.PENDING);
 
         for (OutboxEvent event : events) {
             Long outboxId = event.getId();
