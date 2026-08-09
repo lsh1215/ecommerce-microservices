@@ -27,13 +27,13 @@ spec:
         app: redis-product
     spec:
       nodeSelector:
-        role: svc-product
+        role: redis
       securityContext:
         fsGroup: 999
       containers:
         - name: redis
           image: redis:7.2-alpine
-          command: ["redis-server", "--appendonly", "yes", "--dir", "/data"]
+          command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--dir", "/data"]
           ports:
             - containerPort: 6379
           resources:

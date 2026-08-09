@@ -1,0 +1,159 @@
+# MySQL read replica for service-product (GTID async replication from mysql-product).
+#
+# 배포 순서(중요):
+#   1) mysql-product(primary, --gtid-mode=ON) 와 이 replica statefulset을 먼저 올린다.
+#   2) mysql-product-replica-bootstrap Job이 primary에 복제 유저를 만들고 replica에서
+#      START REPLICA(GTID auto-position)를 실행한다.
+#   3) 복제가 붙어 캐치업된 뒤에 service-product의 SPRING_DATASOURCE_REPLICA_URL을 켠다
+#      (kubectl set env). DB(ecommerce_product)·sa 유저·앱 테이블은 모두 복제로 전파된다.
+#
+# 이 매니페스트는 오프라인에서 검증 불가능한 유일한 조각이다(실제 복제 bootstrap은 첫
+# 클러스터 bring-up에서 SHOW REPLICA STATUS로 확인해야 한다). read replica 라우팅 자체는
+# 앱에서 spring.datasource.replica.url 유무로 게이트되어 있어, replica 없이도 기존 동작은
+# 그대로다.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-product-replica
+  namespace: ecommerce
+spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: mysql-product-replica
+  serviceName: mysql-product-replica-service
+  template:
+    metadata:
+      labels:
+        app: mysql-product-replica
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        args:
+        - --server-id=2
+        - --log-bin=mysql-bin
+        - --gtid-mode=ON
+        - --enforce-gtid-consistency=ON
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: DB_ROOT_PASSWORD
+              name: ecommerce-secrets
+        ports:
+        - containerPort: 3306
+        livenessProbe:
+          exec:
+            command: [mysqladmin, ping, -h, localhost]
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 1
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: [mysqladmin, ping, -h, localhost]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 1
+          failureThreshold: 3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 768Mi
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: mysql-data
+      nodeSelector:
+        role: db
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  volumeClaimTemplates:
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: mysql-data
+    spec:
+      accessModes: [ReadWriteOnce]
+      resources:
+        requests:
+          storage: 3Gi
+      volumeMode: Filesystem
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-product-replica-service
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app: mysql-product-replica
+  type: ClusterIP
+---
+# 복제 부트스트랩: primary에 복제 유저 생성 → replica에서 GTID auto-position으로 START REPLICA.
+# 멱등(재실행 안전): CREATE USER IF NOT EXISTS, STOP/CHANGE/START REPLICA.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mysql-product-replica-bootstrap
+  namespace: ecommerce
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        role: db
+      containers:
+      - name: bootstrap
+        image: mysql:8.0
+        env:
+        - name: ROOT_PW
+          valueFrom:
+            secretKeyRef:
+              key: DB_ROOT_PASSWORD
+              name: ecommerce-secrets
+        command: [/bin/sh, -c]
+        args:
+        - |
+          set -eu
+          PRIMARY=mysql-product-service
+          REPLICA=mysql-product-replica-service
+          echo "waiting for primary and replica to accept connections..."
+          until mysqladmin ping -h "$PRIMARY" --silent; do sleep 3; done
+          until mysqladmin ping -h "$REPLICA" --silent; do sleep 3; done
+          echo "creating replication user on primary..."
+          mysql -h "$PRIMARY" -uroot -p"$ROOT_PW" -e "
+            CREATE USER IF NOT EXISTS 'repl'@'%' IDENTIFIED WITH mysql_native_password BY 'replpass';
+            GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%';
+            FLUSH PRIVILEGES;"
+          echo "starting replication on replica (GTID auto-position)..."
+          mysql -h "$REPLICA" -uroot -p"$ROOT_PW" -e "
+            STOP REPLICA;
+            CHANGE REPLICATION SOURCE TO
+              SOURCE_HOST='$PRIMARY',
+              SOURCE_USER='repl',
+              SOURCE_PASSWORD='replpass',
+              SOURCE_AUTO_POSITION=1,
+              GET_SOURCE_PUBLIC_KEY=1;
+            START REPLICA;"
+          sleep 3
+          echo "replica status:"
+          mysql -h "$REPLICA" -uroot -p"$ROOT_PW" -e "SHOW REPLICA STATUS\G" \
+            | grep -E 'Replica_IO_Running|Replica_SQL_Running|Seconds_Behind_Source|Last_Error' || true
+          echo "bootstrap done"

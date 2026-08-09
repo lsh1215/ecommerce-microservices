@@ -27,6 +27,11 @@ spec:
               key: DB_ROOT_PASSWORD
               name: ecommerce-secrets
         image: mysql:8.0
+        args:
+        - --server-id=1
+        - --log-bin=mysql-bin
+        - --gtid-mode=ON
+        - --enforce-gtid-consistency=ON
         livenessProbe:
           exec:
             command:
@@ -67,7 +72,7 @@ spec:
         - mountPath: /docker-entrypoint-initdb.d
           name: init
       nodeSelector:
-        role: svc-product
+        role: db
       volumes:
       - configMap:
           defaultMode: 420

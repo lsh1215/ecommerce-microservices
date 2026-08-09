@@ -50,6 +50,24 @@ public class ProductVariant extends BaseEntity {
         return variant;
     }
 
+    /**
+     * Builds a detached, id-only {@link ProductVariant} for the async, Redis-only reserve
+     * path where a successful admit must return a response without any DB read. All other
+     * fields stay at their defaults ({@code null}/{@code 0}); {@code ProductVariantResponse}
+     * tolerates that shape (it only reads getters, no lazy associations).
+     */
+    public static ProductVariant reference(Long id) {
+        ProductVariant variant = new ProductVariant();
+        try {
+            java.lang.reflect.Field idField = BaseEntity.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(variant, id);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to build detached ProductVariant reference", e);
+        }
+        return variant;
+    }
+
     public void reserveStock(int quantity) {
         if (quantity <= 0) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
