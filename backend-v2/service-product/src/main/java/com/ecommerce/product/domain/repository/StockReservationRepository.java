@@ -13,6 +13,14 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
     Optional<StockReservation> findByOrderIdAndVariantId(Long orderId, Long variantId);
 
     /**
+     * 같은 주문이 같은 옵션을 이미 잡았는지.
+     *
+     * <p>재시도나 중복 전송으로 예약이 두 번 들어오면 재고가 이중으로 깎인다. 엔티티를
+     * 가져올 필요는 없고 존재 여부만 필요하므로 exists로 확인한다.
+     */
+    boolean existsByOrderIdAndVariantId(Long orderId, Long variantId);
+
+    /**
      * 보상 트랜잭션 중복 실행을 막기 위한 상태 전이 쿼리.
      *
      * <p>RESERVED 상태인 row 하나만 RELEASED로 바꾼 호출이 재고 복구 권한을 가진다.

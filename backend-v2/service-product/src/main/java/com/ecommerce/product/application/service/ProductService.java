@@ -38,6 +38,7 @@ public class ProductService {
     private final ProductQueryRepository productQueryRepository;
     private final BrandRepository brandRepository;
     private final StockReservationRepository stockReservationRepository;
+    private final StockReservationService stockReservationService;
     private final TransactionTemplate transactionTemplate;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -138,25 +139,10 @@ public class ProductService {
     }
 
     private void reserveStockForOrder(Long orderId, Long variantId, int quantity) {
-        if (quantity <= 0) {
-            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
-                    "Reserve quantity must be positive");
-        }
-        var existingReservation = stockReservationRepository.findByOrderIdAndVariantId(orderId, variantId);
-        if (existingReservation.isPresent()) {
-            validateExistingReservation(existingReservation.get(), quantity);
-            return;
-        }
-
-        int affected = productVariantRepository.decreaseStock(variantId, quantity);
-        if (affected == 0) {
-            ProductVariant variant = productVariantRepository.findById(variantId)
-                    .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
-            throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
-                    String.format("Requested %d but only %d available",
-                            quantity, variant.getStockQuantity()));
-        }
-        stockReservationRepository.save(StockReservation.reserve(orderId, variantId, quantity));
+        // 재고 차감 방식은 옵션의 경합 등급이 정한다. 이 메서드가 하던 조건부 UPDATE는
+        // 그중 NORMAL 등급의 구현으로 옮겨갔고(AtomicStockReserver), 여기서는 어느 등급이든
+        // 같은 진입점으로 위임한다.
+        stockReservationService.reserve(variantId, orderId, quantity);
     }
 
     /**
