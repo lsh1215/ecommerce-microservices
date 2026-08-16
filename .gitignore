@@ -84,6 +84,7 @@ k6-results/
 # === Local Notes / Drafts ===
 study-notes/
 blog-drafts/
+blog-draft/
 
 # === Project Internal Docs / Evidence ===
 docs/PRD.md
@@ -97,10 +98,14 @@ docs/phase-4-results/
 docs/phase-5-results/
 docs/portfolio-screenshots/
 docs/evidence/
+docs/observability/
+docs/domain/event-storming-pg-payment-saga.md
+docs/domain/event-storming-pg-payment-saga.html
 
 # === Local AI / Agent Artifacts ===
 .claude/
 .codex/
+.gjc/
 .agents/*
 .omc/
 .omx/
@@ -113,6 +118,7 @@ docs/evidence/
 .supermaven/
 
 AGENTS.md
+CLAUDE.md
 *.prompt
 *.conversation
 .prompts/
