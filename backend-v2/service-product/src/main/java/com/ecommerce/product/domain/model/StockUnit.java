@@ -30,7 +30,12 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "stock_unit", indexes = {
         @Index(name = "ix_stock_unit_variant_status", columnList = "variant_id, status, id"),
-        @Index(name = "ix_stock_unit_order", columnList = "order_id, variant_id")
+        @Index(name = "ix_stock_unit_order", columnList = "order_id, variant_id"),
+        // TTL 회수용. 이 인덱스가 없으면 리퍼의 WHERE status='RESERVED' AND
+        // updated_at < ... 가 선행 컬럼이 variant_id인 인덱스를 못 타고 PRIMARY
+        // 전체를 훑는다. 5초마다 도는 작업이라 유닛 100만 기준으로 상시 부하가
+        // 됐고, 측정에서는 예약 지연이 런마다 흔들리는 원인이었다.
+        @Index(name = "ix_stock_unit_status_updated", columnList = "status, updated_at")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
