@@ -26,7 +26,10 @@ spec:
     metadata:
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8081"
+        # 관리 포트(8091)를 스크레이프한다. 8081은 부하 트래픽이 쓰는 커넥터라,
+        # 과부하 때 스크레이프가 스레드를 얻지 못해 http_server_requests 계열이
+        # 통째로 사라졌다. 부하가 걸린 순간의 지표가 바로 그때 없어지는 셈이다.
+        prometheus.io/port: "8091"
         prometheus.io/path: "/actuator/prometheus"
       labels:
         app: service-product
@@ -35,10 +38,17 @@ spec:
         role: svc-product
       containers:
         - name: service-product
-          image: ecommerce/service-product:latest
+          # Artifact Registry 경로. 이전 값 `ecommerce/service-product:latest`는
+          # docker.io로 해석돼 git에서 apply하면 ImagePullBackOff로 떨어졌다.
+          # 매니페스트만으로는 배포가 재현되지 않는 상태였다.
+          image: asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-product:rev8
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
+            # actuator 전용 커넥터. 자체 스레드 풀을 쓰므로 요청 스레드가 모두
+            # 커넥션을 기다리는 중에도 헬스체크와 스크레이프가 응답한다.
+            - containerPort: 8091
+              name: management
           envFrom:
             - configMapRef:
                 name: ecommerce-config
@@ -54,28 +64,102 @@ spec:
               value: "ecommerce_product"
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:mysql://mysql-product-service:3306/ecommerce_product?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
+            # Connection pool sizing.
+            #
+            # The pool is a per-pod setting but the right *total* is a property
+            # of the database, so the total must be held constant as pods scale
+            # — otherwise "number of app instances" and "database concurrency"
+            # move together and the scale-out experiment measures both at once.
+            #
+            #   HikariCP guidance  (6 cores x 2) + 1 spindle = 13
+            #   Little's law       3,000 rps x 2.3ms hold    = 6.8
+            #   observed MySQL     threads_running           = 2-7
+            #
+            # 12 total is the declared operating point. Per-pod value is set at
+            # deploy time from POOL_PER_POD so the total stays 12:
+            #
+            #   pods 1 -> 12/pod    pods 2 -> 6/pod    pods 3 -> 4/pod
+            #
+            # The previous value (34/pod, 102 total) put 102 connections and
+            # 104 running threads on a 6-core database — 17x oversubscribed. It
+            # had been sized to absorb a 25ms CPU-throttled hold time rather
+            # than to match the database, which inflated SKIP LOCKED skip cost
+            # and made pool exhaustion look like the bottleneck.
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "12"
+            # minimum-idle below maximum lets the pool shrink when idle. The
+            # old min == max kept 103 MySQL connections open even at 11 rps.
+            - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+              value: "2"
+            # 요청이 커넥션을 기다리는 시간의 상한.
+            #
+            # 기본값 30초로는 풀이 마르면 요청 하나가 Tomcat 스레드를 30초 잡고
+            # 앉아 있는다. 스레드 200개가 그렇게 묶이면 헬스체크마저 처리되지
+            # 않아 liveness가 실패하고, kubelet이 파드를 SIGTERM으로 죽인다
+            # (실측: 600 rps에서 exit 143 재시작 3회, 5xx 29,540건).
+            # 과부하는 파드를 죽일 사유가 아니라 거절할 사유다. 2초 안에 못
+            # 얻으면 503으로 빠르게 돌려보내고 스레드를 회수한다.
+            - name: SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT
+              value: "2000"
+            # Tomcat 스레드를 풀 규모에 맞춘다.
+            #
+            # 스레드 200 : 커넥션 12는 25배 오버서브스크립션이라, 초과 요청이
+            # 앱 안에 큐로 쌓인다. 그 큐는 처리량을 늘리지 않고 지연과 컨텍스트
+            # 스위칭만 늘린다. 줄을 앱 스레드가 아니라 커넥션 획득 지점에서
+            # 서게 하고, 넘치면 거절한다.
+            - name: SERVER_TOMCAT_THREADS_MAX
+              value: "48"
+            - name: SERVER_TOMCAT_ACCEPT_COUNT
+              value: "64"
+            # actuator를 별도 커넥터로 뺀다.
+            #
+            # 8081 하나에 트래픽과 헬스체크와 스크레이프가 얹혀 있으면, 과부하
+            # 때 셋이 같이 굶는다. 실측에서 liveness 실패로 파드가 SIGTERM을
+            # 맞았고(exit 143), 동시에 http_server_requests 시리즈가 사라져
+            # 프리플라이트가 측정을 거부했다. 부하가 걸린 순간의 지표가 하필
+            # 그때 사라지는 구성이었다.
+            - name: MANAGEMENT_SERVER_PORT
+              value: "8091"
+            # Redis host/port were also live-only until 2026-08-12. Without
+            # them the `reserve-stock` write path (Redis-admitted reservation)
+            # fails outright, so a deploy from git could not reproduce the
+            # environment any recorded Redis-arm number was measured on.
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis-product-service"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
             - name: OTEL_SERVICE_NAME
               value: "service-product"
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "service.namespace=ecommerce,deployment.environment=gce,k8s.cluster.name=ecommerce-k3s"
           resources:
             requests:
-              memory: "768Mi"
-              cpu: "600m"
+              memory: "1536Mi"
+              cpu: "1500m"
             limits:
               memory: "1536Mi"
               cpu: "1500m"
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
-              port: 8081
+              port: 8091
             initialDelaySeconds: 90
             periodSeconds: 10
-            timeoutSeconds: 3
+            # readiness도 같은 스레드 풀에서 처리된다. 타임아웃이 3초면 과부하
+            # 때 파드가 엔드포인트에서 빠지고, 2파드 구성에서는 남은 한 쪽으로
+            # 부하가 통째로 몰려 그쪽도 빠진다(진동). 부하를 흘려보내는 것과
+            # 서비스에서 사라지는 것은 다른 문제다.
+            timeoutSeconds: 10
+            failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
-              port: 8081
+              port: 8091
             initialDelaySeconds: 180
             periodSeconds: 20
-            timeoutSeconds: 3
+            # liveness는 "프로세스가 살아있나"만 물어야 한다. 과부하로 응답이
+            # 늦어지는 것은 재시작할 사유가 아니고, 재시작하면 남은 파드로
+            # 부하가 몰려 연쇄가 된다. 타임아웃과 임계치를 늘려 순간 지연이
+            # 곧바로 SIGTERM으로 이어지지 않게 한다.
+            timeoutSeconds: 10
+            failureThreshold: 6
