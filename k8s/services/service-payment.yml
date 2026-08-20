@@ -35,7 +35,11 @@ spec:
         role: svc-payment
       containers:
         - name: service-payment
-          image: ecommerce/service-payment:latest
+          # Placeholder. The real image is injected at deploy time by the
+          # kustomize images transformer (k8s/services/kustomization.yml is the
+          # base; scripts/loadtest/deploy-phase.sh supplies newName/newTag).
+          # No registry, project id, or tag belongs in this file.
+          image: ecommerce/service-payment:UNSET
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8083

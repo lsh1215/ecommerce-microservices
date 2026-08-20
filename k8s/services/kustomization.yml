@@ -1,0 +1,17 @@
+# Base for the four backend services.
+#
+# The manifests carry a registry-less placeholder image (ecommerce/service-*:UNSET).
+# The real coordinate is supplied by an overlay through the images transformer, so no
+# project id, registry host, or tag is ever committed here. Applying this base directly
+# is expected to fail its image pull -- that failure is the point: it makes a missing
+# overlay loud instead of silently deploying whatever was last hardcoded.
+#
+# scripts/loadtest/deploy-phase.sh generates the overlay and asserts, after rendering,
+# that every container image was actually rewritten.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - service-order.yml
+  - service-product.yml
+  - service-payment.yml
+  - service-customer.yml

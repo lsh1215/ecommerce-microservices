@@ -38,10 +38,11 @@ spec:
         role: svc-product
       containers:
         - name: service-product
-          # Artifact Registry 경로. 이전 값 `ecommerce/service-product:latest`는
-          # docker.io로 해석돼 git에서 apply하면 ImagePullBackOff로 떨어졌다.
-          # 매니페스트만으로는 배포가 재현되지 않는 상태였다.
-          image: asia-northeast3-docker.pkg.dev/project-4605f2b6-fff1-4fc2-bdf/ecommerce/service-product:rev8
+          # Placeholder. The real image is injected at deploy time by the
+          # kustomize images transformer (k8s/services/kustomization.yml is the
+          # base; scripts/loadtest/deploy-phase.sh supplies newName/newTag).
+          # No registry, project id, or tag belongs in this file.
+          image: ecommerce/service-product:UNSET
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8081
