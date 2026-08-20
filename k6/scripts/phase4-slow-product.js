@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
 // Product가 느릴 때 Order 서비스의 반응을 측정한다.
@@ -22,16 +22,25 @@ export const options = {
   scenarios: {
     // Product 의존 경로다. dependency failure mode가 드러나는 쪽이다.
     order_creation: {
-      executor: 'constant-vus',
-      vus: 30,
+      executor: 'constant-arrival-rate',
+      rate: Number(__ENV.CREATE_RATE || 30),
+      timeUnit: '1s',
       duration: '30s',
+      preAllocatedVUs: 30,
+      maxVUs: 400,
       exec: 'createOrder',
     },
     // Product 비의존 control path다. isolation이 동작하면 빠르게 유지되어야 한다.
+    // control path 의 제공 부하는 의존 경로가 막히든 말든 일정해야 한다.
+    // constant-vus 였을 때는 두 경로가 각자 self-throttle 해서, control 이 빨랐던
+    // 것이 isolation 덕분인지 애초에 부하가 줄어서인지 구분되지 않았다.
     order_query: {
-      executor: 'constant-vus',
-      vus: 5,
+      executor: 'constant-arrival-rate',
+      rate: Number(__ENV.QUERY_RATE || 10),
+      timeUnit: '1s',
       duration: '30s',
+      preAllocatedVUs: 10,
+      maxVUs: 100,
       exec: 'queryOrders',
     },
   },
@@ -78,7 +87,6 @@ export function createOrder() {
     'order create: not 5xx other': (r) => r.status !== 500 && r.status !== 502 && r.status !== 504,
   });
 
-  sleep(0.1);
 }
 
 export function queryOrders() {
@@ -94,5 +102,4 @@ export function queryOrders() {
     'health query: fast (<500ms)': (r) => r.timings.duration < 500,
   });
 
-  sleep(0.5);
 }

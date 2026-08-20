@@ -1,25 +1,35 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 
 // 갑작스러운 트래픽 변화에서 Order 경로의 반응을 보는 짧은 spike 테스트.
 //
-// 정확한 capacity 테스트가 아니라 VU spike 테스트다. burst traffic에서 thread pool,
-// connection pool, timeout regression을 빠르게 잡는 용도로 사용한다.
+// 도착률을 짧은 시간에 끌어올려 burst traffic에서 thread pool, connection pool,
+// timeout regression을 잡는다. 용량을 재는 테스트가 아니므로 여기서 나온 처리량을
+// capacity로 인용하지 않는다. 보는 값은 부하가 걷힌 뒤의 회복 시간이다.
 
 const ORDER_API = __ENV.ORDER_API || 'http://localhost:8082';
 const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.sig'}`;
 
 export const options = {
   scenarios: {
+    // VU 를 올리는 것으로는 spike 가 만들어지지 않는다. VU 는 이전 응답을 받아야
+    // 다음 요청을 보내므로, 시스템이 느려지는 즉시 도착률이 따라 내려간다.
+    // 몰려드는 쪽을 재려면 도착률 자체를 올려야 한다.
+    //
+    // 마지막 두 구간은 회복 관측용이다. spike 테스트의 지표는 최대 처리량이 아니라
+    // 부하가 걷힌 뒤 언제 정상으로 돌아오는지다.
     spike: {
-      executor: 'ramping-vus',
-      startVUs: 0,
+      executor: 'ramping-arrival-rate',
+      startRate: Number(__ENV.BASE_RATE || 20),
+      timeUnit: '1s',
+      preAllocatedVUs: 50,
+      maxVUs: 1000,
       stages: [
-        // 짧게 warm-up한 뒤 급격히 올리고 다시 회복 구간을 둔다.
-        { duration: '10s', target: 10 },
-        { duration: '30s', target: 100 },
-        { duration: '10s', target: 10 },
-        { duration: '10s', target: 0 },
+        { duration: '10s', target: Number(__ENV.BASE_RATE || 20) },
+        { duration: '5s', target: Number(__ENV.PEAK_RATE || 400) },
+        { duration: '25s', target: Number(__ENV.PEAK_RATE || 400) },
+        { duration: '5s', target: Number(__ENV.BASE_RATE || 20) },
+        { duration: '20s', target: Number(__ENV.BASE_RATE || 20) },
       ],
     },
   },
@@ -60,5 +70,4 @@ export default function () {
     'status is 2xx': (r) => r.status >= 200 && r.status < 300,
   });
 
-  sleep(0.5);
 }

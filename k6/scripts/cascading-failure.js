@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check, sleep } from 'k6';
+import { check } from 'k6';
 
 // 의존 서비스 장애 상황을 보기 위한 지속적인 Order 트래픽.
 //
@@ -11,10 +11,20 @@ const AUTH_HEADER = `Bearer ${__ENV.JWT || 'eyJhbGciOiJub25lIn0.eyJzdWIiOiIxIn0.
 
 export const options = {
   scenarios: {
+    // 도착률 고정(open model)이어야 한다. constant-vus 로는 dependency 가 느려지는
+    // 순간 VU 가 응답을 기다리며 막혀 제공 부하가 함께 줄어들고, 그러면 Order 의
+    // 스레드와 커넥션은 끝내 소모되지 않는다. 소모되는 과정을 보려는 테스트가
+    // 소모를 막는 셈이었다.
+    //
+    // RATE 는 정상 용량보다 높게 잡아야 한다. 낮게 잡으면 dependency 가 죽어도
+    // 시스템이 따라가므로 아무 일도 일어나지 않는다.
     constant_load: {
-      executor: 'constant-vus',
-      vus: 20,
+      executor: 'constant-arrival-rate',
+      rate: Number(__ENV.RATE || 50),
+      timeUnit: '1s',
       duration: '60s',
+      preAllocatedVUs: 50,
+      maxVUs: 500,
     },
   },
   thresholds: {
@@ -58,5 +68,4 @@ export default function () {
     'not timeout': (r) => r.timings.duration < 10000,
   });
 
-  sleep(0.3);
 }
