@@ -56,18 +56,18 @@ spec:
           timeoutSeconds: 1
         resources:
           limits:
-            cpu: 700m
+            cpu: 400m
             memory: 1024Mi
           requests:
-            cpu: 200m
-            memory: 512Mi
+            cpu: 400m
+            memory: 1024Mi
         volumeMounts:
         - mountPath: /var/lib/mysql
           name: mysql-data
         - mountPath: /docker-entrypoint-initdb.d
           name: init
       nodeSelector:
-        role: db
+        role: db-shared
       volumes:
       - configMap:
           defaultMode: 420
@@ -85,7 +85,7 @@ spec:
     spec:
       accessModes:
       - ReadWriteOnce
-      storageClassName: standard
+      storageClassName: standard-rwo
       resources:
         requests:
           storage: 3Gi

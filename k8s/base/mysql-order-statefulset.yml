@@ -27,6 +27,11 @@ spec:
               key: DB_ROOT_PASSWORD
               name: ecommerce-secrets
         image: mysql:8.0
+        # 접수 트랜잭션(예약 row + outbox row)이 커밋되는 곳이라 이 DB의 커밋 성능이
+        # 곧 선착순 접수 처리량이다. 기본 128M 버퍼풀로는 인덱스조차 메모리에 못 얹는다.
+        args:
+        - --innodb-buffer-pool-size=2560M
+        - --innodb-buffer-pool-instances=4
         livenessProbe:
           exec:
             command:
@@ -54,20 +59,23 @@ spec:
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 1
+        # 700m / 1536Mi는 service-order(1,500m) 대비 지나치게 작아 DB를 인위적
+        # 병목으로 만들었다. mysql-product와 같은 형상(db.t3.medium 2 vCPU / 4GB)으로
+        # 맞춰, 접수 경로의 어느 계층이 먼저 포화하는지가 측정으로 드러나게 한다.
         resources:
           limits:
-            cpu: 1000m
-            memory: 1536Mi
+            cpu: 2000m
+            memory: 4Gi
           requests:
-            cpu: 350m
-            memory: 768Mi
+            cpu: 2000m
+            memory: 4Gi
         volumeMounts:
         - mountPath: /var/lib/mysql
           name: mysql-data
         - mountPath: /docker-entrypoint-initdb.d
           name: init
       nodeSelector:
-        role: db
+        role: db-shared
       volumes:
       - configMap:
           defaultMode: 420
@@ -85,9 +93,13 @@ spec:
     spec:
       accessModes:
       - ReadWriteOnce
-      storageClassName: standard
+      storageClassName: standard-rwo
       resources:
         requests:
+          # 라이브 PVC는 100Gi로 확장돼 있다. volumeClaimTemplates는 StatefulSet
+          # 생성 후 변경할 수 없어(kubectl apply가 거부) 여기 값은 최초 생성 시점의
+          # 3Gi로 남는다. phase4가 접수 병목 원인으로 지목한 "3Gi pd-balanced 커밋
+          # 지연"은 볼륨 확장으로 이미 해소된 상태다.
           storage: 3Gi
       volumeMode: Filesystem
 ---

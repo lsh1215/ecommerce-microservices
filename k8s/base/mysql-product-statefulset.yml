@@ -27,6 +27,34 @@ spec:
               key: DB_ROOT_PASSWORD
               name: ecommerce-secrets
         image: mysql:8.0
+        # MySQL 8.0 defaults innodb_buffer_pool_size to 128M regardless of the
+        # container's memory limit. On a 1536Mi container that leaves >1GB of
+        # the pod's own memory unused by the only thing that needs it.
+        #
+        # It mattered less than it looks so far only because the dataset was
+        # tiny: 50,000 product_variant rows is roughly 7.5MB, so every read was
+        # a buffer-pool hit and req-level primary CPU measured 0.73ms. That is
+        # a best case, not a realistic one, and every "the database is not the
+        # bottleneck" conclusion rests on it.
+        #
+        # 2560M is ~62% of the 4Gi container limit, the usual production ratio. Paired
+        # with a catalog larger than the pool (scripts/loadtest/seed-catalog.sql)
+        # this produces real misses instead of an all-memory benchmark.
+        args:
+        - --innodb-buffer-pool-size=2560M
+        - --innodb-buffer-pool-instances=4
+        # Replication source settings. The read-replica arm needs GTID on both
+        # ends; the primary was running with gtid_mode=OFF, so the replica's
+        # --gtid-mode=ON could never attach. Declared here rather than applied
+        # by hand, because a replication topology that only exists on the live
+        # cluster is the same class of drift as the connection pool that sat in
+        # `kubectl set env` for an entire campaign.
+        - --server-id=1
+        - --log-bin=mysql-bin
+        - --gtid-mode=ON
+        - --enforce-gtid-consistency=ON
+        # Keeps binlogs from filling the volume during a long load campaign.
+        - --binlog-expire-logs-seconds=86400
         livenessProbe:
           exec:
             command:
@@ -54,20 +82,52 @@ spec:
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 1
+        # Guaranteed QoS (request == limit): a benchmark whose CPU share depends
+        # on neighbouring pods is not reproducible run-to-run.
+        #
+        # 2 cores, matching a real small managed instance (db.t3.medium is
+        # 2 vCPU / 4GB). The previous 6 was sized for the hot-row argument —
+        # "give the database 2x headroom over its 3-core peak so nobody can say
+        # the single-row wall was CPU starvation" — and that value then stayed
+        # on for experiments it was never meant for.
+        #
+        # It quietly decided their outcome. Catalog reads cost 2.16ms of app CPU
+        # against 1.55ms of database CPU, so with 7.5 app cores against 6 database
+        # cores the application saturated first (3,474 vs 3,882 rps). At the knee
+        # the app sat at 98% with 84% CFS throttling while MySQL idled at 60%,
+        # which makes "the cache cut database CPU by 38%" a statement about a
+        # tier that was never the constraint.
+        #
+        # 7.5 : 2.0 is roughly 4:1, the ratio real deployments run — the app tier
+        # scales horizontally, the database does not.
+        # Memory: 1536Mi was inherited from the era when the whole dataset was
+        # 50,000 variant rows (~7.5MB) and the buffer pool sat at MySQL's 128M
+        # default. Raising the pool to 1G inside a 1536Mi container OOMKilled
+        # the process (exit 137) as soon as a catalog COUNT needed temp space:
+        # the pool leaves nothing for per-connection buffers, temp tables and
+        # InnoDB's own structures.
+        #
+        # 4Gi with a 2.5G pool is the usual production ratio (~62% of RAM) and
+        # keeps the 3.1GB catalog larger than the pool, which is the point —
+        # a dataset that fits entirely in memory measures a best case, not a
+        # system. The db-product node has 29GB allocatable, so this costs
+        # nothing that was being used.
         resources:
           limits:
-            cpu: 1000m
-            memory: 1536Mi
+            cpu: 2000m
+            memory: 4Gi
           requests:
-            cpu: 350m
-            memory: 768Mi
+            cpu: 2000m
+            memory: 4Gi
         volumeMounts:
         - mountPath: /var/lib/mysql
           name: mysql-data
         - mountPath: /docker-entrypoint-initdb.d
           name: init
       nodeSelector:
-        role: db
+        # Dedicated node: this is the system under test for the reservation
+        # benchmarks and must not share CPU with the other three MySQL pods.
+        role: db-product
       volumes:
       - configMap:
           defaultMode: 420
@@ -85,7 +145,7 @@ spec:
     spec:
       accessModes:
       - ReadWriteOnce
-      storageClassName: standard
+      storageClassName: standard-rwo
       resources:
         requests:
           storage: 3Gi
