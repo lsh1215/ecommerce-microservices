@@ -5,7 +5,18 @@ spring:
   application:
     name: service-product
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:ecommerce_product}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    # transaction_isolation은 세션 변수로 건다. 유닛 예약은 SELECT ... FOR UPDATE
+    # SKIP LOCKED로 도는데, MySQL 기본값인 REPEATABLE READ에서는 이 스캔이 갭 락까지
+    # 잡는다. SKIP LOCKED는 잠긴 row만 건너뛰고 갭은 건너뛰지 않으므로, AVAILABLE
+    # 유닛이 희소해질수록 서로 다른 row를 노린 트랜잭션이 같은 갭에서 다시 만나
+    # 대기하고 데드락이 난다.
+    #
+    # @Transactional(isolation = READ_COMMITTED)로는 걸리지 않는다. Hibernate가
+    # 트랜잭션 시작 시점에 JDBC 커넥션을 잡지 않아 Spring이 적용할 지점이 없고,
+    # 경고도 없이 무시된다(확인: performance_schema.variables_by_thread가 전부
+    # REPEATABLE-READ였다). spring.datasource.hikari.transaction-isolation도 안 된다
+    # 풀이 기동 후 설정을 봉인해서 기동 자체가 실패한다.
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3307}/${DB_NAME:ecommerce_product}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&sessionVariables=transaction_isolation='READ-COMMITTED'
     username: ${DB_USERNAME:sa}
     password: ${DB_PASSWORD:1234}
     driver-class-name: com.mysql.cj.jdbc.Driver

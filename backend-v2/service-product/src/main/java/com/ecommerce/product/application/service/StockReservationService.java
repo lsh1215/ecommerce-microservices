@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -47,7 +48,19 @@ public class StockReservationService {
         }
     }
 
-    @Transactional
+    /*
+     * READ COMMITTED로 고정한다. HOT 등급의 유닛 확보는
+     * SELECT ... FOR UPDATE SKIP LOCKED로 도는데, MySQL 기본값인 REPEATABLE READ에서는
+     * 이 스캔이 갭 락까지 잡는다. SKIP LOCKED는 이미 잠긴 row를 건너뛸 뿐 갭은 건너뛰지
+     * 않으므로, AVAILABLE 유닛이 희소해질수록(=재고가 소진될수록) 서로 다른 row를 노린
+     * 트랜잭션들이 같은 갭에서 다시 만나 대기하고 데드락이 난다. 경합을 없애려고 도입한
+     * 구조가 경합을 되살리는 셈이다.
+     *
+     * 기존에는 FlashReserveService와 FlashReserveGranter에만 이 격리수준이 걸려 있었다.
+     * 동기 예약 경로(이 클래스)는 지정이 없어 기본값으로 돌았고, 그래서 같은 SKIP LOCKED
+     * 구현이 진입 경로에 따라 다르게 동작했다.
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void reserve(Long variantId, Long orderId, int quantity) {
         if (quantity <= 0) {
             throw new BusinessException(ProductErrorCode.INSUFFICIENT_STOCK,
@@ -82,14 +95,14 @@ public class StockReservationService {
         stockReservationRepository.save(StockReservation.reserve(orderId, variantId, quantity));
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void release(Long variantId, Long orderId, int quantity) {
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
         reserverFor(variant).release(variantId, orderId, quantity);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void confirm(Long variantId, Long orderId, int quantity) {
         ProductVariant variant = productVariantRepository.findById(variantId)
                 .orElseThrow(() -> new BusinessException(ProductErrorCode.VARIANT_NOT_FOUND));
