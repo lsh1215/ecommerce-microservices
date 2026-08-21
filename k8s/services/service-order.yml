@@ -58,6 +58,15 @@ spec:
               value: "ecommerce_order"
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:mysql://mysql-order-service:3306/ecommerce_order?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul"
+            # Live-only until 2026-08-12, same drift as service-product. The
+            # flash-sale measurement found this service's pool at Spring's
+            # default of 10 and traced the 568 rps ceiling to it
+            # (pool 10 / 17.6ms commit); it was later raised to 34 with
+            # `kubectl set env`, so git still described the old behaviour.
+            - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
+              value: "34"
+            - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
+              value: "34"
             - name: PRODUCT_SERVICE_URL
               value: "http://service-product:8081"
             - name: OTEL_SERVICE_NAME
@@ -71,8 +80,8 @@ spec:
               value: "%d{ISO8601} %-5level [%thread] [traceId=%X{trace_id:-},spanId=%X{span_id:-}] %logger{36} - %msg%n"
           resources:
             requests:
-              memory: "768Mi"
-              cpu: "600m"
+              memory: "1536Mi"
+              cpu: "1500m"
             limits:
               memory: "1536Mi"
               cpu: "1500m"

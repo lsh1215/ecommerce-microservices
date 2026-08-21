@@ -32,7 +32,7 @@ spec:
         app: service-payment
     spec:
       nodeSelector:
-        role: svc-payment
+        role: svc-misc
       containers:
         - name: service-payment
           # Placeholder. The real image is injected at deploy time by the
@@ -69,11 +69,11 @@ spec:
               value: "%d{ISO8601} %-5level [%thread] [traceId=%X{trace_id:-},spanId=%X{span_id:-}] %logger{36} - %msg%n"
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "400m"
+              memory: "1024Mi"
+              cpu: "800m"
             limits:
               memory: "1024Mi"
-              cpu: "1000m"
+              cpu: "800m"
           # 90 × 5s = 7.5 min budget. OTel javaagent's first OTLP export to
           # Alloy can stall for ~1-2 min on cold start; default 30 fails when
           # a chaos cycle happens to coincide with Alloy restart.
