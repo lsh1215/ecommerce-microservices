@@ -107,6 +107,11 @@ spec:
             - --web.enable-remote-write-receiver
             - --web.listen-address=:9090
             - --web.enable-lifecycle
+            # delete_series / clean_tombstones. A load script that tags series
+            # per-URL can inject millions of series into the head, and without
+            # this the only remedy is wiping the whole TSDB. Evidence cluster
+            # only — this API is unauthenticated.
+            - --web.enable-admin-api
           ports:
             - containerPort: 9090
               name: http
@@ -117,17 +122,18 @@ spec:
               mountPath: /prometheus
           resources:
             # Prometheus head-block memory grows with active series count.
-            # On this cluster the scrape graph (7 nodes × kubelet + cadvisor
-            # + node-exporter + 7 alloy remote_write feeds + 4 mysqld-exporter
-            # + 12 application pods + kube-state-metrics) drives ingest
-            # comfortably past the old 512Mi ceiling, producing a ~30-min
-            # OOMKill cycle (exit 137, 254 restarts in 5 days). 2Gi limit
-            # gives ~3× the observed steady state working set on the
-            # 8 GiB monitoring node, which is still only ~25% of node
-            # memory and leaves coresident grafana/loki/tempo
-            # untouched.
-            requests: { cpu: 100m,  memory: 1Gi }
-            limits:   { cpu: 1500m, memory: 2Gi }
+            # The 2026-08-11 rebaseline campaign proved 2Gi is not enough:
+            # k6 remote_write adds ~36k short-lived series per run and 43 runs
+            # accumulated past the ceiling, so Prometheus sat in OOMKill
+            # (exit 137) through most of the campaign. The TSDB survived on
+            # the PVC but nothing was scraped while the process was down, and
+            # 10 of 43 measure windows ended up with zero metrics — no
+            # dashboard evidence could be produced for them afterwards.
+            # 6Gi is ~2.5x the observed post-campaign working set and still
+            # leaves headroom on the 16 GiB e2-highmem-2 monitoring node for
+            # coresident grafana/loki/tempo.
+            requests: { cpu: 200m,  memory: 2Gi }
+            limits:   { cpu: 1500m, memory: 6Gi }
           # Prometheus replays the WAL + head block on every cold start;
           # with a 3d retention / 2GB TSDB this regularly takes 60–180 s
           # and the process is CPU-bound (single-digit second responses

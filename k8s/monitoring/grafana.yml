@@ -166,6 +166,10 @@ spec:
               value: "%(protocol)s://%(domain)s/grafana/"
             - name: GF_SERVER_SERVE_FROM_SUB_PATH
               value: "true"
+            - name: GF_RENDERING_SERVER_URL
+              value: "http://grafana-image-renderer:8081/render"
+            - name: GF_RENDERING_CALLBACK_URL
+              value: "http://grafana:3000/grafana/"
           volumeMounts:
             - name: storage
               mountPath: /var/lib/grafana
@@ -234,3 +238,57 @@ spec:
     - name: http
       port: 3000
       targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana-image-renderer
+  namespace: monitoring
+  labels:
+    app: grafana-image-renderer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana-image-renderer
+  template:
+    metadata:
+      labels:
+        app: grafana-image-renderer
+    spec:
+      nodeSelector:
+        role: monitoring
+      containers:
+        - name: renderer
+          image: grafana/grafana-image-renderer:3.11.6
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: HTTP_HOST
+              value: "0.0.0.0"
+            - name: RENDERING_MODE
+              value: "reusable"
+            - name: RENDERING_CLUSTERING_MAX_CONCURRENCY
+              value: "2"
+            - name: ENABLE_METRICS
+              value: "false"
+          resources:
+            requests: { cpu: 100m, memory: 512Mi }
+            limits:   { cpu: 1000m, memory: 1536Mi }
+          readinessProbe:
+            httpGet: { path: /, port: 8081 }
+            initialDelaySeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-image-renderer
+  namespace: monitoring
+spec:
+  selector:
+    app: grafana-image-renderer
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
