@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-product
+  namespace: ecommerce
+spec:
+  serviceName: redis-product-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-product
+  template:
+    metadata:
+      labels:
+        app: redis-product
+    spec:
+      # Dedicated node. Redis previously ran on the monitoring node alongside
+      # Prometheus/Grafana/Loki/Tempo, which the 2026-08-11 audit already
+      # flagged: "Redis를 모니터링 노드에 동거시켜 Redis 지연이 E1과 다르다 ->
+      # 절대값은 비교 불가". A cache whose latency is contended by the metrics
+      # stack cannot be the subject of a cache experiment.
+      nodeSelector:
+        role: redis
+      containers:
+      - name: redis
+        image: redis:7.2-alpine
+        args:
+        - redis-server
+        # The catalog cache is a cache: losing it must cost throughput, never
+        # correctness, and the application falls through to MySQL on any Redis
+        # error. Persisting it buys nothing and appendfsync=everysec puts a
+        # write amplification cost on every cache fill.
+        - --appendonly
+        - "no"
+        - --save
+        - ""
+        # Bounded memory with LRU. Without a limit a cache grows until the
+        # container is OOMKilled; with it, cold entries are evicted and the hit
+        # rate degrades gracefully.
+        - --maxmemory
+        - 1500mb
+        - --maxmemory-policy
+        - allkeys-lru
+        ports:
+        - containerPort: 6379
+          name: redis
+        resources:
+          # 250m/256Mi was inherited from when Redis only held reservation
+          # counters. The catalog cache holds ~20,000 hot products plus their
+          # variants and the list pages for every filter combination, and has
+          # to answer at the same rate as the read load.
+          requests:
+            cpu: "1"
+            memory: 2Gi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+        readinessProbe:
+          exec:
+            command: [redis-cli, ping]
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          exec:
+            command: [redis-cli, ping]
+          initialDelaySeconds: 20
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-product-service
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: redis-product
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379

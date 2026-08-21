@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-product-replica
+  namespace: ecommerce
+spec:
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: mysql-product-replica
+  serviceName: mysql-product-replica-service
+  template:
+    metadata:
+      labels:
+        app: mysql-product-replica
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        imagePullPolicy: IfNotPresent
+        args:
+        - --server-id=2
+        - --log-bin=mysql-bin
+        - --gtid-mode=ON
+        - --enforce-gtid-consistency=ON
+        # The replica must be able to hold the same working set as the primary,
+        # otherwise the A/B measures "primary with a warm cache vs replica with
+        # a cold one" rather than read offloading. It ran with MySQL's 128M
+        # default inside a 1536Mi container while the primary had 2560M inside
+        # 4Gi, which would have made the replica look bad for the wrong reason.
+        - --innodb-buffer-pool-size=2560M
+        - --innodb-buffer-pool-instances=4
+        # A replica applies the primary's writes single-threaded by default;
+        # 4 appliers keep replication lag from becoming the thing under test.
+        - --replica-parallel-workers=4
+        - --replica-preserve-commit-order=ON
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: DB_ROOT_PASSWORD
+              name: ecommerce-secrets
+        ports:
+        - containerPort: 3306
+          name: mysql
+          protocol: TCP
+        livenessProbe:
+          exec:
+            command: [mysqladmin, ping, -h, localhost]
+          failureThreshold: 3
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command: [mysqladmin, ping, -h, localhost]
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        # Matches the primary's memory so the comparison isolates read routing.
+        # CPU is deliberately half the primary's 6: adding a replica in
+        # production is an increment on top of the primary, not a replacement,
+        # so the arm is "primary 6 + replica 3" against "primary 6 alone" and
+        # the +50% DB CPU is reported as the price of the arm.
+        resources:
+          limits:
+            cpu: "3"
+            memory: 4Gi
+          requests:
+            cpu: "3"
+            memory: 4Gi
+        volumeMounts:
+        - mountPath: /var/lib/mysql
+          name: mysql-data
+      nodeSelector:
+        role: db-replica
+      terminationGracePeriodSeconds: 30
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: [ReadWriteOnce]
+      # 3Gi could not hold the 3.3GB catalog the primary carries, and on
+      # pd-balanced the provisioned IOPS scale with size — the same trap that
+      # made the 3Gi primary volume produce 32% session-to-session variance
+      # before it was raised to 100GB. Matched to the primary for both reasons.
+      storageClassName: standard-rwo
+      resources:
+        requests:
+          storage: 100Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-product-replica-service
+  namespace: ecommerce
+spec:
+  clusterIP: None
+  selector:
+    app: mysql-product-replica
+  ports:
+  - name: mysql
+    port: 3306
+    targetPort: 3306
