@@ -6,9 +6,9 @@ metadata:
 data:
   SPRING_PROFILES_ACTIVE: "k8s"
   CORS_ALLOWED_ORIGINS: "http://localhost:3000"
-  # Single dedicated Kafka broker for cost-aware evidence runs.
-  KAFKA_BOOTSTRAP_SERVERS: "kafka-0.kafka-service.ecommerce.svc.cluster.local:9092"
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka-0.kafka-service.ecommerce.svc.cluster.local:9092"
+  # 3-broker in-node Kafka quorum (RF3/ISR2) for HA evidence runs.
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-0.kafka-service.ecommerce.svc.cluster.local:9092,kafka-1.kafka-service.ecommerce.svc.cluster.local:9092,kafka-2.kafka-service.ecommerce.svc.cluster.local:9092"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka-0.kafka-service.ecommerce.svc.cluster.local:9092,kafka-1.kafka-service.ecommerce.svc.cluster.local:9092,kafka-2.kafka-service.ecommerce.svc.cluster.local:9092"
   # Bootstrap schema on first deploy (application-k8s.yml sets validate which fails when tables don't exist)
   SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
   # service-order RestClient endpoints (RestClientConfig.java uses @Value("${app.services.X.url}"))
