@@ -15,7 +15,9 @@ public enum OrderErrorCode implements ErrorCodeBase {
     ORDER_CANCEL_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "ORDER_005", "Order cancellation not allowed"),
     PRODUCT_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ORDER_006", "Product service unavailable"),
     PAYMENT_FAILED(HttpStatus.BAD_GATEWAY, "ORDER_007", "Payment processing failed"),
-    INVALID_ORDER_ITEM(HttpStatus.BAD_REQUEST, "ORDER_008", "Invalid order item data");
+    INVALID_ORDER_ITEM(HttpStatus.BAD_REQUEST, "ORDER_008", "Invalid order item data"),
+    FLASH_SOLD_OUT(HttpStatus.CONFLICT, "ORDER_009", "재고가 소진되었습니다."),
+    FLASH_SUBMIT_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "ORDER_010", "접수에 실패했습니다. 다시 시도해 주세요.");
 
     private final HttpStatus status;
     private final String code;

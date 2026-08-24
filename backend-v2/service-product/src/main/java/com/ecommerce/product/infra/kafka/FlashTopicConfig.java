@@ -44,4 +44,23 @@ public class FlashTopicConfig {
                 .config("min.insync.replicas", "2")
                 .build();
     }
+
+    /**
+     * 매진 신호. 상품당 한 건이라 양이 아주 작다.
+     *
+     * <p>접수 파드마다 다른 group.id 로 구독하므로 파티션 수는 병렬성과 무관하다. 1로 두면
+     * 모든 상품의 신호가 한 파티션에 모여 새 파드가 한 번만 읽고 따라잡을 수 있다.
+     *
+     * <p>{@code compact} 로 두어 상품당 마지막 상태만 남긴다. 새로 뜬 파드가 처음부터 읽어도
+     * 이미 끝난 발매들의 신호를 전부 훑지 않는다.
+     */
+    @Bean
+    public NewTopic flashSaleSoldOutTopic() {
+        return TopicBuilder.name(KafkaTopics.FLASH_SALE_SOLD_OUT)
+                .partitions(1)
+                .replicas(3)
+                .config("min.insync.replicas", "2")
+                .config("cleanup.policy", "compact")
+                .build();
+    }
 }

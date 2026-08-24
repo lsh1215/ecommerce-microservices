@@ -1,11 +1,7 @@
 package com.ecommerce.order.infra.kafka.consumer;
 
 import com.ecommerce.common.config.KafkaTopics;
-import com.ecommerce.common.exception.BusinessException;
-import com.ecommerce.common.exception.CommonErrorCode;
 import com.ecommerce.order.application.service.FlashReservationService;
-import com.ecommerce.order.domain.model.FlashReservationStatus;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -14,8 +10,10 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 /**
- * granter가 발행한 {@code flash.reserve.result} 를 소비해 예약 상태를 확정한다.
- * GRANTED → RESERVED, 그 외 → SOLD_OUT. 상태 적용은 PENDING 에서 한 번만이라 재전송에도 멱등.
+ * 확보 성공 결과를 받아 승자 row 를 남긴다.
+ *
+ * <p>실패 결과는 오지 않는다. granter 가 발행하지 않기 때문이다. 탈락자마다 이벤트를 만들면
+ * 그 수가 재고와 무관하게 늘어나, 접수에서 DB 쓰기를 없앤 의미가 사라진다.
  */
 @Component
 @RequiredArgsConstructor
@@ -28,23 +26,18 @@ public class FlashReserveResultConsumer {
     @KafkaListener(
             topics = KafkaTopics.FLASH_RESERVE_RESULT,
             groupId = "${spring.kafka.consumer.group-id}",
-            containerFactory = "stringKafkaListenerContainerFactory"
-    )
+            containerFactory = "kafkaListenerContainerFactory")
     public void onResult(String message) {
-        JsonNode node = parse(message);
-        long reservationId = node.get("reservationId").asLong();
-        FlashReservationStatus status = "GRANTED".equals(node.get("status").asText())
-                ? FlashReservationStatus.RESERVED
-                : FlashReservationStatus.SOLD_OUT;
-        flashReservationService.applyResult(reservationId, status);
-    }
-
-    private JsonNode parse(String message) {
         try {
-            return objectMapper.readTree(message);
-        } catch (JsonProcessingException e) {
-            throw new BusinessException(CommonErrorCode.INVALID_INPUT,
-                    "malformed flash.reserve.result payload: " + e.getOriginalMessage());
+            JsonNode node = objectMapper.readTree(message);
+            flashReservationService.recordGranted(
+                    node.get("partition").asInt(),
+                    node.get("offset").asLong(),
+                    node.get("customerId").asLong(),
+                    node.get("variantId").asLong(),
+                    node.get("quantity").asInt());
+        } catch (Exception e) {
+            log.error("malformed flash.reserve.result: {}", message, e);
         }
     }
 }
