@@ -95,11 +95,11 @@ spec:
             # 인스턴스 수"와 "DB 동시성"이 함께 움직여 어느 쪽이 결과를 만들었는지
             # 알 수 없게 된다.
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
-              value: "4"
+              value: "8"
             # minimum-idle below maximum lets the pool shrink when idle. The
             # old min == max kept 103 MySQL connections open even at 11 rps.
             - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
-              value: "1"
+              value: "8"
             # 요청이 커넥션을 기다리는 시간의 상한.
             #
             # 기본값 30초로는 풀이 마르면 요청 하나가 Tomcat 스레드를 30초 잡고
