@@ -30,7 +30,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "stock_unit", indexes = {
         @Index(name = "ix_stock_unit_variant_status", columnList = "variant_id, status, id"),
-        @Index(name = "ix_stock_unit_order", columnList = "order_id, variant_id"),
+        @Index(name = "ix_stock_unit_holder", columnList = "holder_id, variant_id, holder_type"),
         // TTL 회수용. 이 인덱스가 없으면 리퍼의 WHERE status='RESERVED' AND
         // updated_at < ... 가 선행 컬럼이 variant_id인 인덱스를 못 타고 PRIMARY
         // 전체를 훑는다. 5초마다 도는 작업이라 유닛 100만 기준으로 상시 부하가
@@ -44,9 +44,19 @@ public class StockUnit extends BaseEntity {
     @Column(name = "variant_id", nullable = false)
     private Long variantId;
 
-    /** RESERVED/CONFIRMED일 때 그 유닛을 쥔 주문. AVAILABLE이면 null. */
-    @Column(name = "order_id")
-    private Long orderId;
+    /**
+     * RESERVED/CONFIRMED일 때 그 유닛을 쥔 주체. AVAILABLE이면 둘 다 null.
+     *
+     * <p>{@link StockUnitHolder}와 짝이어야 의미가 정해진다. 일반 예약이면 주문 id,
+     * 선착순 확보면 접수 메시지의 offset이다. 두 값은 번호 공간이 달라서 종류를 빼고
+     * 식별자만 비교하면 다른 주체의 유닛을 건드린다.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "holder_type", length = 10)
+    private StockUnitHolder holderType;
+
+    @Column(name = "holder_id")
+    private Long holderId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
