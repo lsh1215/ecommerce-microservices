@@ -64,9 +64,9 @@ spec:
             # (pool 10 / 17.6ms commit); it was later raised to 34 with
             # `kubectl set env`, so git still described the old behaviour.
             - name: SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE
-              value: "34"
+              value: "3"
             - name: SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE
-              value: "34"
+              value: "3"
             - name: PRODUCT_SERVICE_URL
               value: "http://service-product:8081"
             - name: OTEL_SERVICE_NAME

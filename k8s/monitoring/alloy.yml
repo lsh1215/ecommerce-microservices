@@ -188,31 +188,9 @@ data:
       role = "node"
     }
 
-    prometheus.scrape "kubelet_cadvisor" {
-      targets    = discovery.kubernetes.nodes.targets
-      forward_to = [prometheus.remote_write.local.receiver]
-      scheme     = "https"
-      tls_config {
-        ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-        insecure_skip_verify = true
-      }
-      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-      metrics_path      = "/metrics/cadvisor"
-      job_name          = "kubelet-cadvisor"
-    }
-
-    prometheus.scrape "kubelet" {
-      targets    = discovery.kubernetes.nodes.targets
-      forward_to = [prometheus.remote_write.local.receiver]
-      scheme     = "https"
-      tls_config {
-        ca_file              = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-        insecure_skip_verify = true
-      }
-      bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-      metrics_path      = "/metrics"
-      job_name          = "kubelet"
-    }
+    // kubelet / cadvisor 스크랩은 프로메테우스로 옮겼다. alloy 는 노드마다 하나씩 도는데
+    // 각 인스턴스가 모든 노드를 긁어 같은 시리즈를 여러 곳에서 써넣었고, 프로메테우스는
+    // 순서 어긋난 샘플을 거부하므로 컨테이너 CPU 에 구멍이 났다.
 
     // ── Kafka exporter (built-in) ───────────────────────────────────────────
     // Disabled: built-in kafka exporter does a strict-init Sarama dial that

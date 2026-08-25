@@ -26,7 +26,7 @@ public class FlashReserveResultConsumer {
     @KafkaListener(
             topics = KafkaTopics.FLASH_RESERVE_RESULT,
             groupId = "${spring.kafka.consumer.group-id}",
-            containerFactory = "kafkaListenerContainerFactory")
+            containerFactory = "stringKafkaListenerContainerFactory")
     public void onResult(String message) {
         try {
             JsonNode node = objectMapper.readTree(message);

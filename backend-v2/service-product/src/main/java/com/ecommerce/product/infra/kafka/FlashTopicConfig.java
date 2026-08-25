@@ -27,10 +27,34 @@ import org.springframework.kafka.config.TopicBuilder;
 @Configuration
 public class FlashTopicConfig {
 
+    /**
+     * 파티션 수는 동시에 도는 발매가 서로를 얼마나 기다리는지를 정한다.
+     *
+     * <p>상품은 키 해시로 파티션에 배정되므로 <b>상품마다 전용 파티션이 배정되지 않는다.</b>
+     * 같은 파티션에 걸린 상품들은 한 컨슈머가 차례로 처리하므로 뒤엣것이 앞엣것을 기다린다.
+     *
+     * <p>동시 발매 N 개를 파티션 P 개에 흩뿌렸을 때 가장 붐비는 파티션의 상품 수(p95, 1,000회
+     * 시뮬레이션):
+     *
+     * <pre>
+     *   P=12   N=10 -> 4개   N=20 -> 6개   N=50 -> 10개
+     *   P=32   N=10 -> 3개   N=20 -> 4개   N=50 ->  6개
+     *   P=64   N=10 -> 2개   N=20 -> 3개   N=50 ->  5개
+     *   P=128  N=10 -> 2개   N=20 -> 3개   N=50 ->  4개
+     * </pre>
+     *
+     * <p>64 가 곡선의 무릎이다. 128 로 두 배 늘려도 N=20 에서 같고 N=50 에서만 하나 준다.
+     *
+     * <p>파티션으로는 바닥을 못 내린다. 겹침이 없어도 상품 하나의 확보 시간(재고 / 확보
+     * 처리량)은 그대로다. 그건 배치 확보로 푸는 문제다.
+     *
+     * <p><b>발매 중에 파티션 수를 바꾸면 안 된다.</b> 늘리는 순간 키 해시의 나머지가 달라져
+     * 같은 상품의 뒤 메시지가 다른 파티션으로 가고, 두 파티션 사이에는 순서가 없다.
+     */
     @Bean
     public NewTopic flashReserveRequestedTopic() {
         return TopicBuilder.name(KafkaTopics.FLASH_RESERVE_REQUESTED)
-                .partitions(12)
+                .partitions(64)
                 .replicas(3)
                 .config("min.insync.replicas", "2")
                 .build();
@@ -39,7 +63,7 @@ public class FlashTopicConfig {
     @Bean
     public NewTopic flashReserveResultTopic() {
         return TopicBuilder.name(KafkaTopics.FLASH_RESERVE_RESULT)
-                .partitions(12)
+                .partitions(64)
                 .replicas(3)
                 .config("min.insync.replicas", "2")
                 .build();

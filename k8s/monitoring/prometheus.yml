@@ -44,6 +44,43 @@ data:
       # `db` Service label onto every metric so dashboards can split by
       # database. Existing ClusterRole at lines 133-145 already grants
       # services + endpoints get/list/watch.
+      # 컨테이너 CPU/스로틀. alloy 는 노드마다 하나씩 도는데 각 인스턴스가 모든 노드를
+      # 긁어 같은 시리즈를 여러 곳에서 써넣었고, 프로메테우스가 순서 어긋난 샘플을 버려
+      # 구멍이 났다. 단일 인스턴스인 프로메테우스가 직접 긁으면 기록자가 하나뿐이다.
+      - job_name: kubelet-cadvisor
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+      - job_name: kubelet
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          insecure_skip_verify: true
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        kubernetes_sd_configs:
+          - role: node
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+          - target_label: __address__
+            replacement: kubernetes.default.svc:443
+          - source_labels: [__meta_kubernetes_node_name]
+            regex: (.+)
+            target_label: __metrics_path__
+            replacement: /api/v1/nodes/${1}/proxy/metrics
       - job_name: mysqld-exporter
         kubernetes_sd_configs:
           - role: endpoints
