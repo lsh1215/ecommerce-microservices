@@ -167,7 +167,7 @@ WHERE v.stock_contention = 'POPULAR';
 -- HOT: 옵션당 유닛 row. 선착순 규모(옵션당 수천)를 가정한다.
 TRUNCATE TABLE stock_unit;
 SET SESSION cte_max_recursion_depth = 200000;
-INSERT INTO stock_unit (created_at, updated_at, order_id, status, variant_id)
+INSERT INTO stock_unit (created_at, updated_at, holder_id, status, variant_id)
 SELECT NOW(6), NOW(6), NULL, 'AVAILABLE', v.id
 FROM product_variant v
 JOIN (WITH RECURSIVE u(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM u WHERE n < 5000) SELECT n FROM u) t

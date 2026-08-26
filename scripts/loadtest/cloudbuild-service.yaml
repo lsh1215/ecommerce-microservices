@@ -1,0 +1,16 @@
+# Cloud Build config: build one backend service image (amd64) and push to Artifact Registry.
+# Context = a worktree's backend-v2/ dir. Substitutions: _SERVICE, _IMAGE.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - --build-arg
+      - SERVICE_NAME=${_SERVICE}
+      - -t
+      - ${_IMAGE}
+      - .
+images:
+  - ${_IMAGE}
+options:
+  machineType: E2_HIGHCPU_8
+timeout: 2400s

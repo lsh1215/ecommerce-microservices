@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-ev-lock2
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-ev-lock2.json: |
+    {
+      "uid": "ecommerce-ev-lock2",
+      "title": "Ecommerce EV Lock Hold",
+      "tags": ["ecommerce", "evidence"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "time": { "from": "now-15m", "to": "now" },
+      "templating": { "list": [
+        { "name": "testid", "type": "textbox", "current": {"text":"atomic-ramp","value":"atomic-ramp"} }
+      ] },
+      "panels": [
+        { "id":1, "type":"timeseries", "title":"InnoDB 행 락 평균 대기 시간(ms) & 락 획득 처리량(/s)",
+          "gridPos":{"x":0,"y":0,"w":13,"h":9},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"ms","custom":{"drawStyle":"line","fillOpacity":18,"lineWidth":3,"lineInterpolation":"smooth","showPoints":"never","axisPlacement":"left"}},
+            "overrides":[
+              {"matcher":{"id":"byName","options":"락 획득 처리량 (/s)"},"properties":[
+                {"id":"custom.axisPlacement","value":"right"},{"id":"unit","value":"reqps"},
+                {"id":"color","value":{"mode":"fixed","fixedColor":"green"}}]},
+              {"matcher":{"id":"byName","options":"평균 행 락 대기 (ms)"},"properties":[
+                {"id":"color","value":{"mode":"fixed","fixedColor":"orange"}}]}
+            ]},
+          "options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+          "targets":[
+            {"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+             "expr":"rate(mysql_global_status_innodb_row_lock_time[30s]) / clamp_min(rate(mysql_global_status_innodb_row_lock_waits[30s]),1)","legendFormat":"평균 행 락 대기 (ms)"},
+            {"refId":"B","datasource":{"type":"prometheus","uid":"prometheus"},
+             "expr":"sum(rate(k6_reserve_2xx_total{testid=~\"$testid\"}[30s]))","legendFormat":"락 획득 처리량 (/s)"}
+          ] },
+        { "id":2, "type":"timeseries", "title":"동시 락 대기 트랜잭션 수 (current row-lock waiters)",
+          "gridPos":{"x":13,"y":0,"w":11,"h":9},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"short","custom":{"drawStyle":"line","fillOpacity":18,"lineWidth":3,"lineInterpolation":"smooth","showPoints":"never"},"color":{"mode":"fixed","fixedColor":"red"}},"overrides":[]},
+          "options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"mysql_global_status_innodb_row_lock_current_waits","legendFormat":"current waiters"}] }
+      ]
+    }

@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-ev-k6ts
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-ev-k6ts.json: |
+    {
+      "uid": "ecommerce-ev-k6ts",
+      "title": "Ecommerce EV k6 Scenario TS",
+      "tags": ["ecommerce", "evidence"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 4,
+      "editable": true,
+      "time": { "from": "now-15m", "to": "now" },
+      "templating": { "list": [
+        { "name": "write_path", "type": "textbox", "current": {"text":".*","value":".*"} }
+      ] },
+      "panels": [
+        { "id":1, "type":"timeseries", "title":"Throughput by test (reserve 2xx/s)",
+          "gridPos":{"x":0,"y":0,"w":12,"h":9},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"reqps","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2,"lineInterpolation":"linear","showPoints":"always","pointSize":6},"color":{"mode":"fixed","fixedColor":"green"}},"overrides":[]},
+          "options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"sum by (write_path, pods)(rate(k6_reserve_2xx_total{write_path=~\"$write_path\", scenario=\"reserve\"}[30s]))","legendFormat":"{{write_path}} pods={{pods}}"}] },
+        { "id":2, "type":"timeseries", "title":"Scenario p99 latency",
+          "gridPos":{"x":12,"y":0,"w":12,"h":9},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"s","custom":{"drawStyle":"line","fillOpacity":10,"lineWidth":2,"lineInterpolation":"linear","showPoints":"always","pointSize":6},"color":{"mode":"fixed","fixedColor":"green"}},"overrides":[]},
+          "options":{"legend":{"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"single"}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"max by (write_path, pods)(k6_reserve_ms_p99{write_path=~\"$write_path\", scenario=\"reserve\"})","legendFormat":"p99 {{write_path}} pods={{pods}}"}] }
+      ]
+    }
