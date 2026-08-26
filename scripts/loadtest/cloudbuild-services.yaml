@@ -1,0 +1,17 @@
+# Cloud Build: build all 4 backend service images (amd64) from one worktree's
+# backend-v2/ context and push to Artifact Registry. Substitutions: _REPO, _TAG.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--build-arg', 'SERVICE_NAME=service-order', '-t', '${_REPO}/service-order:${_TAG}', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--build-arg', 'SERVICE_NAME=service-product', '-t', '${_REPO}/service-product:${_TAG}', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--build-arg', 'SERVICE_NAME=service-payment', '-t', '${_REPO}/service-payment:${_TAG}', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--build-arg', 'SERVICE_NAME=service-customer', '-t', '${_REPO}/service-customer:${_TAG}', '.']
+images:
+  - '${_REPO}/service-order:${_TAG}'
+  - '${_REPO}/service-product:${_TAG}'
+  - '${_REPO}/service-payment:${_TAG}'
+  - '${_REPO}/service-customer:${_TAG}'
+timeout: 3600s

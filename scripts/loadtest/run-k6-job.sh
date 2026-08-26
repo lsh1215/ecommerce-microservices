@@ -69,6 +69,9 @@ metadata:
 spec:
   backoffLimit: 0
   template:
+    metadata:
+      labels:
+        app: k6
     spec:
       nodeSelector:
         role: loadgen
@@ -120,7 +123,8 @@ fi
 # measurement of anything, and capturing dashboards for it manufactures
 # evidence for a broken system. Checked before capture so the failure is
 # attributed to the run, not to the renderer.
-python3 - "$OUT/logs/k6-summary.json" <<'PYEOF' || exit 1
+VALIDITY_RC=0
+python3 - "$OUT/logs/k6-summary.json" <<'PYEOF' > "$OUT/VALIDITY" 2>&1 || VALIDITY_RC=$?
 import json, os, sys
 
 path = sys.argv[1]
@@ -164,6 +168,7 @@ if dropped > 0:
           f"Run is valid; treat post-knee throughput as censored.")
 print(f"[run-k6-job] validity OK: {reqs:.0f} reqs, failed={failed:.2%}, dropped=0")
 PYEOF
+cat "$OUT/VALIDITY"
 
 # Contamination gate 4: CFS throttling. A container can sit at 73% average CPU
 # and still be throttled in 99% of its 100ms quota periods, because the average
@@ -172,7 +177,7 @@ PYEOF
 # like a database problem. The 2026-08-12 read-path knee was exactly this, and
 # flash-sale hit the same trap on the write path. A run measured above the
 # throttle knee measures the CPU limit, not the code.
-python3 - "$OUT" <<'PYEOF' || exit 1
+python3 - "$OUT" <<'PYEOF' || true
 import json, os, subprocess, sys, urllib.parse
 
 out = sys.argv[1]
@@ -232,3 +237,10 @@ if [ "$SHOTS" -eq 0 ]; then
   exit 1
 fi
 echo "[run-k6-job] captured $SHOTS dashboard PNG(s) -> $OUT/screenshots"
+
+# 판정은 여기서 종료코드로 낸다. 게이트에서 곧장 빠져나가면 캡처 단계에 닿지 못해,
+# 그 런이 무엇을 했는지 보여줄 그림까지 함께 사라진다.
+if [ "${VALIDITY_RC:-0}" -ne 0 ]; then
+  echo "[run-k6-job] 유효성 게이트 미통과. $OUT/VALIDITY 참조."
+  exit "$VALIDITY_RC"
+fi

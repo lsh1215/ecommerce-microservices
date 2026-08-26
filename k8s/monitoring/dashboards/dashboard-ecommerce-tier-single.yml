@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-ecommerce-tier-single
+  namespace: monitoring
+  labels:
+    grafana_dashboard: '1'
+data:
+  tier-single.json: "{\n  \"uid\": \"ecommerce-tier-single\",\n  \"title\": \"예약 방식\
+    \ 단일 arm\",\n  \"timezone\": \"Asia/Seoul\",\n  \"schemaVersion\": 39,\n  \"refresh\"\
+    : \"\",\n  \"time\": {\n    \"from\": \"now-3h\",\n    \"to\": \"now\"\n  },\n\
+    \  \"templating\": {\n    \"list\": [\n      {\n        \"name\": \"arm\",\n \
+    \       \"type\": \"textbox\",\n        \"label\": \"arm\",\n        \"query\"\
+    : \"fx3n-75\",\n        \"current\": {\n          \"text\": \"fx3n-75\",\n   \
+    \       \"value\": \"fx3n-75\"\n        }\n      }\n    ]\n  },\n  \"panels\"\
+    : [\n    {\n      \"type\": \"timeseries\",\n      \"title\": \"성공 처리량 (req/s)\"\
+    ,\n      \"gridPos\": {\n        \"h\": 9,\n        \"w\": 12,\n        \"x\"\
+    : 0,\n        \"y\": 0\n      },\n      \"datasource\": {\n        \"type\": \"\
+    prometheus\",\n        \"uid\": \"prometheus\"\n      },\n      \"targets\": [\n\
+    \        {\n          \"expr\": \"sum(rate(k6_reserve_2xx_total{arm=~\\\"$arm\\\
+    \"}[1m]))\",\n          \"legendFormat\": \"rps\",\n          \"refId\": \"A\"\
+    \n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n   \
+    \       \"custom\": {\n            \"lineWidth\": 2,\n            \"fillOpacity\"\
+    : 16,\n            \"showPoints\": \"never\"\n          },\n          \"min\"\
+    : 0,\n          \"unit\": \"reqps\",\n          \"max\": 450\n        },\n   \
+    \     \"overrides\": []\n      },\n      \"options\": {\n        \"legend\": {\n\
+    \          \"showLegend\": false\n        },\n        \"tooltip\": {\n       \
+    \   \"mode\": \"single\"\n        }\n      }\n    },\n    {\n      \"type\": \"\
+    timeseries\",\n      \"title\": \"예약 지연 p95\",\n      \"gridPos\": {\n       \
+    \ \"h\": 9,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 0\n      },\n\
+    \      \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\":\
+    \ \"prometheus\"\n      },\n      \"targets\": [\n        {\n          \"expr\"\
+    : \"max(k6_reserve_ms_p95{arm=~\\\"$arm\\\"})\",\n          \"legendFormat\":\
+    \ \"p95\",\n          \"refId\": \"A\"\n        }\n      ],\n      \"fieldConfig\"\
+    : {\n        \"defaults\": {\n          \"custom\": {\n            \"lineWidth\"\
+    : 2,\n            \"fillOpacity\": 16,\n            \"showPoints\": \"never\"\n\
+    \          },\n          \"min\": 0,\n          \"unit\": \"s\",\n          \"\
+    max\": 0.07\n        },\n        \"overrides\": []\n      },\n      \"options\"\
+    : {\n        \"legend\": {\n          \"showLegend\": false\n        },\n    \
+    \    \"tooltip\": {\n          \"mode\": \"single\"\n        }\n      }\n    },\n\
+    \    {\n      \"type\": \"timeseries\",\n      \"title\": \"InnoDB 행 락 대기 (waits/s)\"\
+    ,\n      \"gridPos\": {\n        \"h\": 9,\n        \"w\": 12,\n        \"x\"\
+    : 0,\n        \"y\": 9\n      },\n      \"datasource\": {\n        \"type\": \"\
+    prometheus\",\n        \"uid\": \"prometheus\"\n      },\n      \"targets\": [\n\
+    \        {\n          \"expr\": \"sum(rate(mysql_global_status_innodb_row_lock_waits{db=\\\
+    \"product\\\"}[1m])) and on() (sum(rate(k6_reserve_2xx_total{arm=~\\\"$arm\\\"\
+    }[1m])) > 0)\",\n          \"legendFormat\": \"waits/s\",\n          \"refId\"\
+    : \"A\"\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\":\
+    \ {\n          \"custom\": {\n            \"lineWidth\": 2,\n            \"fillOpacity\"\
+    : 16,\n            \"showPoints\": \"never\"\n          },\n          \"min\"\
+    : 0,\n          \"decimals\": 2,\n          \"max\": 1.5\n        },\n       \
+    \ \"overrides\": []\n      },\n      \"options\": {\n        \"legend\": {\n \
+    \         \"showLegend\": false\n        },\n        \"tooltip\": {\n        \
+    \  \"mode\": \"single\"\n        }\n      }\n    },\n    {\n      \"type\": \"\
+    timeseries\",\n      \"title\": \"MySQL CPU (코어)\",\n      \"gridPos\": {\n  \
+    \      \"h\": 9,\n        \"w\": 12,\n        \"x\": 12,\n        \"y\": 9\n \
+    \     },\n      \"datasource\": {\n        \"type\": \"prometheus\",\n       \
+    \ \"uid\": \"prometheus\"\n      },\n      \"targets\": [\n        {\n       \
+    \   \"expr\": \"sum(rate(container_cpu_usage_seconds_total{namespace=\\\"ecommerce\\\
+    \", pod=~\\\"mysql-product-.*\\\", container!=\\\"\\\", container!=\\\"POD\\\"\
+    }[1m])) and on() (sum(rate(k6_reserve_2xx_total{arm=~\\\"$arm\\\"}[1m])) > 0)\"\
+    ,\n          \"legendFormat\": \"cores\",\n          \"refId\": \"A\"\n      \
+    \  }\n      ],\n      \"fieldConfig\": {\n        \"defaults\": {\n          \"\
+    custom\": {\n            \"lineWidth\": 2,\n            \"fillOpacity\": 16,\n\
+    \            \"showPoints\": \"never\"\n          },\n          \"min\": 0,\n\
+    \          \"decimals\": 2,\n          \"max\": 1.6\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"legend\": {\n          \"showLegend\"\
+    : false\n        },\n        \"tooltip\": {\n          \"mode\": \"single\"\n\
+    \        }\n      }\n    }\n  ]\n}"

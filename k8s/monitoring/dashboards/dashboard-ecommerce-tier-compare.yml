@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-ecommerce-tier-compare
+  namespace: monitoring
+  labels:
+    grafana_dashboard: '1'
+data:
+  tier-compare.json: "{\n  \"uid\": \"ecommerce-tier-compare\",\n  \"title\": \"Atomic\
+    \ UPDATE vs SKIP LOCKED\",\n  \"tags\": [\n    \"evidence\",\n    \"hot-row\"\n\
+    \  ],\n  \"timezone\": \"Asia/Seoul\",\n  \"schemaVersion\": 39,\n  \"refresh\"\
+    : \"\",\n  \"time\": {\n    \"from\": \"now-3h\",\n    \"to\": \"now\"\n  },\n\
+    \  \"templating\": {\n    \"list\": [\n      {\n        \"name\": \"normal\",\n\
+    \        \"type\": \"textbox\",\n        \"label\": \"Atomic UPDATE arm\",\n \
+    \       \"query\": \"fx3n-75\",\n        \"current\": {\n          \"text\": \"\
+    fx3n-75\",\n          \"value\": \"fx3n-75\"\n        }\n      },\n      {\n \
+    \       \"name\": \"hot\",\n        \"type\": \"textbox\",\n        \"label\"\
+    : \"SKIP LOCKED arm\",\n        \"query\": \"fx3h-400\",\n        \"current\"\
+    : {\n          \"text\": \"fx3h-400\",\n          \"value\": \"fx3h-400\"\n  \
+    \      }\n      }\n    ]\n  },\n  \"panels\": [\n    {\n      \"type\": \"timeseries\"\
+    ,\n      \"title\": \"성공 처리량 (req/s)\",\n      \"gridPos\": {\n        \"h\":\
+    \ 9,\n        \"w\": 12,\n        \"x\": 0,\n        \"y\": 0\n      },\n    \
+    \  \"datasource\": {\n        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\
+    \n      },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(k6_reserve_2xx_total{arm=~\\\
+    \"$normal\\\"}[1m])) > 0\",\n          \"legendFormat\": \"단일 row Atomic UPDATE\"\
+    ,\n          \"refId\": \"A\"\n        },\n        {\n          \"expr\": \"sum(rate(k6_reserve_2xx_total{arm=~\\\
+    \"$hot\\\"}[1m])) > 0\",\n          \"legendFormat\": \"유닛 row + SKIP LOCKED\"\
+    ,\n          \"refId\": \"B\"\n        }\n      ],\n      \"fieldConfig\": {\n\
+    \        \"defaults\": {\n          \"custom\": {\n            \"lineWidth\":\
+    \ 2,\n            \"fillOpacity\": 14,\n            \"showPoints\": \"never\"\n\
+    \          },\n          \"unit\": \"reqps\"\n        },\n        \"overrides\"\
+    : []\n      },\n      \"options\": {\n        \"legend\": {\n          \"displayMode\"\
+    : \"list\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n\
+    \        },\n        \"tooltip\": {\n          \"mode\": \"multi\"\n        }\n\
+    \      }\n    },\n    {\n      \"type\": \"timeseries\",\n      \"title\": \"\
+    예약 지연 p95\",\n      \"gridPos\": {\n        \"h\": 9,\n        \"w\": 12,\n  \
+    \      \"x\": 12,\n        \"y\": 0\n      },\n      \"datasource\": {\n     \
+    \   \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n   \
+    \   \"targets\": [\n        {\n          \"expr\": \"max(k6_reserve_ms_p95{arm=~\\\
+    \"$normal\\\"}) > 0\",\n          \"legendFormat\": \"단일 row Atomic UPDATE\",\n\
+    \          \"refId\": \"A\"\n        },\n        {\n          \"expr\": \"max(k6_reserve_ms_p95{arm=~\\\
+    \"$hot\\\"}) > 0\",\n          \"legendFormat\": \"유닛 row + SKIP LOCKED\",\n \
+    \         \"refId\": \"B\"\n        }\n      ],\n      \"fieldConfig\": {\n  \
+    \      \"defaults\": {\n          \"custom\": {\n            \"lineWidth\": 2,\n\
+    \            \"fillOpacity\": 14,\n            \"showPoints\": \"never\"\n   \
+    \       },\n          \"unit\": \"s\"\n        },\n        \"overrides\": []\n\
+    \      },\n      \"options\": {\n        \"legend\": {\n          \"displayMode\"\
+    : \"list\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n\
+    \        },\n        \"tooltip\": {\n          \"mode\": \"multi\"\n        }\n\
+    \      }\n    },\n    {\n      \"type\": \"timeseries\",\n      \"title\": \"\
+    InnoDB 행 락 대기 (waits/s)\",\n      \"gridPos\": {\n        \"h\": 9,\n        \"\
+    w\": 12,\n        \"x\": 0,\n        \"y\": 9\n      },\n      \"datasource\"\
+    : {\n        \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n    \
+    \  },\n      \"targets\": [\n        {\n          \"expr\": \"sum(rate(mysql_global_status_innodb_row_lock_waits{db=\\\
+    \"product\\\"}[1m])) and on() (sum(rate(k6_reserve_2xx_total{arm=~\\\"$normal\\\
+    \"}[1m])) > 0)\",\n          \"legendFormat\": \"단일 row Atomic UPDATE\",\n   \
+    \       \"refId\": \"A\"\n        },\n        {\n          \"expr\": \"sum(rate(mysql_global_status_innodb_row_lock_waits{db=\\\
+    \"product\\\"}[1m])) and on() (sum(rate(k6_reserve_2xx_total{arm=~\\\"$hot\\\"\
+    }[1m])) > 0)\",\n          \"legendFormat\": \"유닛 row + SKIP LOCKED\",\n     \
+    \     \"refId\": \"B\"\n        }\n      ],\n      \"fieldConfig\": {\n      \
+    \  \"defaults\": {\n          \"custom\": {\n            \"lineWidth\": 2,\n \
+    \           \"fillOpacity\": 14,\n            \"showPoints\": \"never\"\n    \
+    \      },\n          \"decimals\": 2\n        },\n        \"overrides\": []\n\
+    \      },\n      \"options\": {\n        \"legend\": {\n          \"displayMode\"\
+    : \"list\",\n          \"placement\": \"bottom\",\n          \"showLegend\": true\n\
+    \        },\n        \"tooltip\": {\n          \"mode\": \"multi\"\n        }\n\
+    \      }\n    },\n    {\n      \"type\": \"timeseries\",\n      \"title\": \"\
+    MySQL CPU (코어)\",\n      \"gridPos\": {\n        \"h\": 9,\n        \"w\": 12,\n\
+    \        \"x\": 12,\n        \"y\": 9\n      },\n      \"datasource\": {\n   \
+    \     \"type\": \"prometheus\",\n        \"uid\": \"prometheus\"\n      },\n \
+    \     \"targets\": [\n        {\n          \"expr\": \"sum(rate(container_cpu_usage_seconds_total{namespace=\\\
+    \"ecommerce\\\", pod=~\\\"mysql-product-.*\\\", container!=\\\"\\\", container!=\\\
+    \"POD\\\"}[1m])) and on() (sum(rate(k6_reserve_2xx_total{arm=~\\\"$normal\\\"\
+    }[1m])) > 0)\",\n          \"legendFormat\": \"단일 row Atomic UPDATE\",\n     \
+    \     \"refId\": \"A\"\n        },\n        {\n          \"expr\": \"sum(rate(container_cpu_usage_seconds_total{namespace=\\\
+    \"ecommerce\\\", pod=~\\\"mysql-product-.*\\\", container!=\\\"\\\", container!=\\\
+    \"POD\\\"}[1m])) and on() (sum(rate(k6_reserve_2xx_total{arm=~\\\"$hot\\\"}[1m]))\
+    \ > 0)\",\n          \"legendFormat\": \"유닛 row + SKIP LOCKED\",\n          \"\
+    refId\": \"B\"\n        }\n      ],\n      \"fieldConfig\": {\n        \"defaults\"\
+    : {\n          \"custom\": {\n            \"lineWidth\": 2,\n            \"fillOpacity\"\
+    : 14,\n            \"showPoints\": \"never\"\n          },\n          \"decimals\"\
+    : 2\n        },\n        \"overrides\": []\n      },\n      \"options\": {\n \
+    \       \"legend\": {\n          \"displayMode\": \"list\",\n          \"placement\"\
+    : \"bottom\",\n          \"showLegend\": true\n        },\n        \"tooltip\"\
+    : {\n          \"mode\": \"multi\"\n        }\n      }\n    }\n  ]\n}"

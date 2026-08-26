@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-ecommerce-ev-reserve
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  ecommerce-ev-reserve.json: |
+    {
+      "uid": "ecommerce-ev-reserve",
+      "title": "Ecommerce EV Reserve Before/After",
+      "tags": ["ecommerce", "evidence"],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 2,
+      "editable": true,
+      "time": { "from": "now-10m", "to": "now" },
+      "templating": { "list": [
+        { "name": "write_path", "type": "custom", "current": {"text":"reserve-stock-and-snapshot","value":"reserve-stock-and-snapshot"},
+          "query": "reserve-stock-and-snapshot,reserve-stock,reserve-unit",
+          "options": [
+            {"text":"reserve-stock-and-snapshot","value":"reserve-stock-and-snapshot","selected":true},
+            {"text":"reserve-stock","value":"reserve-stock"},
+            {"text":"reserve-unit","value":"reserve-unit"} ] },
+        { "name": "pods", "type": "custom", "current": {"text":"1","value":"1"},
+          "query": "1,2,3", "options": [
+            {"text":"1","value":"1","selected":true},{"text":"2","value":"2"},{"text":"3","value":"3"} ] },
+        { "name": "rw", "type": "custom", "current": {"text":"2m","value":"2m"},
+          "query": "1m,2m,3m", "options": [
+            {"text":"1m","value":"1m"},{"text":"2m","value":"2m","selected":true},{"text":"3m","value":"3m"} ] }
+      ] },
+      "panels": [
+        { "id":1, "type":"stat", "title":"RPS (reserve, k6) — req/s", "gridPos":{"x":0,"y":0,"w":4,"h":6},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"none","decimals":1,"color":{"mode":"fixed","fixedColor":"green"}},"overrides":[]},
+          "options":{"colorMode":"value","graphMode":"area","textMode":"value","reduceOptions":{"calcs":["lastNotNull"]}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"sum(rate(k6_reserve_2xx_total{write_path=\"$write_path\", pods=\"$pods\", scenario=\"reserve\"}[$rw]))"}] },
+        { "id":2, "type":"stat", "title":"error rate", "gridPos":{"x":4,"y":0,"w":4,"h":6},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"percent","decimals":3,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":0.5}]},"color":{"mode":"thresholds"}},"overrides":[]},
+          "options":{"colorMode":"value","graphMode":"area","textMode":"value","reduceOptions":{"calcs":["lastNotNull"]}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"100 * max(k6_http_req_failed_rate{write_path=\"$write_path\", pods=\"$pods\", scenario=\"reserve\"})"}] },
+        { "id":3, "type":"stat", "title":"p95 (k6 client)", "gridPos":{"x":8,"y":0,"w":4,"h":6},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"s","decimals":3,"color":{"mode":"fixed","fixedColor":"green"}},"overrides":[]},
+          "options":{"colorMode":"value","graphMode":"area","textMode":"value","reduceOptions":{"calcs":["lastNotNull"]}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"avg_over_time(k6_reserve_ms_p95{write_path=\"$write_path\", pods=\"$pods\", scenario=\"reserve\"}[$rw])"}] },
+        { "id":4, "type":"stat", "title":"p99 (k6 client)", "gridPos":{"x":12,"y":0,"w":4,"h":6},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"s","decimals":3,"color":{"mode":"fixed","fixedColor":"green"}},"overrides":[]},
+          "options":{"colorMode":"value","graphMode":"area","textMode":"value","reduceOptions":{"calcs":["lastNotNull"]}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"avg_over_time(k6_reserve_ms_p99{write_path=\"$write_path\", pods=\"$pods\", scenario=\"reserve\"}[$rw])"}] },
+        { "id":5, "type":"stat", "title":"avg (k6 client)", "gridPos":{"x":16,"y":0,"w":4,"h":6},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"s","decimals":3,"color":{"mode":"fixed","fixedColor":"green"}},"overrides":[]},
+          "options":{"colorMode":"value","graphMode":"area","textMode":"value","reduceOptions":{"calcs":["lastNotNull"]}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"avg_over_time(k6_reserve_ms_avg{write_path=\"$write_path\", pods=\"$pods\", scenario=\"reserve\"}[$rw])"}] },
+        { "id":6, "type":"stat", "title":"HikariCP pending (product DB)", "gridPos":{"x":20,"y":0,"w":4,"h":6},
+          "datasource":{"type":"prometheus","uid":"prometheus"},
+          "fieldConfig":{"defaults":{"unit":"short","decimals":0,"thresholds":{"mode":"absolute","steps":[{"color":"green","value":null},{"color":"red","value":1}]},"color":{"mode":"thresholds"}},"overrides":[]},
+          "options":{"colorMode":"value","graphMode":"area","textMode":"value","reduceOptions":{"calcs":["max"]}},
+          "targets":[{"refId":"A","datasource":{"type":"prometheus","uid":"prometheus"},
+            "expr":"sum(hikaricp_connections_pending{app=\"service-product\"})"}] }
+      ]
+    }
